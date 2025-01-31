@@ -76,9 +76,13 @@ export class LeoScene {
 
       // Initialize WaterSimulation
       this.waterSim = new WaterSimulation(this.scene);
+      const waterInitSuccess = this.waterSim.initialize();
 
-      // Initialize BoatAgent
-      this.boatAgent = new BoatAgent(this.scene, this.waterSim.waterMesh.position.y);
+      if (waterInitSuccess) {
+        // Initialize and start BoatAgent only if water initialized successfully
+        this.boatAgent = new BoatAgent(this.scene, this.waterSim.waterMesh.position.y);
+        this.boatAgent.initialize();
+      }
 
     } catch (error) {
       console.error("Error initializing physics:", error);

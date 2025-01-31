@@ -1,6 +1,7 @@
 import { VortexBall } from './VortexBall.js';
 import { BowlCreator } from './BowlCreator.js';
 import { BoxCreator } from './BoxCreator.js';
+import { BehavioralSim } from './BehavioralSim.js';
 
 export class LeoScene {
   constructor(canvas) {
@@ -67,6 +68,9 @@ export class LeoScene {
 
       // Show debug layer
       this.scene.debugLayer.show({ overlay: true });
+
+      // Initialize BehavioralSim
+      this.behavioralSim = new BehavioralSim(this.scene);
 
     } catch (error) {
       console.error("Error initializing physics:", error);

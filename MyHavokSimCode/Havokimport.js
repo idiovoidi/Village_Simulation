@@ -3,6 +3,7 @@ import { BowlCreator } from './BowlCreator.js';
 import { BoxCreator } from './BoxCreator.js';
 import { BehavioralSim } from './BehavioralSim.js';
 import { WaterSimulation } from './WaterSimulation.js';
+import { BoatAgent } from './Boats/BoatAgent.js';
 
 export class LeoScene {
   constructor(canvas) {
@@ -75,6 +76,9 @@ export class LeoScene {
 
       // Initialize WaterSimulation
       this.waterSim = new WaterSimulation(this.scene);
+
+      // Initialize BoatAgent
+      this.boatAgent = new BoatAgent(this.scene, this.waterSim.waterMesh.position.y);
 
     } catch (error) {
       console.error("Error initializing physics:", error);

@@ -17,9 +17,10 @@
             touch-action: none;
         }
     </style>
-    <!-- Load Babylon.js and Havok from CDN -->
+    <!-- Load the latest versions of the scripts -->
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/havok/HavokPhysics_umd.js"></script>
+    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
 </head>
 <body>
     <canvas id="renderCanvas"></canvas>
@@ -28,17 +29,21 @@
         import { LeoScene } from './MyHavokSimCode/Havokimport.js';
 
         // Wait for the page to load
-        window.addEventListener('DOMContentLoaded', () => {
-            // Get the canvas element
-            const canvas = document.getElementById('renderCanvas');
-            
-            // Create our scene
-            const scene = new LeoScene(canvas);
-            
-            // Handle window resize
-            window.addEventListener('resize', () => {
-                scene.engine.resize();
-            });
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Get the canvas element
+                const canvas = document.getElementById('renderCanvas');
+                
+                // Create our scene
+                const scene = new LeoScene(canvas);
+                
+                // Handle window resize
+                window.addEventListener('resize', () => {
+                    scene.engine.resize();
+                });
+            } catch (error) {
+                console.error("Error initializing scene:", error);
+            }
         });
     </script>
 </body>

@@ -6,32 +6,53 @@ export class RoadSystem {
         this.scene = scene;
         this.roadMesh = null;
         this.cars = [];
-        this.roadRadius = 120;    // Radius to center of road
-        this.roadHeight = 15;     // Height above ground
-        this.roadWidth = 8;       // Width of the road
+        this.roadWidth = 8;
+        this.bowlRadius = 100;
+        this.roadHeight = 4; // Increased height above terrain
         this.init();
     }
 
     init() {
-        this.createElevatedRoad();
-        this.createCars(3);
+        this.createContourRoad();
+        this.createCars(5);
         this.scene.registerBeforeRender(() => this.updateCars());
     }
 
-    createElevatedRoad() {
-        // Create a torus for the elevated road
-        this.roadMesh = BABYLON.MeshBuilder.CreateTorus("road", {
-            diameter: this.roadRadius * 2,
-            thickness: this.roadWidth,
-            tessellation: 64,
+    createContourRoad() {
+        const points = [];
+        const segments = 128; // More segments for smoother road
+        
+        // Create a more natural winding path
+        for (let i = 0; i <= segments; i++) {
+            const angle = (i / segments) * Math.PI * 2;
+            
+            // Vary the radius to create a more natural path
+            const baseRadius = this.bowlRadius * 0.75; // Base radius at 75% of bowl
+            const radiusVariation = Math.sin(angle * 2) * 10 + Math.cos(angle * 3) * 5;
+            const radius = baseRadius + radiusVariation;
+            
+            // Add some meandering to the path
+            const x = Math.cos(angle) * radius + Math.sin(angle * 3) * 5;
+            const z = Math.sin(angle) * radius + Math.cos(angle * 3) * 5;
+            
+            // Get base terrain height and add smooth elevation changes
+            const baseHeight = this.getTerrainHeight(x, z);
+            const elevationChange = Math.sin(angle * 4) * 2;
+            const y = baseHeight + this.roadHeight + elevationChange;
+            
+            points.push(new BABYLON.Vector3(x, y, z));
+        }
+
+        // Smooth out the points to avoid sharp turns
+        const smoothedPoints = this.smoothPoints(points, 3);
+
+        // Create the road mesh
+        this.roadMesh = BABYLON.MeshBuilder.CreateRibbon("road", {
+            pathArray: [smoothedPoints],
+            closePath: true,
+            width: this.roadWidth,
             sideOrientation: BABYLON.Mesh.DOUBLESIDE
         }, this.scene);
-
-        // Rotate to be horizontal
-        this.roadMesh.rotation.x = Math.PI / 2;
-        
-        // Position above ground
-        this.roadMesh.position.y = this.roadHeight;
 
         // Create road material
         const roadMaterial = new BABYLON.StandardMaterial("roadMat", this.scene);
@@ -39,49 +60,69 @@ export class RoadSystem {
         roadMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
         this.roadMesh.material = roadMaterial;
 
-        // Add road markings
-        this.createRoadMarkings();
+        this.roadPoints = smoothedPoints;
+        this.createRoadMarkings(smoothedPoints);
     }
 
-    createRoadMarkings() {
-        const segments = 64; // More segments for smoother markings
-        const markingLength = 3;   // Length of each marking
-        const markingGap = 5;      // Gap between markings
-        const totalSpacing = markingLength + markingGap;
+    smoothPoints(points, iterations) {
+        for (let iter = 0; iter < iterations; iter++) {
+            const smoothed = [];
+            for (let i = 0; i < points.length; i++) {
+                const prev = points[(i - 1 + points.length) % points.length];
+                const curr = points[i];
+                const next = points[(i + 1) % points.length];
+                
+                // Average position with neighbors
+                smoothed.push(new BABYLON.Vector3(
+                    (prev.x + curr.x + next.x) / 3,
+                    (prev.y + curr.y + next.y) / 3,
+                    (prev.z + curr.z + next.z) / 3
+                ));
+            }
+            points = smoothed;
+        }
+        return points;
+    }
 
-        // Calculate total circumference and number of markings
-        const circumference = this.roadRadius * Math.PI * 2;
-        const markingsCount = Math.floor(circumference / totalSpacing);
+    getTerrainHeight(x, z) {
+        const distFromCenter = Math.sqrt(x * x + z * z);
+        const bowlDepth = 25;
+        
+        // Smoother bowl shape
+        let height = -Math.pow(distFromCenter / this.bowlRadius, 1.2) * bowlDepth;
+        
+        // Add gentle terrain variation
+        height += Math.sin(x/30) * Math.cos(z/30) * 3;
+        height += Math.sin((x + z)/40) * 2;
+        
+        return height;
+    }
 
-        for (let i = 0; i < markingsCount; i++) {
-            const angle = (i / markingsCount) * Math.PI * 2;
-            
-            // Calculate position on the road
-            const x = Math.cos(angle) * this.roadRadius;
-            const z = Math.sin(angle) * this.roadRadius;
-
+    createRoadMarkings(points) {
+        for (let i = 0; i < points.length - 1; i += 2) {
             const marking = BABYLON.MeshBuilder.CreateBox("marking", {
-                width: 0.3,        // Thin marking
-                height: 0.05,      // Very thin height
-                depth: markingLength
+                width: 0.3,
+                height: 0.05,
+                depth: 2
             }, this.scene);
 
-            // Position marking on the road surface
-            marking.position = new BABYLON.Vector3(x, this.roadHeight + 0.03, z);
-            marking.rotation.y = angle + Math.PI / 2;
+            marking.position = points[i].clone();
+            marking.position.y += 0.1;
 
-            // White material for markings
+            // Orient marking to face next point
+            const direction = points[i + 1].subtract(points[i]);
+            marking.rotation.y = Math.atan2(direction.x, direction.z);
+
             const markingMaterial = new BABYLON.StandardMaterial("markingMat", this.scene);
             markingMaterial.diffuseColor = new BABYLON.Color3(1, 1, 1);
-            markingMaterial.emissiveColor = new BABYLON.Color3(0.5, 0.5, 0.5); // Make markings glow slightly
-            markingMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
+            markingMaterial.emissiveColor = new BABYLON.Color3(0.5, 0.5, 0.5);
             marking.material = markingMaterial;
         }
     }
 
     createCars(count) {
         for (let i = 0; i < count; i++) {
-            const carBody = BABYLON.MeshBuilder.CreateBox("car", {
+            const carMesh = BABYLON.MeshBuilder.CreateBox("car", {
                 width: 2,
                 height: 1.5,
                 depth: 4
@@ -93,30 +134,48 @@ export class RoadSystem {
                 Math.random(),
                 Math.random()
             );
-            carBody.material = carMaterial;
+            carMesh.material = carMaterial;
 
             this.cars.push({
-                mesh: carBody,
-                angle: (i / count) * Math.PI * 2,
-                speed: 0.002 + Math.random() * 0.002
+                mesh: carMesh,
+                progress: Math.random(),
+                speed: 0.001 + Math.random() * 0.001
             });
         }
     }
 
     updateCars() {
         this.cars.forEach(car => {
-            car.angle += car.speed;
-            if (car.angle > Math.PI * 2) {
-                car.angle -= Math.PI * 2;
-            }
+            car.progress += car.speed;
+            if (car.progress >= 1) car.progress -= 1;
 
-            // Calculate position on elevated road
-            const x = Math.cos(car.angle) * this.roadRadius;
-            const z = Math.sin(car.angle) * this.roadRadius;
+            // Find current position on road
+            const index = Math.floor(car.progress * (this.roadPoints.length - 1));
+            const nextIndex = (index + 1) % this.roadPoints.length;
+            const t = car.progress * (this.roadPoints.length - 1) - index;
 
-            // Position slightly above road surface
-            car.mesh.position = new BABYLON.Vector3(x, this.roadHeight + 0.8, z);
-            car.mesh.rotation.y = car.angle + Math.PI / 2;
+            // Interpolate position
+            const position = BABYLON.Vector3.Lerp(
+                this.roadPoints[index],
+                this.roadPoints[nextIndex],
+                t
+            );
+            position.y += 1; // Lift slightly above road
+
+            car.mesh.position = position;
+
+            // Orient car to face direction of travel
+            const direction = this.roadPoints[nextIndex].subtract(this.roadPoints[index]);
+            car.mesh.rotation.y = Math.atan2(direction.x, direction.z);
+
+            // Tilt car to match road slope
+            const normal = BABYLON.Vector3.Cross(direction, BABYLON.Axis.Y);
+            normal.normalize();
+            const up = BABYLON.Vector3.Cross(direction, normal);
+            up.normalize();
+            
+            const slope = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
+            car.mesh.rotation.x = slope;
         });
     }
 } 

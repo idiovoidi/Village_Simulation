@@ -6,6 +6,9 @@ import { WaterSimulation } from './WaterSimulation.js';
 import { BoatAgent } from './Boats/BoatAgent.js';
 import { RoadSystem } from './RoadSystem.js';
 import { HouseSystem } from './HouseSystem.js';
+import { FishBehaviour } from './Fish/FishBehaviour.js';
+import { BirdBehaviour } from './Agents/Birds/BirdBehaviour.js';
+import { CloudSystem } from './CloudSystem.js';
 
 export class LeoScene {
   constructor(canvas) {
@@ -70,7 +73,11 @@ export class LeoScene {
       const waterInitSuccess = this.waterSim.initialize();
 
       if (waterInitSuccess) {
-        // Initialize and start BoatAgent only if water initialized successfully
+        // Initialize fish after water is created
+        this.fishSystem = new FishBehaviour(this.scene, this.waterSim.waterMesh);
+        this.fishSystem.initialize(20); // Create 20 fish
+
+        // Initialize boats after fish
         this.boatAgent = new BoatAgent(this.scene, this.waterSim.waterMesh.position.y);
         this.boatAgent.initialize();
       }
@@ -93,6 +100,13 @@ export class LeoScene {
 
       // Initialize HouseSystem
       this.houseSystem = new HouseSystem(this.scene);
+
+      // Initialize BirdBehaviour
+      this.birdSystem = new BirdBehaviour(this.scene);
+      this.birdSystem.initialize(15); // Create 15 birds
+
+      // Initialize CloudSystem
+      this.cloudSystem = new CloudSystem(this.scene);
 
     } catch (error) {
       console.error("Error initializing physics:", error);

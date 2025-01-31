@@ -4,6 +4,8 @@ import { BoxCreator } from './BoxCreator.js';
 import { BehavioralSim } from './BehavioralSim.js';
 import { WaterSimulation } from './WaterSimulation.js';
 import { BoatAgent } from './Boats/BoatAgent.js';
+import { RoadSystem } from './RoadSystem.js';
+import { HouseSystem } from './HouseSystem.js';
 
 export class LeoScene {
   constructor(canvas) {
@@ -48,15 +50,30 @@ export class LeoScene {
       // Enable physics in the scene
       this.scene.enablePhysics(new BABYLON.Vector3(0, -9.81, 0), havokPlugin);
 
-      // Create bowl and boxes
+      // Create bowl first
       const bowlCreator = new BowlCreator(this.scene);
       bowlCreator.createBowl();
 
+      // Initialize RoadSystem after bowl is created
+      console.log("Creating RoadSystem");
+      this.roadSystem = new RoadSystem(this.scene);
+
+      // Initialize other systems
       const boxCreator = new BoxCreator(this.scene);
       this.boxes = boxCreator.createBoxes();
       
       // Create vortex ball
       this.vortexBall = new VortexBall(this.scene);
+
+      // Initialize WaterSimulation
+      this.waterSim = new WaterSimulation(this.scene);
+      const waterInitSuccess = this.waterSim.initialize();
+
+      if (waterInitSuccess) {
+        // Initialize and start BoatAgent only if water initialized successfully
+        this.boatAgent = new BoatAgent(this.scene, this.waterSim.waterMesh.position.y);
+        this.boatAgent.initialize();
+      }
 
       // Register before render to update physics
       this.scene.registerBeforeRender(() => {
@@ -74,15 +91,8 @@ export class LeoScene {
       // Initialize BehavioralSim
       this.behavioralSim = new BehavioralSim(this.scene);
 
-      // Initialize WaterSimulation
-      this.waterSim = new WaterSimulation(this.scene);
-      const waterInitSuccess = this.waterSim.initialize();
-
-      if (waterInitSuccess) {
-        // Initialize and start BoatAgent only if water initialized successfully
-        this.boatAgent = new BoatAgent(this.scene, this.waterSim.waterMesh.position.y);
-        this.boatAgent.initialize();
-      }
+      // Initialize HouseSystem
+      this.houseSystem = new HouseSystem(this.scene);
 
     } catch (error) {
       console.error("Error initializing physics:", error);

@@ -2,6 +2,7 @@ import { VortexBall } from './VortexBall.js';
 import { BowlCreator } from './BowlCreator.js';
 import { BoxCreator } from './BoxCreator.js';
 import { BehavioralSim } from './BehavioralSim.js';
+import { WaterSimulation } from './WaterSimulation.js';
 
 export class LeoScene {
   constructor(canvas) {
@@ -71,6 +72,9 @@ export class LeoScene {
 
       // Initialize BehavioralSim
       this.behavioralSim = new BehavioralSim(this.scene);
+
+      // Initialize WaterSimulation
+      this.waterSim = new WaterSimulation(this.scene);
 
     } catch (error) {
       console.error("Error initializing physics:", error);

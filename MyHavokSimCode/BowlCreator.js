@@ -3,7 +3,7 @@ export class BowlCreator {
         this.scene = scene;
     }
 
-    createBowl(bowlRadius = 50, bowlDepth = 15, segments = 64) {
+    createBowl(bowlRadius = 100, bowlDepth = 25, segments = 96) {
         const positions = [];
         const indices = [];
         const uvs = [];
@@ -16,11 +16,11 @@ export class BowlCreator {
                 const z = ((j / segments) * 2 - 1) * bowlRadius;
                 const distFromCenter = Math.sqrt(x * x + z * z);
                 
-                // Smooth bowl shape with cubic interpolation
+                // Base bowl shape with gentler slope
                 let y = this.smoothBowlShape(distFromCenter, bowlRadius, bowlDepth);
                 
-                // Add large-scale terrain features
-                y += this.getTerrainHeight(x, z, bowlRadius);
+                // Add landscape features
+                y += this.getLandscapeHeight(x, z, bowlRadius);
                 
                 positions.push(x, y, z);
                 
@@ -74,8 +74,8 @@ export class BowlCreator {
     }
 
     smoothBowlShape(distance, radius, depth) {
-        // Cubic interpolation for smoother bowl shape
-        const t = Math.min(1, distance / radius);
+        // Gentler bowl curve
+        const t = Math.min(1, Math.pow(distance / radius, 0.8));
         const smoothStep = t * t * (3 - 2 * t);
         return -depth * smoothStep;
     }
@@ -86,43 +86,71 @@ export class BowlCreator {
         return (6 * t * (1 - t) * depth) / radius;
     }
 
-    getTerrainHeight(x, z, bowlRadius) {
-        // Simplified terrain with larger, smoother features
+    getLandscapeHeight(x, z, bowlRadius) {
         let height = 0;
         
-        // Large central platform
-        const platformRadius = bowlRadius * 0.2;
-        const platformHeight = -2;
-        if (Math.sqrt(x*x + z*z) < platformRadius) {
-            height += platformHeight;
-        }
+        // Central valley system
+        const valleyWidth = bowlRadius * 0.6;
+        height += this.createValley(x, z, valleyWidth) * 8;
         
-        // Four smooth ramps at cardinal directions
-        const rampWidth = bowlRadius * 0.4;
-        const rampHeight = 4;
+        // Multiple plateaus
+        height += this.createPlateau(x, z, bowlRadius * 0.3, -5, 0.3);
+        height += this.createPlateau(x - bowlRadius * 0.4, z + bowlRadius * 0.4, bowlRadius * 0.2, -3, 0.6);
+        height += this.createPlateau(x + bowlRadius * 0.4, z - bowlRadius * 0.4, bowlRadius * 0.15, -4, 0.4);
         
-        // North-South ramps
-        height += this.smoothRamp(x, z, 0, bowlRadius * 0.5, rampWidth, rampHeight);
-        height += this.smoothRamp(x, z, 0, -bowlRadius * 0.5, rampWidth, rampHeight);
+        // Rolling hills
+        height += this.createHills(x, z, bowlRadius);
         
-        // East-West ramps
-        height += this.smoothRamp(z, x, 0, bowlRadius * 0.5, rampWidth, rampHeight);
-        height += this.smoothRamp(z, x, 0, -bowlRadius * 0.5, rampWidth, rampHeight);
+        // Ridges
+        height += this.createRidges(x, z, bowlRadius);
         
         // Smooth transition at edges
-        const edgeFade = 1 - Math.pow(Math.sqrt(x*x + z*z) / bowlRadius, 8);
+        const edgeFade = 1 - Math.pow(Math.sqrt(x*x + z*z) / bowlRadius, 6);
         return height * Math.max(0, edgeFade);
     }
 
-    smoothRamp(x, z, centerX, centerZ, width, height) {
-        const dist = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(z - centerZ, 2));
-        const t = Math.max(0, 1 - dist / width);
-        return height * Math.pow(t, 2);
+    createValley(x, z, width) {
+        // Create a winding valley system
+        const noise = Math.sin(x/20) * 5 + Math.cos(z/15) * 3;
+        const modifiedX = x + noise;
+        const modifiedZ = z + noise;
+        
+        const dist = Math.sqrt(modifiedX * modifiedX + modifiedZ * modifiedZ);
+        return Math.sin(dist / 15) * Math.exp(-Math.pow(dist / width, 2));
+    }
+
+    createPlateau(x, z, radius, height, sharpness) {
+        // Create smooth plateaus
+        const dist = Math.sqrt(x * x + z * z);
+        return height * (1 / (1 + Math.pow(dist / radius, 1/sharpness)));
+    }
+
+    createHills(x, z, bowlRadius) {
+        // Create rolling hills using noise-like functions
+        const scale = bowlRadius * 0.1;
+        let hills = 0;
+        
+        hills += Math.sin(x/scale) * Math.cos(z/scale) * 2;
+        hills += Math.sin((x + z)/scale) * Math.cos((x - z)/scale) * 1.5;
+        hills += Math.sin(x/(scale*2)) * Math.cos(z/(scale*1.5)) * 3;
+        
+        return hills;
+    }
+
+    createRidges(x, z, bowlRadius) {
+        // Create ridge lines
+        const angle = Math.atan2(z, x);
+        const dist = Math.sqrt(x * x + z * z);
+        
+        let ridges = Math.sin(angle * 4) * Math.exp(-Math.pow(dist / (bowlRadius * 0.7), 2)) * 5;
+        ridges += Math.sin(angle * 6 + dist/20) * Math.exp(-Math.pow(dist / (bowlRadius * 0.5), 2)) * 3;
+        
+        return ridges;
     }
 
     createWalls(bowlRadius, bowlDepth, bowlMaterial) {
-        const wallHeight = 20; // Taller walls
-        const wallThickness = 5; // Thicker walls
+        const wallHeight = 30; // Even taller walls
+        const wallThickness = 8; // Thicker walls
         
         for (let i = 0; i < 4; i++) {
             // Main wall

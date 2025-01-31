@@ -4,10 +4,10 @@ export class BoxCreator {
         this.boxes = [];
     }
 
-    createBoxes(count = 20, bowlRadius = 20) {
+    createBoxes(count = 30, bowlRadius = 100) {
         for (let i = 0; i < count; i++) {
             const box = BABYLON.MeshBuilder.CreateBox(`box${i}`, {
-                size: 1
+                size: 2 // Larger boxes
             }, this.scene);
             
             const boxMaterial = new BABYLON.StandardMaterial(`boxMat${i}`, this.scene);
@@ -20,7 +20,7 @@ export class BoxCreator {
 
             box.position = new BABYLON.Vector3(
                 Math.random() * bowlRadius - bowlRadius/2,
-                20 + i * 2,
+                40 + i * 3, // Higher starting position
                 Math.random() * bowlRadius - bowlRadius/2
             );
 

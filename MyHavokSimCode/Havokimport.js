@@ -1,8 +1,13 @@
+import { VortexBall } from './VortexBall.js';
+import { BowlCreator } from './BowlCreator.js';
+import { BoxCreator } from './BoxCreator.js';
+
 export class LeoScene {
   constructor(canvas) {
     this.canvas = canvas;
     this.engine = new BABYLON.Engine(this.canvas, true);
     this.scene = this.createScene();
+    this.boxes = []; // Store references to boxes
     this.init();
   }
 
@@ -22,6 +27,8 @@ export class LeoScene {
       this.scene
     );
     camera.attachControl(this.canvas, true);
+    camera.lowerRadiusLimit = 10;
+    camera.upperRadiusLimit = 100;
 
     // Add lighting
     const light = new BABYLON.HemisphericLight(
@@ -38,8 +45,20 @@ export class LeoScene {
       // Enable physics in the scene
       this.scene.enablePhysics(new BABYLON.Vector3(0, -9.81, 0), havokPlugin);
 
-      // Create the physics demo
-      this.createPhysicsDemo();
+      // Create bowl and boxes
+      const bowlCreator = new BowlCreator(this.scene);
+      bowlCreator.createBowl();
+
+      const boxCreator = new BoxCreator(this.scene);
+      this.boxes = boxCreator.createBoxes();
+      
+      // Create vortex ball
+      this.vortexBall = new VortexBall(this.scene);
+
+      // Register before render to update physics
+      this.scene.registerBeforeRender(() => {
+        this.vortexBall.applyVortexForce(this.boxes);
+      });
 
       // Start the render loop
       this.engine.runRenderLoop(() => {
@@ -51,63 +70,6 @@ export class LeoScene {
 
     } catch (error) {
       console.error("Error initializing physics:", error);
-    }
-  }
-
-  createPhysicsDemo() {
-    // Create a ground box
-    const ground = BABYLON.MeshBuilder.CreateBox("ground", {
-      width: 20,
-      height: 2,
-      depth: 20
-    }, this.scene);
-    
-    // Move ground down so its top surface is at y=0
-    ground.position.y = -1;
-
-    // Create material for ground
-    const groundMaterial = new BABYLON.StandardMaterial("groundMat", this.scene);
-    groundMaterial.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
-    ground.material = groundMaterial;
-    
-    // Add physics to ground
-    const groundAggregate = new BABYLON.PhysicsAggregate(
-      ground,
-      BABYLON.PhysicsShapeType.BOX,
-      { mass: 0, restitution: 0.7, friction: 0.8 },
-      this.scene
-    );
-
-    // Create falling boxes
-    for (let i = 0; i < 10; i++) {
-      // Create box mesh
-      const box = BABYLON.MeshBuilder.CreateBox(`box${i}`, {
-        size: 1
-      }, this.scene);
-      
-      // Create material for box
-      const boxMaterial = new BABYLON.StandardMaterial(`boxMat${i}`, this.scene);
-      boxMaterial.diffuseColor = new BABYLON.Color3(
-        Math.random(),
-        Math.random(),
-        Math.random()
-      );
-      box.material = boxMaterial;
-
-      // Position box
-      box.position = new BABYLON.Vector3(
-        Math.random() * 10 - 5,  // Random X between -5 and 5
-        10 + i * 2,             // Start height
-        Math.random() * 10 - 5   // Random Z between -5 and 5
-      );
-
-      // Add physics to box
-      const boxAggregate = new BABYLON.PhysicsAggregate(
-        box,
-        BABYLON.PhysicsShapeType.BOX,
-        { mass: 1, restitution: 0.7, friction: 0.5 },
-        this.scene
-      );
     }
   }
 }

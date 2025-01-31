@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Babylon.js Havok Physics Demo</title>
+    <style>
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+    </style>
+    <!-- Load Babylon.js and Havok from CDN -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/havok/HavokPhysics_umd.js"></script>
+</head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+    <script type="module">
+        // Import our scene class
+        import { LeoScene } from './MyHavokSimCode/Havokimport.js';
+
+        // Wait for the page to load
+        window.addEventListener('DOMContentLoaded', () => {
+            // Get the canvas element
+            const canvas = document.getElementById('renderCanvas');
+            
+            // Create our scene
+            const scene = new LeoScene(canvas);
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                scene.engine.resize();
+            });
+        });
+    </script>
+</body>
+</html> 

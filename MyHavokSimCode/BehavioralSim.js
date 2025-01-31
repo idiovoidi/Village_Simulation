@@ -41,91 +41,73 @@ export class BehavioralSim {
         }
     }
 
-    createAgents(count) {
-        for (let i = 0; i < count; i++) {
-            const agent = this.createAgent(`agent_${i}`);
-            this.agents.push(agent);
-        }
-    }
-
     createAgent(name) {
         // Create root mesh for the agent
         const root = new BABYLON.TransformNode(name, this.scene);
         
-        // Create body parts
-        const body = BABYLON.MeshBuilder.CreateCapsule(
-            `${name}_body`,
-            { radius: 0.5, height: 2, tessellation: 8 },
+        // Create body parts with better proportions
+        const torso = BABYLON.MeshBuilder.CreateCapsule(
+            `${name}_torso`,
+            { radius: 0.4, height: 1.2, tessellation: 16 },
             this.scene
         );
-        body.parent = root;
-        body.position.y = 1;
+        torso.parent = root;
+        torso.position.y = 1.6;
 
         // Create head
         const head = BABYLON.MeshBuilder.CreateSphere(
             `${name}_head`,
-            { diameter: 0.8, segments: 8 },
+            { diameter: 0.5, segments: 16 },
             this.scene
         );
-        head.parent = body;
-        head.position.y = 1.2;
+        head.parent = torso;
+        head.position.y = 0.8;
 
-        // Create arms
-        const createArm = (side) => {
-            const arm = BABYLON.MeshBuilder.CreateCapsule(
-                `${name}_arm_${side}`,
-                { radius: 0.2, height: 1.2, tessellation: 8 },
-                this.scene
-            );
-            arm.parent = body;
-            arm.position.y = 0.4;
-            arm.position.x = side === 'left' ? -0.6 : 0.6;
-            arm.rotation.z = side === 'left' ? Math.PI/6 : -Math.PI/6;
-            return arm;
+        // Create limbs
+        const limbs = {
+            leftArm: this.createLimb(name, "leftArm", { radius: 0.15, height: 0.8 }),
+            rightArm: this.createLimb(name, "rightArm", { radius: 0.15, height: 0.8 }),
+            leftLeg: this.createLimb(name, "leftLeg", { radius: 0.2, height: 1 }),
+            rightLeg: this.createLimb(name, "rightLeg", { radius: 0.2, height: 1 })
         };
 
-        const leftArm = createArm('left');
-        const rightArm = createArm('right');
+        // Position limbs
+        limbs.leftArm.parent = torso;
+        limbs.rightArm.parent = torso;
+        limbs.leftLeg.parent = torso;
+        limbs.rightLeg.parent = torso;
 
-        // Create legs
-        const createLeg = (side) => {
-            const leg = BABYLON.MeshBuilder.CreateCapsule(
-                `${name}_leg_${side}`,
-                { radius: 0.25, height: 1.5, tessellation: 8 },
-                this.scene
-            );
-            leg.parent = body;
-            leg.position.y = -1;
-            leg.position.x = side === 'left' ? -0.3 : 0.3;
-            return leg;
-        };
+        limbs.leftArm.position = new BABYLON.Vector3(-0.5, 0.3, 0);
+        limbs.rightArm.position = new BABYLON.Vector3(0.5, 0.3, 0);
+        limbs.leftLeg.position = new BABYLON.Vector3(-0.3, -0.8, 0);
+        limbs.rightLeg.position = new BABYLON.Vector3(0.3, -0.8, 0);
 
-        const leftLeg = createLeg('left');
-        const rightLeg = createLeg('right');
-
-        // Create materials
+        // Create materials with better colors
         const bodyMaterial = new BABYLON.StandardMaterial(`${name}_material`, this.scene);
-        const randomColor = new BABYLON.Color3(
-            0.2 + Math.random() * 0.5,
-            0.2 + Math.random() * 0.5,
-            0.2 + Math.random() * 0.5
+        const skinTone = new BABYLON.Color3(
+            0.8 + Math.random() * 0.2,
+            0.6 + Math.random() * 0.2,
+            0.4 + Math.random() * 0.2
         );
-        bodyMaterial.diffuseColor = randomColor;
+        
+        const clothingColor = new BABYLON.Color3(
+            Math.random(),
+            Math.random(),
+            Math.random()
+        );
+
+        bodyMaterial.diffuseColor = skinTone;
         bodyMaterial.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
 
-        const headMaterial = new BABYLON.StandardMaterial(`${name}_head_material`, this.scene);
-        headMaterial.diffuseColor = randomColor.scale(1.2);
-        headMaterial.specularColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+        const clothingMaterial = new BABYLON.StandardMaterial(`${name}_clothing`, this.scene);
+        clothingMaterial.diffuseColor = clothingColor;
 
         // Apply materials
-        body.material = bodyMaterial;
-        head.material = headMaterial;
-        leftArm.material = bodyMaterial;
-        rightArm.material = bodyMaterial;
-        leftLeg.material = bodyMaterial;
-        rightLeg.material = bodyMaterial;
+        head.material = bodyMaterial;
+        torso.material = clothingMaterial;
+        Object.values(limbs).forEach(limb => limb.material = clothingMaterial);
 
-        // Create physics body (using compound shapes)
+        // Add physics
         const aggregate = new BABYLON.PhysicsAggregate(
             root,
             BABYLON.PhysicsShapeType.CAPSULE,
@@ -133,250 +115,105 @@ export class BehavioralSim {
             this.scene
         );
 
-        // Add animation for walking
-        const walkAnimation = () => {
-            const frameRate = 30;
-            const walkSpeed = 1.5;
+        // Random starting position
+        const startPos = this.getRandomStartPosition();
+        root.position = startPos;
 
-            const animations = [];
-
-            // Leg animations
-            const legAnimation = new BABYLON.Animation(
-                "legAnimation",
-                "rotation.x",
-                frameRate,
-                BABYLON.Animation.ANIMATIONTYPE_FLOAT,
-                BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
-            );
-
-            const legKeys = [];
-            legKeys.push({ frame: 0, value: Math.PI/8 });
-            legKeys.push({ frame: frameRate/2, value: -Math.PI/8 });
-            legKeys.push({ frame: frameRate, value: Math.PI/8 });
-            legAnimation.setKeys(legKeys);
-
-            // Arm animations (opposite to legs)
-            const armAnimation = new BABYLON.Animation(
-                "armAnimation",
-                "rotation.x",
-                frameRate,
-                BABYLON.Animation.ANIMATIONTYPE_FLOAT,
-                BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
-            );
-
-            const armKeys = [];
-            armKeys.push({ frame: 0, value: -Math.PI/8 });
-            armKeys.push({ frame: frameRate/2, value: Math.PI/8 });
-            armKeys.push({ frame: frameRate, value: -Math.PI/8 });
-            armAnimation.setKeys(armKeys);
-
-            // Store animations with their targets
-            animations.push({
-                animation: legAnimation,
-                target: leftLeg,
-                animatable: null
-            });
-            animations.push({
-                animation: legAnimation.clone(),
-                target: rightLeg,
-                animatable: null,
-                inverse: true
-            });
-            animations.push({
-                animation: armAnimation,
-                target: leftArm,
-                animatable: null
-            });
-            animations.push({
-                animation: armAnimation.clone(),
-                target: rightArm,
-                animatable: null,
-                inverse: true
-            });
-
-            return animations;
-        };
-
-        // Agent properties
-        const agentData = {
+        return {
             mesh: root,
-            body: body,
-            head: head,
-            leftArm: leftArm,
-            rightArm: rightArm,
-            leftLeg: leftLeg,
-            rightLeg: rightLeg,
+            parts: {
+                torso,
+                head,
+                ...limbs
+            },
             physics: aggregate,
             currentTarget: null,
-            path: [],
             speed: 0.5 + Math.random() * 0.5,
             state: 'seeking',
             waitTime: 0,
-            behaviors: {
-                seeking: true,
-                separation: true,
-                alignment: true,
-                cohesion: true
-            },
-            isWalking: false,
-            animations: [],
-            startWalking: () => {
-                const frameRate = 30;
-                const walkSpeed = 1.5;
-                
-                // Create and store animation references
-                agentData.animations = walkAnimation();
-                
-                // Start all animations
-                agentData.animations.forEach(anim => {
-                    if (anim.inverse) {
-                        anim.animation.setKeys(anim.animation.getKeys().map(k => ({
-                            frame: k.frame,
-                            value: -k.value
-                        })));
-                    }
-                    anim.animatable = this.scene.beginAnimation(
-                        anim.target,
-                        0,
-                        frameRate,
-                        true,
-                        walkSpeed
-                    );
-                });
-            },
-            stopWalking: () => {
-                agentData.animations.forEach(anim => {
-                    if (anim.animatable) {
-                        anim.animatable.stop();
-                        anim.animatable = null;
-                    }
-                });
-                agentData.isWalking = false;
+            flockingParams: {
+                separationWeight: 1.0,
+                alignmentWeight: 0.7,
+                cohesionWeight: 0.5,
+                separationRadius: 5,
+                alignmentRadius: 10,
+                cohesionRadius: 15
             }
         };
+    }
 
-        return agentData;
+    createLimb(name, limbName, dimensions) {
+        return BABYLON.MeshBuilder.CreateCapsule(
+            `${name}_${limbName}`,
+            { radius: dimensions.radius, height: dimensions.height, tessellation: 16 },
+            this.scene
+        );
+    }
+
+    createAgents(count) {
+        for (let i = 0; i < count; i++) {
+            const agent = this.createAgent(`agent_${i}`);
+            this.agents.push(agent);
+        }
     }
 
     createTargetPoints() {
-        // Create interesting points for agents to visit
-        const points = [
-            { position: new BABYLON.Vector3(0, 0, 0), priority: 1 },  // Center
-            { position: new BABYLON.Vector3(50, 0, 50), priority: 0.8 },  // Corners
-            { position: new BABYLON.Vector3(-50, 0, 50), priority: 0.8 },
-            { position: new BABYLON.Vector3(50, 0, -50), priority: 0.8 },
-            { position: new BABYLON.Vector3(-50, 0, -50), priority: 0.8 }
-        ];
+        // Create points in a circle around the bowl
+        const radius = 80;
+        const pointCount = 8;
+        
+        for (let i = 0; i < pointCount; i++) {
+            const angle = (i / pointCount) * Math.PI * 2;
+            const x = Math.cos(angle) * radius;
+            const z = Math.sin(angle) * radius;
+            const y = this.getTerrainHeight(x, z);
+            
+            this.targetPoints.push({
+                position: new BABYLON.Vector3(x, y, z),
+                priority: 1
+            });
+        }
 
-        points.forEach(point => {
-            point.position.y = this.getHeightAtPoint(point.position.x, point.position.z);
-            this.targetPoints.push(point);
+        // Add center point
+        this.targetPoints.push({
+            position: new BABYLON.Vector3(0, this.getTerrainHeight(0, 0), 0),
+            priority: 1.2
         });
     }
 
     updateBehaviors() {
         this.agents.forEach(agent => {
+            // Calculate flocking forces
+            const flockingForce = this.calculateFlockingForce(agent);
+            
             switch (agent.state) {
                 case 'seeking':
-                    this.updateSeekingBehavior(agent);
+                    this.updateSeekingBehavior(agent, flockingForce);
                     break;
                 case 'waiting':
                     this.updateWaitingBehavior(agent);
                     break;
-                case 'flocking':
-                    this.updateFlockingBehavior(agent);
-                    break;
             }
-
-            // Apply group behaviors directly instead of using separate methods
-            let combinedForce = new BABYLON.Vector3(0, 0, 0);
             
-            if (agent.behaviors.separation) {
-                combinedForce.addInPlace(this.calculateSeparation(agent));
-            }
-            if (agent.behaviors.alignment) {
-                combinedForce.addInPlace(this.calculateAlignment(agent));
-            }
-            if (agent.behaviors.cohesion) {
-                combinedForce.addInPlace(this.calculateCohesion(agent));
-            }
-
-            // Apply combined force if any behaviors are active
-            if (agent.behaviors.separation || agent.behaviors.alignment || agent.behaviors.cohesion) {
-                combinedForce.normalize();
-                const currentVel = agent.physics.body.getLinearVelocity();
-                const newVel = currentVel.add(combinedForce.scale(agent.speed * 0.1));
-                agent.physics.body.setLinearVelocity(newVel);
-            }
-
-            // Update physics velocity based on behaviors
+            // Update physics, orientation, and animations
             this.updateAgentPhysics(agent);
+            this.updateLimbAnimations(agent);
         });
     }
 
-    updateSeekingBehavior(agent) {
-        if (!agent.currentTarget) {
-            agent.currentTarget = this.findNewTarget(agent);
-        }
-
-        const target = agent.currentTarget;
-        const direction = target.subtract(agent.mesh.position);
-        const distance = direction.length();
-        
-        // Calculate path considering terrain
-        const normalizedDir = direction.normalize();
-        const terrainInfo = this.getTerrainInfo(agent.mesh.position.x, agent.mesh.position.z);
-        
-        // Project movement direction onto terrain plane
-        const up = terrainInfo.normal;
-        const right = BABYLON.Vector3.Cross(normalizedDir, up).normalize();
-        const forward = BABYLON.Vector3.Cross(up, right).normalize();
-        
-        // Calculate target velocity considering terrain
-        const targetVelocity = forward.scale(agent.speed);
-        
-        // Add some randomness to movement
-        targetVelocity.addInPlace(new BABYLON.Vector3(
-            (Math.random() - 0.5) * 0.2,
-            0,
-            (Math.random() - 0.5) * 0.2
-        ));
-        
-        // Smoothly blend current velocity with target velocity
-        const currentVel = agent.physics.body.getLinearVelocity();
-        const blendedVel = BABYLON.Vector3.Lerp(currentVel, targetVelocity, 0.1);
-        
-        agent.physics.body.setLinearVelocity(blendedVel);
-
-        // Check if reached target
-        if (distance < 2) {
-            agent.state = 'waiting';
-            agent.waitTime = 1000 + Math.random() * 2000;
-            agent.isWalking = false;
-        }
-    }
-
-    updateWaitingBehavior(agent) {
-        agent.waitTime -= this.scene.getEngine().getDeltaTime();
-        if (agent.waitTime <= 0) {
-            agent.state = 'seeking';
-            agent.currentTarget = null;
-        }
-    }
-
-    updateFlockingBehavior(agent) {
-        // Implement flocking behavior (Boids algorithm)
+    calculateFlockingForce(agent) {
         const separation = this.calculateSeparation(agent);
         const alignment = this.calculateAlignment(agent);
         const cohesion = this.calculateCohesion(agent);
 
-        const combinedForce = separation.add(alignment).add(cohesion).normalize();
-        agent.physics.body.setLinearVelocity(combinedForce.scale(agent.speed));
+        return {
+            separation: separation.scale(agent.flockingParams.separationWeight),
+            alignment: alignment.scale(agent.flockingParams.alignmentWeight),
+            cohesion: cohesion.scale(agent.flockingParams.cohesionWeight)
+        };
     }
 
     calculateSeparation(agent) {
-        // Avoid crowding neighbors
-        const avoidanceRadius = 5;
         let separationForce = new BABYLON.Vector3(0, 0, 0);
         let neighborCount = 0;
 
@@ -386,22 +223,24 @@ export class BehavioralSim {
                     agent.mesh.position,
                     other.mesh.position
                 );
-                if (distance < avoidanceRadius) {
+                
+                if (distance < agent.flockingParams.separationRadius) {
                     const away = agent.mesh.position.subtract(other.mesh.position);
-                    separationForce.addInPlace(away.normalize().scale(1/distance));
+                    away.normalize();
+                    away.scaleInPlace(1 / Math.max(0.1, distance)); // Stronger force when closer
+                    separationForce.addInPlace(away);
                     neighborCount++;
                 }
             }
         });
 
-        return neighborCount > 0 ? 
-            separationForce.scale(1/neighborCount) : 
-            separationForce;
+        if (neighborCount > 0) {
+            separationForce.scaleInPlace(1 / neighborCount);
+        }
+        return separationForce;
     }
 
     calculateAlignment(agent) {
-        // Steer towards average heading of neighbors
-        const alignmentRadius = 10;
         let averageVelocity = new BABYLON.Vector3(0, 0, 0);
         let neighborCount = 0;
 
@@ -411,7 +250,8 @@ export class BehavioralSim {
                     agent.mesh.position,
                     other.mesh.position
                 );
-                if (distance < alignmentRadius) {
+                
+                if (distance < agent.flockingParams.alignmentRadius) {
                     const velocity = other.physics.body.getLinearVelocity();
                     averageVelocity.addInPlace(velocity);
                     neighborCount++;
@@ -419,14 +259,14 @@ export class BehavioralSim {
             }
         });
 
-        return neighborCount > 0 ? 
-            averageVelocity.scale(1/neighborCount) : 
-            averageVelocity;
+        if (neighborCount > 0) {
+            averageVelocity.scaleInPlace(1 / neighborCount);
+            averageVelocity.normalize();
+        }
+        return averageVelocity;
     }
 
     calculateCohesion(agent) {
-        // Steer towards center of neighbors
-        const cohesionRadius = 15;
         let centerOfMass = new BABYLON.Vector3(0, 0, 0);
         let neighborCount = 0;
 
@@ -436,7 +276,8 @@ export class BehavioralSim {
                     agent.mesh.position,
                     other.mesh.position
                 );
-                if (distance < cohesionRadius) {
+                
+                if (distance < agent.flockingParams.cohesionRadius) {
                     centerOfMass.addInPlace(other.mesh.position);
                     neighborCount++;
                 }
@@ -444,117 +285,132 @@ export class BehavioralSim {
         });
 
         if (neighborCount > 0) {
-            centerOfMass.scaleInPlace(1/neighborCount);
-            return centerOfMass.subtract(agent.mesh.position).normalize();
+            centerOfMass.scaleInPlace(1 / neighborCount);
+            const toCenter = centerOfMass.subtract(agent.mesh.position);
+            toCenter.normalize();
+            return toCenter;
         }
         return new BABYLON.Vector3(0, 0, 0);
     }
 
-    findNewTarget(agent) {
-        // Find closest path node as intermediate target
-        const closestNode = this.findClosestNode(agent.mesh.position);
-        return closestNode.position;
+    updateSeekingBehavior(agent, flockingForce) {
+        if (!agent.currentTarget) {
+            agent.currentTarget = this.getRandomTarget().position;
+        }
+
+        const target = agent.currentTarget;
+        const direction = target.subtract(agent.mesh.position);
+        const distance = direction.length();
+
+        if (distance > 0.1) {
+            // Combine target seeking with flocking
+            const desiredVelocity = direction.normalize().scale(agent.speed * 5);
+            const flockingVelocity = flockingForce.separation
+                .add(flockingForce.alignment)
+                .add(flockingForce.cohesion);
+
+            // Blend velocities
+            const combinedVelocity = desiredVelocity.add(flockingVelocity).scale(0.5);
+            
+            // Apply movement
+            const currentVel = agent.physics.body.getLinearVelocity();
+            const newVel = BABYLON.Vector3.Lerp(currentVel, combinedVelocity, 0.1);
+            newVel.y = currentVel.y; // Keep vertical velocity for terrain following
+            
+            agent.physics.body.setLinearVelocity(newVel);
+
+            // Update orientation
+            this.updateAgentOrientation(agent, newVel);
+        }
+
+        // Check if reached target
+        if (distance < 5) {
+            agent.state = 'waiting';
+            agent.waitTime = 1000 + Math.random() * 2000;
+            agent.currentTarget = null;
+        }
     }
 
-    findClosestNode(position) {
-        let closest = this.pathNodes[0];
-        let minDistance = Number.MAX_VALUE;
-
-        this.pathNodes.forEach(node => {
-            const distance = BABYLON.Vector3.Distance(position, node.position);
-            if (distance < minDistance) {
-                minDistance = distance;
-                closest = node;
-            }
-        });
-
-        return closest;
+    updateWaitingBehavior(agent) {
+        agent.waitTime -= this.scene.getEngine().getDeltaTime();
+        if (agent.waitTime <= 0) {
+            agent.state = 'seeking';
+        }
     }
 
-    getHeightAtPoint(x, z) {
-        // Simplified height calculation - replace with actual terrain height
-        return Math.sin(x/20) * Math.cos(z/20) * 5;
+    updateAgentPhysics(agent) {
+        const pos = agent.mesh.position;
+        const desiredHeight = this.getTerrainHeight(pos.x, pos.z) + 2;
+        
+        // Apply upward force to stay above terrain
+        const velocity = agent.physics.body.getLinearVelocity();
+        if (pos.y < desiredHeight) {
+            velocity.y = Math.max(5, (desiredHeight - pos.y) * 10);
+            agent.physics.body.setLinearVelocity(velocity);
+        }
+
+        // Keep agent upright
+        agent.physics.body.setAngularVelocity(BABYLON.Vector3.Zero());
     }
 
-    getRandomStartPosition() {
-        const x = (Math.random() - 0.5) * 100;
-        const z = (Math.random() - 0.5) * 100;
-        const y = this.getHeightAtPoint(x, z) + 2;
-        return new BABYLON.Vector3(x, y, z);
+    updateLimbAnimations(agent) {
+        const velocity = agent.physics.body.getLinearVelocity();
+        const speed = new BABYLON.Vector3(velocity.x, 0, velocity.z).length();
+        
+        if (speed > 0.1) {
+            // Animate legs and arms based on movement
+            const cycle = (performance.now() * 0.01 * speed) % (Math.PI * 2);
+            
+            agent.parts.leftLeg.rotation.x = Math.sin(cycle) * 0.5;
+            agent.parts.rightLeg.rotation.x = Math.sin(cycle + Math.PI) * 0.5;
+            agent.parts.leftArm.rotation.x = Math.sin(cycle + Math.PI) * 0.3;
+            agent.parts.rightArm.rotation.x = Math.sin(cycle) * 0.3;
+        } else {
+            // Reset limbs to neutral position
+            Object.values(agent.parts).forEach(part => {
+                if (part !== agent.parts.torso && part !== agent.parts.head) {
+                    part.rotation.x = 0;
+                }
+            });
+        }
     }
 
-    getTerrainInfo(x, z) {
+    updateAgentOrientation(agent, velocity) {
+        const forward = new BABYLON.Vector3(velocity.x, 0, velocity.z).normalize();
+        if (forward.length() > 0.1) {
+            const targetRotation = Math.atan2(forward.x, forward.z);
+            agent.parts.torso.rotation.y = targetRotation;
+        }
+    }
+
+    getTerrainHeight(x, z) {
         // Get height from bowl terrain
         const bowlRadius = 100;
         const bowlDepth = 25;
         const distFromCenter = Math.sqrt(x * x + z * z);
         
-        // Base bowl shape
+        // Base bowl shape with terrain features
         let height = -Math.pow(distFromCenter / bowlRadius, 0.8) * bowlDepth;
+        height += Math.sin(x/20) * Math.cos(z/20) * 3;
         
-        // Add terrain features
-        const valleyWidth = bowlRadius * 0.6;
-        const noise = Math.sin(x/20) * 5 + Math.cos(z/15) * 3;
-        const modifiedX = x + noise;
-        const modifiedZ = z + noise;
-        const dist = Math.sqrt(modifiedX * modifiedX + modifiedZ * modifiedZ);
-        height += Math.sin(dist / 15) * Math.exp(-Math.pow(dist / valleyWidth, 2)) * 8;
-        
-        // Calculate normal
-        const gradientX = (this.getHeightAtPoint(x + 0.1, z) - this.getHeightAtPoint(x - 0.1, z)) / 0.2;
-        const gradientZ = (this.getHeightAtPoint(x, z + 0.1) - this.getHeightAtPoint(x, z - 0.1)) / 0.2;
-        const normal = new BABYLON.Vector3(-gradientX, 1, -gradientZ).normalize();
-        
-        return { height, normal };
+        return height;
     }
 
-    updateAgentPhysics(agent) {
-        const pos = agent.mesh.position;
-        const terrainInfo = this.getTerrainInfo(pos.x, pos.z);
-        const desiredHeight = terrainInfo.height + 2; // Keep agent 2 units above terrain
-        
-        // Get current velocity
-        const velocity = agent.physics.body.getLinearVelocity();
-        
-        // Apply forces to stay above terrain
-        if (pos.y < desiredHeight) {
-            velocity.y = Math.max(5, (desiredHeight - pos.y) * 10);
-            agent.physics.body.setLinearVelocity(velocity);
-        }
-        
-        // Align agent with terrain normal
-        const currentRotation = agent.body.rotationQuaternion || new BABYLON.Quaternion();
-        const targetRotation = BABYLON.Quaternion.FromLookDirectionRH(
-            velocity.normalize(),
-            terrainInfo.normal
-        );
-        
-        // Smoothly interpolate rotation
-        BABYLON.Quaternion.SlerpToRef(
-            currentRotation,
-            targetRotation,
-            0.1,
-            currentRotation
-        );
-        
-        agent.body.rotationQuaternion = currentRotation;
-        
-        // Adjust walking animation speed based on velocity
-        const speed = velocity.length();
-        if (speed > 0.1) {
-            if (!agent.isWalking) {
-                agent.startWalking();
-                agent.isWalking = true;
-            }
-            // Adjust animation speed
-            agent.animations.forEach(anim => {
-                if (anim.animatable) {
-                    anim.animatable.speedRatio = Math.min(2, Math.max(0.5, speed / 5));
-                }
-            });
-        } else if (agent.isWalking) {
-            // Stop animations when not moving
-            agent.stopWalking();
-        }
+    getRandomStartPosition() {
+        const angle = Math.random() * Math.PI * 2;
+        const radius = Math.random() * 80;
+        const x = Math.cos(angle) * radius;
+        const z = Math.sin(angle) * radius;
+        const y = this.getTerrainHeight(x, z) + 2;
+        return new BABYLON.Vector3(x, y, z);
+    }
+
+    getRandomTarget() {
+        return this.targetPoints[Math.floor(Math.random() * this.targetPoints.length)];
+    }
+
+    getHeightAtPoint(x, z) {
+        // Simplified height calculation - replace with actual terrain height
+        return Math.sin(x/20) * Math.cos(z/20) * 5;
     }
 } 

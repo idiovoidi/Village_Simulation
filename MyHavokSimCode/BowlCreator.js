@@ -1,3 +1,5 @@
+import { AssetManager } from '../assets/AssetManager.js';
+
 export class BowlCreator {
     constructor(scene) {
         this.scene = scene;
@@ -102,10 +104,8 @@ export class BowlCreator {
             const ground = new BABYLON.Mesh("bowl", this.scene);
             const vertexData = new BABYLON.VertexData();
             
-            // Use adaptive tessellation
             const {positions, indices, uvs, normals, colors} = this.generateAdaptiveTerrainData(bowlRadius, bowlDepth, maxSegments);
             
-            // Apply vertex data to mesh
             vertexData.positions = positions;
             vertexData.indices = indices;
             vertexData.uvs = uvs;
@@ -113,37 +113,8 @@ export class BowlCreator {
             vertexData.colors = colors;
             vertexData.applyToMesh(ground);
 
-            // Create materials
-            const terrainMaterial = new BABYLON.StandardMaterial("terrainMat", this.scene);
-            
-            // Load textures with proper settings
-            const rockTexture = new BABYLON.Texture("https://assets.babylonjs.com/textures/rock.png", this.scene);
-            const rockNormal = new BABYLON.Texture("https://assets.babylonjs.com/textures/rockn.png", this.scene);
-            const grassTexture = new BABYLON.Texture("https://assets.babylonjs.com/textures/grass.png", this.scene);
-            
-            // Configure texture settings
-            [rockTexture, rockNormal, grassTexture].forEach(texture => {
-                texture.uScale = texture.vScale = 50; // Increased scale for better detail
-                texture.hasAlpha = false;
-                texture.anisotropicFilteringLevel = 8;
-                texture.wrapU = texture.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
-            });
-
-            // Configure material properties
-            terrainMaterial.diffuseTexture = grassTexture;
-            terrainMaterial.bumpTexture = rockNormal;
-            terrainMaterial.ambientColor = new BABYLON.Color3(1, 1, 1);
-            terrainMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
-            terrainMaterial.specularPower = 64;
-            terrainMaterial.useVertexColors = true;
-            terrainMaterial.diffuseColor = new BABYLON.Color3(1, 1, 1);
-            terrainMaterial.backFaceCulling = false;
-            
-            // Disable emissive to prevent color interference
-            terrainMaterial.emissiveColor = new BABYLON.Color3(0, 0, 0);
-            terrainMaterial.ambientTexture = null;
-            terrainMaterial.emissiveTexture = null;
-            
+            // Create terrain material
+            const terrainMaterial = this.createTerrainMaterial();
             ground.material = terrainMaterial;
 
             // Add physics
@@ -154,11 +125,49 @@ export class BowlCreator {
                 this.scene
             );
 
-            // Create semi-transparent walls with the same material
             this.createWalls(bowlRadius, bowlDepth, terrainMaterial);
             
             resolve(ground);
         });
+    }
+
+    createTerrainMaterial() {
+        // Create main material
+        const terrainMaterial = new BABYLON.StandardMaterial("terrainMat", this.scene);
+        
+        // Get textures from AssetManager
+        const grassTexture = AssetManager.getTexture('GRASS', this.scene);
+        const rockTexture = AssetManager.getTexture('ROCK', this.scene);
+        const rockNormalMap = AssetManager.getTexture('ROCK_NORMAL', this.scene);
+
+        // Configure grass texture
+        if (grassTexture) {
+            grassTexture.uScale = grassTexture.vScale = 50;
+            terrainMaterial.diffuseTexture = grassTexture;
+        }
+
+        // Configure rock texture
+        if (rockTexture) {
+            rockTexture.uScale = rockTexture.vScale = 50;
+            terrainMaterial.ambientTexture = rockTexture; // Use rock as detail texture
+        }
+
+        // Configure normal map
+        if (rockNormalMap) {
+            rockNormalMap.uScale = rockNormalMap.vScale = 50;
+            terrainMaterial.bumpTexture = rockNormalMap;
+            terrainMaterial.invertNormalMapX = true;
+            terrainMaterial.invertNormalMapY = true;
+        }
+
+        // Material properties
+        terrainMaterial.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+        terrainMaterial.specularPower = 64;
+        terrainMaterial.useVertexColors = true;
+        terrainMaterial.diffuseColor = new BABYLON.Color3(1, 1, 1);
+        terrainMaterial.ambientColor = new BABYLON.Color3(1, 1, 1);
+
+        return terrainMaterial;
     }
 
     generateAdaptiveTerrainData(bowlRadius, bowlDepth, maxSegments) {

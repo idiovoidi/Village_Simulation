@@ -175,58 +175,6 @@ export class BowlCreator {
                 { mass: 0, restitution: 0.5, friction: 1.0 },
                 this.scene
             );
-
-            // Create quarter-pipe transitions at walls
-            this.createQuarterPipe(i, bowlRadius, bowlDepth, wallThickness, bowlMaterial);
         }
-    }
-
-    createQuarterPipe(wallIndex, bowlRadius, bowlDepth, wallThickness, material) {
-        const segments = 12;
-        const radius = 8;
-        const width = wallIndex % 2 === 0 ? bowlRadius * 2 : radius * 2;
-        
-        // Create curved quarter-pipe mesh
-        const pipe = BABYLON.MeshBuilder.CreateTube(
-            `quarterPipe${wallIndex}`,
-            {
-                path: this.createQuarterCirclePath(radius, segments),
-                radius: 5,
-                sideOrientation: BABYLON.Mesh.DOUBLESIDE
-            },
-            this.scene
-        );
-
-        // Position the quarter-pipe
-        pipe.position = new BABYLON.Vector3(
-            wallIndex === 1 ? bowlRadius : wallIndex === 3 ? -bowlRadius : 0,
-            -bowlDepth,
-            wallIndex === 0 ? bowlRadius : wallIndex === 2 ? -bowlRadius : 0
-        );
-
-        // Rotate based on wall position
-        pipe.rotation.y = (wallIndex * Math.PI / 2);
-
-        pipe.material = material;
-
-        new BABYLON.PhysicsAggregate(
-            pipe,
-            BABYLON.PhysicsShapeType.MESH,
-            { mass: 0, restitution: 0.7, friction: 1.0 },
-            this.scene
-        );
-    }
-
-    createQuarterCirclePath(radius, segments) {
-        const points = [];
-        for (let i = 0; i <= segments; i++) {
-            const angle = (i / segments) * Math.PI / 2;
-            points.push(new BABYLON.Vector3(
-                radius * Math.cos(angle),
-                radius * Math.sin(angle),
-                0
-            ));
-        }
-        return points;
     }
 } 

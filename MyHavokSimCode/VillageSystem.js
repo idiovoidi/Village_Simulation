@@ -156,7 +156,87 @@ export class VillageSystem {
             depth: depth
         }, this.scene);
         building.parent = house;
-        building.position.y = height / 2 + 1; // Adjusted for foundation
+        building.position.y = height / 2 + 1;
+
+        // Create door
+        const doorHeight = height * 0.7;
+        const doorWidth = 1.2;
+        const door = BABYLON.MeshBuilder.CreatePlane("door", {
+            height: doorHeight,
+            width: doorWidth
+        }, this.scene);
+        door.parent = house;
+        door.position.y = doorHeight / 2 + 1;
+        door.position.z = depth / 2 + 0.01; // Slightly in front of the wall
+        
+        // Create door frame
+        const doorFrame = BABYLON.MeshBuilder.CreateBox("doorFrame", {
+            height: doorHeight + 0.2,
+            width: doorWidth + 0.2,
+            depth: 0.1
+        }, this.scene);
+        doorFrame.parent = house;
+        doorFrame.position.y = doorHeight / 2 + 1;
+        doorFrame.position.z = depth / 2;
+
+        // Create windows
+        const windowSize = 1;
+        const windowHeight = height * 0.6;
+        const windows = [];
+        
+        // Front windows (on either side of door)
+        for (let i = -1; i <= 1; i += 2) {
+            const frontWindow = BABYLON.MeshBuilder.CreatePlane("windowFront", {
+                height: windowSize,
+                width: windowSize
+            }, this.scene);
+            frontWindow.parent = house;
+            frontWindow.position.y = windowHeight;
+            frontWindow.position.x = i * (width / 3);
+            frontWindow.position.z = depth / 2 + 0.01;
+            windows.push(frontWindow);
+
+            // Window frame
+            const windowFrame = BABYLON.MeshBuilder.CreateBox("windowFrame", {
+                height: windowSize + 0.2,
+                width: windowSize + 0.2,
+                depth: 0.1
+            }, this.scene);
+            windowFrame.parent = house;
+            windowFrame.position.y = windowHeight;
+            windowFrame.position.x = i * (width / 3);
+            windowFrame.position.z = depth / 2;
+            windows.push(windowFrame);
+        }
+
+        // Side windows
+        for (let side = -1; side <= 1; side += 2) {
+            for (let pos = -1; pos <= 1; pos += 2) {
+                const sideWindow = BABYLON.MeshBuilder.CreatePlane("windowSide", {
+                    height: windowSize,
+                    width: windowSize
+                }, this.scene);
+                sideWindow.parent = house;
+                sideWindow.position.y = windowHeight;
+                sideWindow.position.x = width / 2 * side + 0.01 * side;
+                sideWindow.position.z = pos * (depth / 3);
+                sideWindow.rotation.y = Math.PI / 2;
+                windows.push(sideWindow);
+
+                // Window frame
+                const windowFrame = BABYLON.MeshBuilder.CreateBox("windowFrame", {
+                    height: windowSize + 0.2,
+                    width: windowSize + 0.2,
+                    depth: 0.1
+                }, this.scene);
+                windowFrame.parent = house;
+                windowFrame.position.y = windowHeight;
+                windowFrame.position.x = width / 2 * side;
+                windowFrame.position.z = pos * (depth / 3);
+                windowFrame.rotation.y = Math.PI / 2;
+                windows.push(windowFrame);
+            }
+        }
 
         // Create roof
         const roof = BABYLON.MeshBuilder.CreateCylinder("roof", {
@@ -165,7 +245,7 @@ export class VillageSystem {
             tessellation: 4
         }, this.scene);
         roof.parent = house;
-        roof.position.y = height + roofHeight / 2 + 1; // Adjusted for foundation
+        roof.position.y = height + roofHeight / 2 + 1;
         roof.rotation.y = Math.PI / 4;
 
         // Create chimney
@@ -177,7 +257,7 @@ export class VillageSystem {
         }, this.scene);
         chimney.parent = house;
         chimney.position.x = width * 0.3;
-        chimney.position.y = height + roofHeight + 1; // Place it above the roof
+        chimney.position.y = height + roofHeight + 1;
         chimney.position.z = depth * 0.3;
 
         // Materials
@@ -202,9 +282,38 @@ export class VillageSystem {
         const chimneyMat = new BABYLON.StandardMaterial("chimneyMat", this.scene);
         chimneyMat.diffuseColor = new BABYLON.Color3(0.3, 0.3, 0.3);
 
+        // Door material
+        const doorMat = new BABYLON.StandardMaterial("doorMat", this.scene);
+        doorMat.diffuseColor = new BABYLON.Color3(0.4, 0.2, 0.1);
+        door.material = doorMat;
+
+        // Door frame material
+        const doorFrameMat = new BABYLON.StandardMaterial("doorFrameMat", this.scene);
+        doorFrameMat.diffuseColor = new BABYLON.Color3(0.35, 0.15, 0.05);
+        doorFrame.material = doorFrameMat;
+
+        // Window material
+        const windowMat = new BABYLON.StandardMaterial("windowMat", this.scene);
+        windowMat.diffuseColor = new BABYLON.Color3(0.7, 0.8, 1.0);
+        windowMat.alpha = 0.5;
+        windowMat.specularColor = new BABYLON.Color3(1, 1, 1);
+        windowMat.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+
+        // Window frame material
+        const windowFrameMat = new BABYLON.StandardMaterial("windowFrameMat", this.scene);
+        windowFrameMat.diffuseColor = new BABYLON.Color3(0.35, 0.15, 0.05);
+
+        // Apply materials
         building.material = buildingMat;
         roof.material = roofMat;
         chimney.material = chimneyMat;
+        windows.forEach(window => {
+            if (window.name.includes("Frame")) {
+                window.material = windowFrameMat;
+            } else {
+                window.material = windowMat;
+            }
+        });
 
         // Add fire particle system to chimney
         this.createChimneyFire(chimney.getAbsolutePosition());

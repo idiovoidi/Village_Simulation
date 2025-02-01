@@ -3,6 +3,8 @@ export class BowlCreator {
         this.scene = scene;
         this.bowlRadius = 100;
         this.bowlDepth = 25;
+        this.minSegments = 32;  // Minimum segments for flat areas
+        this.maxSegments = 96;  // Maximum segments for detailed areas
     }
 
     // Add this static method to get terrain height at any point
@@ -62,14 +64,13 @@ export class BowlCreator {
         return y;
     }
 
-    createBowl(bowlRadius = 100, bowlDepth = 25, segments = 96) {
+    createBowl(bowlRadius = 100, bowlDepth = 25, maxSegments = 96) {
         return new Promise((resolve) => {
-            // Create custom ground mesh
             const ground = new BABYLON.Mesh("bowl", this.scene);
             const vertexData = new BABYLON.VertexData();
             
-            // Generate mesh data
-            const {positions, indices, uvs, normals, colors} = this.generateTerrainData(bowlRadius, bowlDepth, segments);
+            // Use adaptive tessellation
+            const {positions, indices, uvs, normals, colors} = this.generateAdaptiveTerrainData(bowlRadius, bowlDepth, maxSegments);
             
             // Apply vertex data to mesh
             vertexData.positions = positions;
@@ -116,76 +117,129 @@ export class BowlCreator {
         });
     }
 
-    generateTerrainData(bowlRadius, bowlDepth, segments) {
+    generateAdaptiveTerrainData(bowlRadius, bowlDepth, maxSegments) {
         const positions = [];
         const indices = [];
         const uvs = [];
         const normals = [];
         const colors = [];
         
-        // Generate vertices
-        for (let i = 0; i <= segments; i++) {
-            for (let j = 0; j <= segments; j++) {
-                const x = ((i / segments) * 2 - 1) * bowlRadius;
-                const z = ((j / segments) * 2 - 1) * bowlRadius;
+        // Calculate adaptive grid size based on terrain features
+        const gridSizes = this.calculateAdaptiveGrid(bowlRadius, maxSegments);
+        
+        // Generate vertices using adaptive grid
+        let vertexIndex = 0;
+        const vertexMap = new Map(); // Store vertex indices for connecting different resolution areas
+        
+        for (let i = 0; i < gridSizes.length; i++) {
+            for (let j = 0; j < gridSizes[i].length; j++) {
+                const gridSize = gridSizes[i][j];
+                const x = ((i / (gridSizes.length - 1)) * 2 - 1) * bowlRadius;
+                const z = ((j / (gridSizes[i].length - 1)) * 2 - 1) * bowlRadius;
+                
+                // Skip vertices that are too close to existing ones
+                const key = `${Math.round(x)},${Math.round(z)}`;
+                if (vertexMap.has(key)) continue;
                 
                 const y = BowlCreator.getTerrainHeight(x, z);
                 positions.push(x, y, z);
+                vertexMap.set(key, vertexIndex++);
                 
-                // Generate vertex colors based on height and position
+                // Calculate colors based on terrain type
                 const distFromCenter = Math.sqrt(x * x + z * z) / bowlRadius;
-                const normalizedHeight = (y + bowlDepth) / (bowlDepth * 2);
+                this.addTerrainColor(colors, distFromCenter, y, bowlDepth);
                 
-                // Meadow colors (greens)
-                if (distFromCenter < 0.4) {
-                    colors.push(
-                        0.2 + Math.random() * 0.1, // R
-                        0.6 + Math.random() * 0.2, // G
-                        0.1 + Math.random() * 0.1  // B
-                    );
-                }
-                // Hills colors (mix of greens and browns)
-                else if (distFromCenter < 0.7) {
-                    const hillNoise = Math.random() * 0.2;
-                    colors.push(
-                        0.3 + hillNoise, // R
-                        0.5 + hillNoise, // G
-                        0.1 + hillNoise  // B
-                    );
-                }
-                // Mountain colors (greys and browns)
-                else {
-                    const rockNoise = Math.random() * 0.2;
-                    colors.push(
-                        0.4 + rockNoise, // R
-                        0.35 + rockNoise, // G
-                        0.3 + rockNoise  // B
-                    );
-                }
-                
-                // UV coordinates for texturing
-                uvs.push(i / segments, j / segments);
-                
-                // Placeholder normal
+                uvs.push(i / (gridSizes.length - 1), j / (gridSizes[i].length - 1));
                 normals.push(0, 1, 0);
             }
         }
         
-        // Generate indices
-        for (let i = 0; i < segments; i++) {
-            for (let j = 0; j < segments; j++) {
-                const baseIdx = i * (segments + 1) + j;
-                indices.push(
-                    baseIdx, baseIdx + 1, baseIdx + segments + 1,
-                    baseIdx + 1, baseIdx + segments + 2, baseIdx + segments + 1
-                );
-            }
-        }
+        // Generate indices with proper vertex connections
+        this.generateAdaptiveIndices(indices, gridSizes, vertexMap, bowlRadius);
         
         // Compute proper normals
         BABYLON.VertexData.ComputeNormals(positions, indices, normals);
         
         return {positions, indices, uvs, normals, colors};
+    }
+
+    calculateAdaptiveGrid(bowlRadius, maxSegments) {
+        const gridSizes = [];
+        const baseSize = this.minSegments;
+        
+        for (let i = 0; i <= maxSegments; i++) {
+            const row = [];
+            for (let j = 0; j <= maxSegments; j++) {
+                const x = ((i / maxSegments) * 2 - 1) * bowlRadius;
+                const z = ((j / maxSegments) * 2 - 1) * bowlRadius;
+                
+                const distFromCenter = Math.sqrt(x * x + z * z) / bowlRadius;
+                
+                // Use more vertices in mountain areas and fewer in flat areas
+                if (distFromCenter > 0.7) {
+                    row.push(maxSegments); // High detail for mountains
+                } else if (distFromCenter > 0.4) {
+                    row.push(Math.floor(baseSize * 1.5)); // Medium detail for hills
+                } else {
+                    row.push(baseSize); // Low detail for flat meadow
+                }
+            }
+            gridSizes.push(row);
+        }
+        
+        return gridSizes;
+    }
+
+    addTerrainColor(colors, distFromCenter, y, bowlDepth) {
+        // Meadow colors (greens)
+        if (distFromCenter < 0.4) {
+            colors.push(
+                0.2 + Math.random() * 0.1, // R
+                0.6 + Math.random() * 0.2, // G
+                0.1 + Math.random() * 0.1  // B
+            );
+        }
+        // Hills colors (mix of greens and browns)
+        else if (distFromCenter < 0.7) {
+            const hillNoise = Math.random() * 0.2;
+            colors.push(
+                0.3 + hillNoise, // R
+                0.5 + hillNoise, // G
+                0.1 + hillNoise  // B
+            );
+        }
+        // Mountain colors (greys and browns)
+        else {
+            const rockNoise = Math.random() * 0.2;
+            colors.push(
+                0.4 + rockNoise, // R
+                0.35 + rockNoise, // G
+                0.3 + rockNoise  // B
+            );
+        }
+    }
+
+    generateAdaptiveIndices(indices, gridSizes, vertexMap, bowlRadius) {
+        for (let i = 0; i < gridSizes.length - 1; i++) {
+            for (let j = 0; j < gridSizes[i].length - 1; j++) {
+                const x1 = ((i / (gridSizes.length - 1)) * 2 - 1) * bowlRadius;
+                const z1 = ((j / (gridSizes[i].length - 1)) * 2 - 1) * bowlRadius;
+                const x2 = (((i + 1) / (gridSizes.length - 1)) * 2 - 1) * bowlRadius;
+                const z2 = (((j + 1) / (gridSizes[i].length - 1)) * 2 - 1) * bowlRadius;
+                
+                const v1 = vertexMap.get(`${Math.round(x1)},${Math.round(z1)}`);
+                const v2 = vertexMap.get(`${Math.round(x2)},${Math.round(z1)}`);
+                const v3 = vertexMap.get(`${Math.round(x1)},${Math.round(z2)}`);
+                const v4 = vertexMap.get(`${Math.round(x2)},${Math.round(z2)}`);
+                
+                if (v1 !== undefined && v2 !== undefined && v3 !== undefined) {
+                    indices.push(v1, v2, v3);
+                }
+                if (v2 !== undefined && v4 !== undefined && v3 !== undefined) {
+                    indices.push(v2, v4, v3);
+                }
+            }
+        }
     }
 
     createWalls(bowlRadius, bowlDepth, material) {

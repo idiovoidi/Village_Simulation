@@ -4,6 +4,9 @@ export class BehavioralSim {
         this.agents = [];
         this.targetPoints = [];
         this.pathNodes = [];
+        this.zombies = [];
+        this.zombieCount = 10; // Start with 10 zombies
+        
         this.init();
     }
 
@@ -14,6 +17,8 @@ export class BehavioralSim {
         this.createAgents(10);
         // Create target points for agents to seek
         this.createTargetPoints();
+        // Create zombies
+        this.createZombies();
         // Start behavior update loop
         this.scene.registerBeforeRender(() => this.updateBehaviors());
     }
@@ -179,6 +184,75 @@ export class BehavioralSim {
             position: new BABYLON.Vector3(0, this.getTerrainHeight(0, 0), 0),
             priority: 1.2
         });
+    }
+
+    createZombies() {
+        for (let i = 0; i < this.zombieCount; i++) {
+            // Create zombie mesh
+            const zombie = BABYLON.MeshBuilder.CreateBox("zombie" + i, {
+                height: 2,
+                width: 0.6,
+                depth: 0.3
+            }, this.scene);
+
+            // Random position within bowl
+            const angle = Math.random() * Math.PI * 2;
+            const radius = Math.random() * 30; // Keep zombies near center initially
+            zombie.position = new BABYLON.Vector3(
+                Math.cos(angle) * radius,
+                5, // Start above ground
+                Math.sin(angle) * radius
+            );
+
+            // Add physics
+            const zombieAggregate = new BABYLON.PhysicsAggregate(
+                zombie,
+                BABYLON.PhysicsShapeType.BOX,
+                { mass: 1, restitution: 0.5, friction: 0.1 },
+                this.scene
+            );
+
+            // Add material
+            const zombieMaterial = new BABYLON.StandardMaterial("zombieMat" + i, this.scene);
+            zombieMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.8, 0.4);
+            zombie.material = zombieMaterial;
+
+            this.zombies.push({
+                mesh: zombie,
+                physics: zombieAggregate,
+                speed: 2 + Math.random() * 2 // Random speed between 2 and 4
+            });
+        }
+
+        // Start zombie behavior loop
+        this.scene.onBeforeRenderObservable.add(() => {
+            this.updateZombies();
+        });
+    }
+
+    updateZombies() {
+        for (const zombie of this.zombies) {
+            // Get current position
+            const pos = zombie.mesh.position;
+            
+            // Simple wandering behavior
+            const angle = Math.random() * Math.PI * 2;
+            const force = new BABYLON.Vector3(
+                Math.cos(angle) * zombie.speed,
+                0,
+                Math.sin(angle) * zombie.speed
+            );
+
+            // Apply force for movement
+            zombie.physics.body.applyForce(force, pos);
+
+            // Keep zombies upright
+            const rotation = zombie.mesh.rotationQuaternion || 
+                           BABYLON.Quaternion.FromEulerAngles(zombie.mesh.rotation.x, zombie.mesh.rotation.y, zombie.mesh.rotation.z);
+            const upright = BABYLON.Quaternion.Identity();
+            BABYLON.Quaternion.SlerpToRef(rotation, upright, 0.1, rotation);
+            zombie.mesh.rotationQuaternion = rotation;
+        }
     }
 
     updateBehaviors() {

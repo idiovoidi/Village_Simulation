@@ -54,11 +54,11 @@ export class LeoScene {
       // Enable physics in the scene
       this.scene.enablePhysics(new BABYLON.Vector3(0, -9.81, 0), havokPlugin);
 
-      // Create bowl first
+      // Create bowl first and wait for it to be ready
       const bowlCreator = new BowlCreator(this.scene);
-      bowlCreator.createBowl();
+      await bowlCreator.createBowl();
 
-      // Initialize RoadSystem after bowl is created
+      // Initialize other systems after bowl is created
       console.log("Creating RoadSystem");
       this.roadSystem = new RoadSystem(this.scene);
       

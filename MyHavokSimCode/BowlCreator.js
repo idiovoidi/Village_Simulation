@@ -5,131 +5,128 @@ export class BowlCreator {
 
     createBowl(bowlRadius = 100, bowlDepth = 25, segments = 96) {
         return new Promise((resolve) => {
-            // Create ground from height map
-            const ground = BABYLON.MeshBuilder.CreateGroundFromHeightMap("bowl", 
-                "https://assets.babylonjs.com/textures/heightMap.png", {
-                width: bowlRadius * 2,
-                height: bowlRadius * 2,
-                subdivisions: segments,
-                minHeight: -bowlDepth,
-                maxHeight: 0,
-                onReady: (mesh) => {
-                    // Modify vertices after height map is loaded
-                    this.modifyVertices(mesh, bowlRadius, bowlDepth);
+            // Create custom ground mesh
+            const ground = new BABYLON.Mesh("bowl", this.scene);
+            const vertexData = new BABYLON.VertexData();
+            
+            // Generate mesh data
+            const {positions, indices, uvs, normals} = this.generateTerrainData(bowlRadius, bowlDepth, segments);
+            
+            // Apply vertex data to mesh
+            vertexData.positions = positions;
+            vertexData.indices = indices;
+            vertexData.uvs = uvs;
+            vertexData.normals = normals;
+            vertexData.applyToMesh(ground);
 
-                    // Create materials
-                    const multimat = new BABYLON.MultiMaterial("multi", this.scene);
-                    
-                    // Rock material for mountains
-                    const rockMaterial = new BABYLON.StandardMaterial("rock", this.scene);
-                    rockMaterial.diffuseTexture = new BABYLON.Texture("https://assets.babylonjs.com/textures/rock.png", this.scene);
-                    rockMaterial.bumpTexture = new BABYLON.Texture("https://assets.babylonjs.com/textures/rockn.png", this.scene);
-                    rockMaterial.diffuseTexture.uScale = rockMaterial.diffuseTexture.vScale = 20;
-                    
-                    // Grass material for flatter areas
-                    const grassMaterial = new BABYLON.StandardMaterial("grass", this.scene);
-                    grassMaterial.diffuseTexture = new BABYLON.Texture("https://assets.babylonjs.com/textures/grass.png", this.scene);
-                    grassMaterial.diffuseTexture.uScale = grassMaterial.diffuseTexture.vScale = 20;
+            // Create materials
+            const multimat = new BABYLON.MultiMaterial("multi", this.scene);
+            
+            // Rock material for mountains
+            const rockMaterial = new BABYLON.StandardMaterial("rock", this.scene);
+            rockMaterial.diffuseTexture = new BABYLON.Texture("https://assets.babylonjs.com/textures/rock.png", this.scene);
+            rockMaterial.bumpTexture = new BABYLON.Texture("https://assets.babylonjs.com/textures/rockn.png", this.scene);
+            rockMaterial.diffuseTexture.uScale = rockMaterial.diffuseTexture.vScale = 20;
+            rockMaterial.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+            rockMaterial.backFaceCulling = false;
+            
+            // Grass material for flatter areas
+            const grassMaterial = new BABYLON.StandardMaterial("grass", this.scene);
+            grassMaterial.diffuseTexture = new BABYLON.Texture("https://assets.babylonjs.com/textures/grass.png", this.scene);
+            grassMaterial.diffuseTexture.uScale = grassMaterial.diffuseTexture.vScale = 20;
+            grassMaterial.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+            grassMaterial.backFaceCulling = false;
 
-                    multimat.subMaterials.push(rockMaterial);
-                    multimat.subMaterials.push(grassMaterial);
+            multimat.subMaterials.push(rockMaterial);
+            multimat.subMaterials.push(grassMaterial);
 
-                    mesh.material = multimat;
+            ground.material = multimat;
 
-                    // Add physics after mesh is ready
-                    new BABYLON.PhysicsAggregate(
-                        mesh,
-                        BABYLON.PhysicsShapeType.MESH,
-                        { mass: 0, restitution: 0.7, friction: 1.0 },
-                        this.scene
-                    );
+            // Add physics
+            new BABYLON.PhysicsAggregate(
+                ground,
+                BABYLON.PhysicsShapeType.MESH,
+                { mass: 0, restitution: 0.7, friction: 1.0 },
+                this.scene
+            );
 
-                    this.createWalls(bowlRadius, bowlDepth, rockMaterial);
-                    
-                    resolve(mesh);
-                }
-            }, this.scene);
+            this.createWalls(bowlRadius, bowlDepth, rockMaterial);
+            
+            resolve(ground);
         });
     }
 
-    modifyVertices(mesh, bowlRadius, bowlDepth) {
-        const positions = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind);
-        const indices = mesh.getIndices();
+    generateTerrainData(bowlRadius, bowlDepth, segments) {
+        const positions = [];
+        const indices = [];
+        const uvs = [];
+        const normals = [];
         
-        for (let i = 0; i < positions.length; i += 3) {
-            const x = positions[i];
-            const z = positions[i + 2];
-            
-            // Calculate distance from center
-            const distFromCenter = Math.sqrt(x * x + z * z);
-            const normalizedDist = distFromCenter / bowlRadius;
-            
-            // Base bowl shape
-            let y = -Math.pow(normalizedDist, 2) * bowlDepth;
-            
-            // Add mountains near the edges
-            if (normalizedDist > 0.7) {
-                const mountainFactor = (normalizedDist - 0.7) / 0.3;
-                const mountainHeight = 20;
-                const angle = Math.atan2(z, x);
+        // Generate vertices
+        for (let i = 0; i <= segments; i++) {
+            for (let j = 0; j <= segments; j++) {
+                const x = ((i / segments) * 2 - 1) * bowlRadius;
+                const z = ((j / segments) * 2 - 1) * bowlRadius;
                 
-                // Create mountain ranges
-                const mountainNoise = 
-                    Math.sin(angle * 4) * 0.5 +
-                    Math.sin(angle * 7 + 1.3) * 0.3 +
-                    Math.sin(angle * 13 + 2.4) * 0.2;
+                const distFromCenter = Math.sqrt(x * x + z * z);
+                const normalizedDist = distFromCenter / bowlRadius;
                 
-                y += mountainHeight * mountainFactor * (0.7 + 0.3 * mountainNoise);
-            }
-            
-            // Flatten the center area
-            if (normalizedDist < 0.3) {
-                const flatFactor = 1 - (normalizedDist / 0.3);
-                y *= (1 - Math.pow(flatFactor, 2));
-            }
-            
-            // Add some gentle hills in the middle
-            if (normalizedDist < 0.6) {
-                const hillNoise = 
-                    Math.sin(x * 0.1) * Math.cos(z * 0.1) * 2 +
-                    Math.sin((x + z) * 0.05) * Math.cos((x - z) * 0.05);
-                y += hillNoise * (1 - normalizedDist);
-            }
-            
-            positions[i + 1] = y;
-        }
-        
-        // Update the mesh with new positions
-        mesh.updateVerticesData(BABYLON.VertexBuffer.PositionKind, positions);
-        
-        // Recompute normals
-        BABYLON.VertexData.ComputeNormals(positions, indices, mesh.getVerticesData(BABYLON.VertexBuffer.NormalKind));
-        
-        // Create submesh regions based on height
-        this.createTerrainSubMeshes(mesh, positions, indices);
-    }
-
-    createTerrainSubMeshes(mesh, positions, indices) {
-        const mountainIndices = [];
-        const grassIndices = [];
-        
-        // Separate indices based on vertex height
-        for (let i = 0; i < indices.length; i += 3) {
-            const height1 = positions[indices[i] * 3 + 1];
-            const height2 = positions[indices[i + 1] * 3 + 1];
-            const height3 = positions[indices[i + 2] * 3 + 1];
-            const avgHeight = (height1 + height2 + height3) / 3;
-            
-            if (avgHeight > -5) {
-                mountainIndices.push(indices[i], indices[i + 1], indices[i + 2]);
-            } else {
-                grassIndices.push(indices[i], indices[i + 1], indices[i + 2]);
+                // Calculate height
+                let y = -Math.pow(normalizedDist, 2) * bowlDepth;
+                
+                // Add mountains near edges
+                if (normalizedDist > 0.7) {
+                    const mountainFactor = (normalizedDist - 0.7) / 0.3;
+                    const mountainHeight = 20;
+                    const angle = Math.atan2(z, x);
+                    
+                    const mountainNoise = 
+                        Math.sin(angle * 4) * 0.5 +
+                        Math.sin(angle * 7 + 1.3) * 0.3 +
+                        Math.sin(angle * 13 + 2.4) * 0.2;
+                    
+                    y += mountainHeight * mountainFactor * (0.7 + 0.3 * mountainNoise);
+                }
+                
+                // Flatten center
+                if (normalizedDist < 0.3) {
+                    const flatFactor = 1 - (normalizedDist / 0.3);
+                    y *= (1 - Math.pow(flatFactor, 2));
+                }
+                
+                // Add gentle hills
+                if (normalizedDist < 0.6) {
+                    const hillNoise = 
+                        Math.sin(x * 0.1) * Math.cos(z * 0.1) * 2 +
+                        Math.sin((x + z) * 0.05) * Math.cos((x - z) * 0.05);
+                    y += hillNoise * (1 - normalizedDist);
+                }
+                
+                positions.push(x, y, z);
+                
+                // UV coordinates
+                uvs.push(i / segments, j / segments);
+                
+                // Placeholder normal (will be computed later)
+                normals.push(0, 1, 0);
             }
         }
         
-        // Create submeshes
-        new BABYLON.SubMesh(0, 0, positions.length / 3, mountainIndices[0], mountainIndices.length, mesh);
-        new BABYLON.SubMesh(1, 0, positions.length / 3, grassIndices[0], grassIndices.length, mesh);
+        // Generate indices
+        for (let i = 0; i < segments; i++) {
+            for (let j = 0; j < segments; j++) {
+                const baseIdx = i * (segments + 1) + j;
+                indices.push(
+                    baseIdx, baseIdx + 1, baseIdx + segments + 1,
+                    baseIdx + 1, baseIdx + segments + 2, baseIdx + segments + 1
+                );
+            }
+        }
+        
+        // Compute proper normals
+        BABYLON.VertexData.ComputeNormals(positions, indices, normals);
+        
+        return {positions, indices, uvs, normals};
     }
 
     createWalls(bowlRadius, bowlDepth, material) {

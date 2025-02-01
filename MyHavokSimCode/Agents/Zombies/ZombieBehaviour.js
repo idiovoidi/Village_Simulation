@@ -8,9 +8,11 @@ export class ZombieBehaviour {
         this.minHeight = -20;
         this.maxHeight = 0;
         this.groupCohesion = 15; // Distance zombies try to maintain in group
-        this.maxSpeed = 0.03;
-        this.minSpeed = 0.01;
-        this.lurgeChance = 0.01; // Chance to suddenly lurch forward
+        this.maxSpeed = 0.05;  // Slower base speed
+        this.minSpeed = 0.02;  // Even slower minimum
+        this.lurgeChance = 0.02; // Increased chance to lurch
+        this.lurgeDuration = 1.0; // Longer lurge duration
+        this.lurgeSpeedMultiplier = 4.0; // More dramatic speed increase
         this.init();
     }
 
@@ -71,19 +73,28 @@ export class ZombieBehaviour {
                 zombie.timeSinceLastTarget = 0;
             }
 
-            // Check for lurge
-            if (!zombie.isLurging && Math.random() < this.lurgeChance) {
+            // Check for lurge with increased randomness
+            if (!zombie.isLurging && Math.random() < this.lurgeChance * 
+                (BABYLON.Vector3.Distance(zombie.model.mesh.position, this.scene.activeCamera.position) < 30 ? 2 : 1)) {
                 zombie.isLurging = true;
-                zombie.lurgeTimer = 0.5; // Lurge duration
-                zombie.speed = this.maxSpeed * 2; // Burst of speed
+                zombie.lurgeTimer = this.lurgeDuration;
+                zombie.speed = this.maxSpeed * this.lurgeSpeedMultiplier;
+                zombie.lurgeDirection = zombie.model.mesh.position.subtract(this.scene.activeCamera.position).normalize();
             }
 
-            // Update lurge state
+            // Update lurge state with more dramatic deceleration
             if (zombie.isLurging) {
                 zombie.lurgeTimer -= deltaTime;
                 if (zombie.lurgeTimer <= 0) {
                     zombie.isLurging = false;
                     zombie.speed = this.minSpeed + Math.random() * (this.maxSpeed - this.minSpeed);
+                } else {
+                    // Maintain direction during lurge
+                    const direction = zombie.lurgeDirection.scale(-1); // Move towards target
+                    zombie.model.mesh.position.addInPlace(direction.scale(zombie.speed));
+                    zombie.model.mesh.rotation.y = Math.atan2(direction.x, direction.z);
+                    zombie.model.animate(deltaTime, 2);
+                    return; // Skip normal movement during lurge
                 }
             }
 
@@ -123,11 +134,20 @@ export class ZombieBehaviour {
     calculateZombieDirection(zombie) {
         const direction = new BABYLON.Vector3(0, 0, 0);
 
-        // Direction to target
-        const toTarget = zombie.target.subtract(zombie.model.mesh.position);
-        direction.addInPlace(toTarget.normalize());
+        // Add camera-aware behavior
+        const toCamera = this.scene.activeCamera.position.subtract(zombie.model.mesh.position);
+        const distanceToCamera = toCamera.length();
+        
+        if (distanceToCamera < 40) { // Increased awareness range
+            // More aggressive pursuit of camera
+            direction.addInPlace(toCamera.normalize().scale(1.5));
+        } else {
+            // Normal wandering behavior
+            const toTarget = zombie.target.subtract(zombie.model.mesh.position);
+            direction.addInPlace(toTarget.normalize());
+        }
 
-        // Group cohesion - move towards group center
+        // Group behavior becomes more aggressive when near camera
         const groupMates = this.zombies.filter(z => 
             z.groupId === zombie.groupId && z !== zombie
         );
@@ -143,7 +163,8 @@ export class ZombieBehaviour {
             const groupDist = toGroup.length();
 
             if (groupDist > this.groupCohesion) {
-                direction.addInPlace(toGroup.normalize().scale(0.5));
+                const groupWeight = distanceToCamera < 40 ? 0.8 : 0.5; // Tighter groups when pursuing
+                direction.addInPlace(toGroup.normalize().scale(groupWeight));
             }
         }
 

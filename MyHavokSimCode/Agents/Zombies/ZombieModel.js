@@ -196,53 +196,64 @@ export class ZombieModel {
     animate(deltaTime, speed) {
         if (!this.mesh) return;
 
-        // Slower shambling animation base speed
-        const angle = deltaTime * 3;
+        // Slower base shambling, more dramatic lurge
+        const angle = deltaTime * (speed > 1 ? 6 : 2);
         
-        // Constant hunched posture
-        this.mesh.rotation.x = 0.2; // Lean forward
+        // More pronounced forward lean during lurge
+        this.mesh.rotation.x = speed > 1 ? 0.4 : 0.2;
         
-        // Arms always raised in classic zombie pose
+        // Arms behavior
         if (this.arms.left && this.arms.right) {
-            // Base zombie pose - arms raised and forward
-            this.arms.left.rotation.x = 0.8;  // Forward
-            this.arms.right.rotation.x = 0.8; // Forward
-            this.arms.left.rotation.z = -0.8;  // Out to sides
-            this.arms.right.rotation.z = 0.8;  // Out to sides
-            
-            // Small swaying motion for arms
-            const armSway = Math.sin(angle) * 0.2;
-            this.arms.left.rotation.x += armSway;
-            this.arms.right.rotation.x -= armSway;
-            
-            // Vertical arm sway
-            const verticalSway = Math.sin(angle * 0.5) * 0.1;
-            this.arms.left.rotation.z += verticalSway;
-            this.arms.right.rotation.z -= verticalSway;
+            if (speed > 1) {
+                // Aggressive lurging pose
+                this.arms.left.rotation.x = 1.2;
+                this.arms.right.rotation.x = 1.2;
+                this.arms.left.rotation.z = -1.0;
+                this.arms.right.rotation.z = 1.0;
+                
+                // Violent arm swaying during lurge
+                const lurgeArmSway = Math.sin(angle * 2) * 0.6;
+                this.arms.left.rotation.x += lurgeArmSway;
+                this.arms.right.rotation.x -= lurgeArmSway;
+            } else {
+                // Normal shambling pose
+                this.arms.left.rotation.x = 0.8;
+                this.arms.right.rotation.x = 0.8;
+                this.arms.left.rotation.z = -0.8;
+                this.arms.right.rotation.z = 0.8;
+                
+                const armSway = Math.sin(angle) * 0.2;
+                this.arms.left.rotation.x += armSway;
+                this.arms.right.rotation.x -= armSway;
+            }
         }
 
-        // Shuffling leg movement
+        // More dramatic leg movement during lurge
         if (this.legs.left && this.legs.right) {
-            // Shorter steps for shuffling
-            const legAngle = Math.sin(angle) * 0.3;
+            const legAngle = speed > 1 ? 
+                Math.sin(angle) * 0.7 : // Bigger steps when lurging
+                Math.sin(angle) * 0.3;  // Normal shuffling
+            
             this.legs.left.rotation.x = -legAngle;
             this.legs.right.rotation.x = legAngle;
-            
-            // Slight inward rotation for shuffling effect
-            this.legs.left.rotation.y = 0.1;
-            this.legs.right.rotation.y = -0.1;
         }
 
-        // Swaying body movement
-        const bodySway = Math.sin(angle * 0.5) * 0.1;
-        this.mesh.rotation.z = bodySway;  // Side to side sway
-        
-        // Head movement - slight tilt and sway
+        // More intense body sway during lurge
+        const bodySway = Math.sin(angle * 0.5) * (speed > 1 ? 0.2 : 0.1);
+        this.mesh.rotation.z = bodySway;
+
+        // More dramatic head movement during lurge
         const head = this.mesh.getChildMeshes().find(mesh => mesh.name === "zombieHead");
         if (head) {
-            head.rotation.z = Math.sin(angle * 0.7) * 0.1; // Head tilt
-            head.rotation.y = Math.sin(angle * 0.5) * 0.2; // Head sway
-            head.rotation.x = 0.2 + Math.sin(angle * 0.3) * 0.1; // Head tilt forward
+            if (speed > 1) {
+                head.rotation.z = Math.sin(angle * 0.7) * 0.2;
+                head.rotation.y = Math.sin(angle * 0.5) * 0.3;
+                head.rotation.x = 0.3 + Math.sin(angle * 0.3) * 0.2;
+            } else {
+                head.rotation.z = Math.sin(angle * 0.7) * 0.1;
+                head.rotation.y = Math.sin(angle * 0.5) * 0.2;
+                head.rotation.x = 0.2 + Math.sin(angle * 0.3) * 0.1;
+            }
         }
 
         // Animate blood drips slower for creepier effect
@@ -250,26 +261,6 @@ export class ZombieModel {
             drip.position.y -= Math.sin(deltaTime + index) * 0.0005;
             drip.scaling.y = 1 + Math.sin(deltaTime * 1.5 + index) * 0.05;
         });
-
-        // If lurging (speed > 1), increase animation intensity
-        if (speed > 1) {
-            // More aggressive arm movements
-            if (this.arms.left && this.arms.right) {
-                const lurgeArmSway = Math.sin(angle * 2) * 0.4;
-                this.arms.left.rotation.x += lurgeArmSway;
-                this.arms.right.rotation.x -= lurgeArmSway;
-            }
-            
-            // Bigger steps
-            if (this.legs.left && this.legs.right) {
-                const lurgeLegAngle = Math.sin(angle * 2) * 0.5;
-                this.legs.left.rotation.x = -lurgeLegAngle;
-                this.legs.right.rotation.x = lurgeLegAngle;
-            }
-            
-            // More intense body sway
-            this.mesh.rotation.z = bodySway * 1.5;
-        }
     }
 
     dispose() {

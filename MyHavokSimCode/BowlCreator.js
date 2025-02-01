@@ -13,35 +13,50 @@ export class BowlCreator {
         const distFromCenter = Math.sqrt(x * x + z * z);
         const normalizedDist = distFromCenter / bowlRadius;
         
-        // Base bowl shape
-        let y = -Math.pow(normalizedDist, 2) * bowlDepth;
+        // Much flatter base shape
+        let y = -Math.pow(normalizedDist, 3) * bowlDepth;
         
-        // Add mountains near edges
-        if (normalizedDist > 0.7) {
+        // Create a very flat central meadow
+        if (normalizedDist < 0.4) {
+            // Almost completely flat center with very subtle undulation
+            const meadowNoise = 
+                Math.sin(x * 0.05) * Math.cos(z * 0.05) * 0.5 + // Very gentle rolling
+                Math.sin((x + z) * 0.03) * Math.cos((x - z) * 0.03) * 0.3; // Subtle variation
+            
+            y = -2 + meadowNoise; // Slight depression to hold water
+            
+            // Smooth transition to surrounding terrain
+            if (normalizedDist > 0.3) {
+                const transitionFactor = (normalizedDist - 0.3) / 0.1;
+                y = y * (1 - transitionFactor) + (-5 * transitionFactor);
+            }
+        }
+        // Rolling hills in the middle region
+        else if (normalizedDist < 0.7) {
+            const hillFactor = (normalizedDist - 0.4) / 0.3;
+            const hillNoise = 
+                Math.sin(x * 0.08) * Math.cos(z * 0.08) * 4 +
+                Math.sin((x + z) * 0.05) * Math.cos((x - z) * 0.05) * 3;
+            
+            y = -5 + hillNoise * hillFactor;
+        }
+        // Mountains at the edges
+        else {
             const mountainFactor = (normalizedDist - 0.7) / 0.3;
-            const mountainHeight = 20;
+            const mountainHeight = 25;
             const angle = Math.atan2(z, x);
             
+            // Create more natural-looking mountain ranges
             const mountainNoise = 
-                Math.sin(angle * 4) * 0.5 +
-                Math.sin(angle * 7 + 1.3) * 0.3 +
-                Math.sin(angle * 13 + 2.4) * 0.2;
+                Math.sin(angle * 3) * 0.6 +
+                Math.sin(angle * 5 + 1.5) * 0.3 +
+                Math.sin(angle * 8 + 2.4) * 0.2;
             
-            y += mountainHeight * mountainFactor * (0.7 + 0.3 * mountainNoise);
-        }
-        
-        // Flatten center
-        if (normalizedDist < 0.3) {
-            const flatFactor = 1 - (normalizedDist / 0.3);
-            y *= (1 - Math.pow(flatFactor, 2));
-        }
-        
-        // Add gentle hills
-        if (normalizedDist < 0.6) {
-            const hillNoise = 
-                Math.sin(x * 0.1) * Math.cos(z * 0.1) * 2 +
-                Math.sin((x + z) * 0.05) * Math.cos((x - z) * 0.05);
-            y += hillNoise * (1 - normalizedDist);
+            const ridgeNoise = 
+                Math.sin(x * 0.1 + z * 0.1) * 0.5 +
+                Math.cos(x * 0.15 - z * 0.15) * 0.3;
+            
+            y += mountainHeight * mountainFactor * (0.8 + 0.4 * (mountainNoise + ridgeNoise));
         }
         
         return y;
@@ -54,13 +69,14 @@ export class BowlCreator {
             const vertexData = new BABYLON.VertexData();
             
             // Generate mesh data
-            const {positions, indices, uvs, normals} = this.generateTerrainData(bowlRadius, bowlDepth, segments);
+            const {positions, indices, uvs, normals, colors} = this.generateTerrainData(bowlRadius, bowlDepth, segments);
             
             // Apply vertex data to mesh
             vertexData.positions = positions;
             vertexData.indices = indices;
             vertexData.uvs = uvs;
             vertexData.normals = normals;
+            vertexData.colors = colors;
             vertexData.applyToMesh(ground);
 
             // Create materials
@@ -105,6 +121,7 @@ export class BowlCreator {
         const indices = [];
         const uvs = [];
         const normals = [];
+        const colors = [];
         
         // Generate vertices
         for (let i = 0; i <= segments; i++) {
@@ -112,46 +129,44 @@ export class BowlCreator {
                 const x = ((i / segments) * 2 - 1) * bowlRadius;
                 const z = ((j / segments) * 2 - 1) * bowlRadius;
                 
-                const distFromCenter = Math.sqrt(x * x + z * z);
-                const normalizedDist = distFromCenter / bowlRadius;
-                
-                // Calculate height
-                let y = -Math.pow(normalizedDist, 2) * bowlDepth;
-                
-                // Add mountains near edges
-                if (normalizedDist > 0.7) {
-                    const mountainFactor = (normalizedDist - 0.7) / 0.3;
-                    const mountainHeight = 20;
-                    const angle = Math.atan2(z, x);
-                    
-                    const mountainNoise = 
-                        Math.sin(angle * 4) * 0.5 +
-                        Math.sin(angle * 7 + 1.3) * 0.3 +
-                        Math.sin(angle * 13 + 2.4) * 0.2;
-                    
-                    y += mountainHeight * mountainFactor * (0.7 + 0.3 * mountainNoise);
-                }
-                
-                // Flatten center
-                if (normalizedDist < 0.3) {
-                    const flatFactor = 1 - (normalizedDist / 0.3);
-                    y *= (1 - Math.pow(flatFactor, 2));
-                }
-                
-                // Add gentle hills
-                if (normalizedDist < 0.6) {
-                    const hillNoise = 
-                        Math.sin(x * 0.1) * Math.cos(z * 0.1) * 2 +
-                        Math.sin((x + z) * 0.05) * Math.cos((x - z) * 0.05);
-                    y += hillNoise * (1 - normalizedDist);
-                }
-                
+                const y = BowlCreator.getTerrainHeight(x, z);
                 positions.push(x, y, z);
                 
-                // UV coordinates
+                // Generate vertex colors based on height and position
+                const distFromCenter = Math.sqrt(x * x + z * z) / bowlRadius;
+                const normalizedHeight = (y + bowlDepth) / (bowlDepth * 2);
+                
+                // Meadow colors (greens)
+                if (distFromCenter < 0.4) {
+                    colors.push(
+                        0.2 + Math.random() * 0.1, // R
+                        0.6 + Math.random() * 0.2, // G
+                        0.1 + Math.random() * 0.1  // B
+                    );
+                }
+                // Hills colors (mix of greens and browns)
+                else if (distFromCenter < 0.7) {
+                    const hillNoise = Math.random() * 0.2;
+                    colors.push(
+                        0.3 + hillNoise, // R
+                        0.5 + hillNoise, // G
+                        0.1 + hillNoise  // B
+                    );
+                }
+                // Mountain colors (greys and browns)
+                else {
+                    const rockNoise = Math.random() * 0.2;
+                    colors.push(
+                        0.4 + rockNoise, // R
+                        0.35 + rockNoise, // G
+                        0.3 + rockNoise  // B
+                    );
+                }
+                
+                // UV coordinates for texturing
                 uvs.push(i / segments, j / segments);
                 
-                // Placeholder normal (will be computed later)
+                // Placeholder normal
                 normals.push(0, 1, 0);
             }
         }
@@ -170,7 +185,7 @@ export class BowlCreator {
         // Compute proper normals
         BABYLON.VertexData.ComputeNormals(positions, indices, normals);
         
-        return {positions, indices, uvs, normals};
+        return {positions, indices, uvs, normals, colors};
     }
 
     createWalls(bowlRadius, bowlDepth, material) {

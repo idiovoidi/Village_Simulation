@@ -10,6 +10,7 @@ import { BirdBehaviour } from './Agents/Birds/BirdBehaviour.js';
 import { CloudSystem } from './CloudSystem.js';
 import { ZombieBehaviour } from './Agents/Zombies/ZombieBehaviour.js';
 import { MoonSystem } from './MoonSystem.js';
+import { VillageSystem } from './VillageSystem.js';
 
 export class LeoScene {
   constructor(canvas) {
@@ -106,6 +107,9 @@ export class LeoScene {
 
       // Initialize CloudSystem
       this.cloudSystem = new CloudSystem(this.scene);
+
+      // Initialize VillageSystem
+      this.villageSystem = new VillageSystem(this.scene);
 
       // Initialize ZombieBehaviour
       this.zombieSystem = new ZombieBehaviour(this.scene);

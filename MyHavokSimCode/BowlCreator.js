@@ -5,6 +5,39 @@ export class BowlCreator {
         this.bowlDepth = 25;
         this.minSegments = 32;  // Minimum segments for flat areas
         this.maxSegments = 96;  // Maximum segments for detailed areas
+
+        // Optimize wheel event handling
+        this.initializeEventHandling();
+    }
+
+    initializeEventHandling() {
+        // Get the canvas element from the scene
+        const canvas = this.scene.getEngine().getRenderingCanvas();
+        
+        // Remove any existing wheel listeners
+        canvas.removeEventListener('wheel', this.handleWheel, { passive: true });
+        
+        // Add passive wheel event listener
+        this.handleWheel = (event) => {
+            // Handle zoom here if needed
+            if (this.scene.activeCamera) {
+                const camera = this.scene.activeCamera;
+                const delta = event.deltaY * 0.01;
+                if (camera.radius !== undefined) {
+                    camera.radius += delta; // For ArcRotateCamera
+                } else if (camera.position) {
+                    const direction = camera.getDirection(BABYLON.Vector3.Forward());
+                    camera.position.addInPlace(direction.scale(delta));
+                }
+            }
+        };
+        
+        canvas.addEventListener('wheel', this.handleWheel, { passive: true });
+        
+        // Cleanup on scene dispose
+        this.scene.onDisposeObservable.add(() => {
+            canvas.removeEventListener('wheel', this.handleWheel, { passive: true });
+        });
     }
 
     // Add this static method to get terrain height at any point
@@ -81,27 +114,37 @@ export class BowlCreator {
             vertexData.applyToMesh(ground);
 
             // Create materials
-            const multimat = new BABYLON.MultiMaterial("multi", this.scene);
+            const terrainMaterial = new BABYLON.StandardMaterial("terrainMat", this.scene);
             
-            // Rock material for mountains
-            const rockMaterial = new BABYLON.StandardMaterial("rock", this.scene);
-            rockMaterial.diffuseTexture = new BABYLON.Texture("https://assets.babylonjs.com/textures/rock.png", this.scene);
-            rockMaterial.bumpTexture = new BABYLON.Texture("https://assets.babylonjs.com/textures/rockn.png", this.scene);
-            rockMaterial.diffuseTexture.uScale = rockMaterial.diffuseTexture.vScale = 20;
-            rockMaterial.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
-            rockMaterial.backFaceCulling = false;
+            // Load textures with proper settings
+            const rockTexture = new BABYLON.Texture("https://assets.babylonjs.com/textures/rock.png", this.scene);
+            const rockNormal = new BABYLON.Texture("https://assets.babylonjs.com/textures/rockn.png", this.scene);
+            const grassTexture = new BABYLON.Texture("https://assets.babylonjs.com/textures/grass.png", this.scene);
             
-            // Grass material for flatter areas
-            const grassMaterial = new BABYLON.StandardMaterial("grass", this.scene);
-            grassMaterial.diffuseTexture = new BABYLON.Texture("https://assets.babylonjs.com/textures/grass.png", this.scene);
-            grassMaterial.diffuseTexture.uScale = grassMaterial.diffuseTexture.vScale = 20;
-            grassMaterial.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
-            grassMaterial.backFaceCulling = false;
+            // Configure texture settings
+            [rockTexture, rockNormal, grassTexture].forEach(texture => {
+                texture.uScale = texture.vScale = 50; // Increased scale for better detail
+                texture.hasAlpha = false;
+                texture.anisotropicFilteringLevel = 8;
+                texture.wrapU = texture.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
+            });
 
-            multimat.subMaterials.push(rockMaterial);
-            multimat.subMaterials.push(grassMaterial);
-
-            ground.material = multimat;
+            // Configure material properties
+            terrainMaterial.diffuseTexture = grassTexture;
+            terrainMaterial.bumpTexture = rockNormal;
+            terrainMaterial.ambientColor = new BABYLON.Color3(1, 1, 1);
+            terrainMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+            terrainMaterial.specularPower = 64;
+            terrainMaterial.useVertexColors = true;
+            terrainMaterial.diffuseColor = new BABYLON.Color3(1, 1, 1);
+            terrainMaterial.backFaceCulling = false;
+            
+            // Disable emissive to prevent color interference
+            terrainMaterial.emissiveColor = new BABYLON.Color3(0, 0, 0);
+            terrainMaterial.ambientTexture = null;
+            terrainMaterial.emissiveTexture = null;
+            
+            ground.material = terrainMaterial;
 
             // Add physics
             new BABYLON.PhysicsAggregate(
@@ -111,7 +154,8 @@ export class BowlCreator {
                 this.scene
             );
 
-            this.createWalls(bowlRadius, bowlDepth, rockMaterial);
+            // Create semi-transparent walls with the same material
+            this.createWalls(bowlRadius, bowlDepth, terrainMaterial);
             
             resolve(ground);
         });
@@ -191,32 +235,63 @@ export class BowlCreator {
     }
 
     addTerrainColor(colors, distFromCenter, y, bowlDepth) {
-        // Meadow colors (greens)
-        if (distFromCenter < 0.4) {
-            colors.push(
-                0.2 + Math.random() * 0.1, // R
-                0.6 + Math.random() * 0.2, // G
-                0.1 + Math.random() * 0.1  // B
-            );
-        }
-        // Hills colors (mix of greens and browns)
-        else if (distFromCenter < 0.7) {
-            const hillNoise = Math.random() * 0.2;
-            colors.push(
-                0.3 + hillNoise, // R
-                0.5 + hillNoise, // G
-                0.1 + hillNoise  // B
-            );
-        }
-        // Mountain colors (greys and browns)
-        else {
-            const rockNoise = Math.random() * 0.2;
-            colors.push(
-                0.4 + rockNoise, // R
-                0.35 + rockNoise, // G
-                0.3 + rockNoise  // B
-            );
-        }
+        // Calculate blend factors based on height and distance
+        const heightFactor = (y + bowlDepth) / (bowlDepth * 2); // Normalize height to 0-1
+        const slopeFactor = Math.abs(y) / bowlDepth; // Steepness factor
+        
+        // Calculate biomes with smoother transitions
+        const meadowFactor = Math.max(0, Math.min(1, 
+            (0.4 - distFromCenter) / 0.1 * (1 - slopeFactor)
+        ));
+        
+        const hillFactor = Math.max(0, Math.min(1,
+            distFromCenter < 0.4 ? 0 :
+            distFromCenter > 0.7 ? 0 :
+            ((distFromCenter - 0.4) / 0.3) * (1 - Math.abs(heightFactor - 0.5))
+        ));
+        
+        const mountainFactor = Math.max(0, Math.min(1,
+            (distFromCenter - 0.6) / 0.2 * slopeFactor
+        ));
+
+        // Define more natural earth-tone color palettes
+        const meadowColor = {
+            r: 0.4,
+            g: 0.6,
+            b: 0.3
+        };
+
+        const hillColor = {
+            r: 0.45,
+            g: 0.5,
+            b: 0.35
+        };
+
+        const mountainColor = {
+            r: 0.5,
+            g: 0.45,
+            b: 0.4
+        };
+
+        // Blend colors with proper weighting
+        const r = (meadowColor.r * meadowFactor +
+                  hillColor.r * hillFactor +
+                  mountainColor.r * mountainFactor);
+        
+        const g = (meadowColor.g * meadowFactor +
+                  hillColor.g * hillFactor +
+                  mountainColor.g * mountainFactor);
+        
+        const b = (meadowColor.b * meadowFactor +
+                  hillColor.b * hillFactor +
+                  mountainColor.b * mountainFactor);
+
+        // Push colors with proper clamping
+        colors.push(
+            Math.max(0.2, Math.min(0.8, r)), // More conservative clamping
+            Math.max(0.2, Math.min(0.8, g)),
+            Math.max(0.2, Math.min(0.8, b))
+        );
     }
 
     generateAdaptiveIndices(indices, gridSizes, vertexMap, bowlRadius) {

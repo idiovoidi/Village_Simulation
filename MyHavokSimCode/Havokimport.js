@@ -9,6 +9,8 @@ import { HouseSystem } from './HouseSystem.js';
 import { FishBehaviour } from './Fish/FishBehaviour.js';
 import { BirdBehaviour } from './Agents/Birds/BirdBehaviour.js';
 import { CloudSystem } from './CloudSystem.js';
+import { ZombieBehaviour } from './Agents/Zombies/ZombieBehaviour.js';
+import { MoonSystem } from './MoonSystem.js';
 
 export class LeoScene {
   constructor(canvas) {
@@ -71,7 +73,9 @@ export class LeoScene {
       // Initialize WaterSimulation
       this.waterSim = new WaterSimulation(this.scene);
       const waterInitSuccess = this.waterSim.initialize();
-
+      // In your init() method after clouds:
+      this.moonSystem = new MoonSystem(this.scene); 
+      
       if (waterInitSuccess) {
         // Initialize fish after water is created
         this.fishSystem = new FishBehaviour(this.scene, this.waterSim.waterMesh);
@@ -107,6 +111,9 @@ export class LeoScene {
 
       // Initialize CloudSystem
       this.cloudSystem = new CloudSystem(this.scene);
+
+      // Initialize ZombieBehaviour
+      this.zombieSystem = new ZombieBehaviour(this.scene);
 
     } catch (error) {
       console.error("Error initializing physics:", error);

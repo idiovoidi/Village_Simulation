@@ -7,6 +7,7 @@ export class HouseSystem {
         this.houseCount = 12;  // Number of houses to create
         this.roadRadius = 85;  // Match road radius
         this.houseRadius = 90; // Slightly outside the road
+        this.roadSystem = null;
         this.init();
     }
 
@@ -14,18 +15,24 @@ export class HouseSystem {
         this.createHouses();
     }
 
+    // Add method to connect with road system
+    connectRoads(roadSystem) {
+        this.roadSystem = roadSystem;
+        this.roadSystem.createRoadNetwork(this.houses);
+    }
+
     createHouses() {
         for (let i = 0; i < this.houseCount; i++) {
             const angle = (i / this.houseCount) * Math.PI * 2;
             // Add some randomness to placement
-            const radius = this.houseRadius + (Math.random() * 5 - 2.5);
-            const rotationOffset = (Math.random() * 0.2 - 0.1); // Slight random rotation
+            const radius = this.houseRadius + (Math.random() * 10 - 5); // Increased randomness
+            const rotationOffset = (Math.random() * 0.4 - 0.2); // Increased random rotation
 
             const x = Math.cos(angle) * radius;
             const z = Math.sin(angle) * radius;
             const y = BowlCreator.getTerrainHeight(x, z);
 
-            this.createHouse(x, y, z, angle + rotationOffset);
+            this.createHouse(x, y + 0.2, z, angle + rotationOffset); // Slight elevation
         }
     }
 

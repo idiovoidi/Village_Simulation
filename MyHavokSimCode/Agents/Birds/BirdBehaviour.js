@@ -1,4 +1,5 @@
 import { BirdModel } from './BirdModel.js';
+import { BowlCreator } from '../../BowlCreator.js';
 
 export class BirdBehaviour {
     constructor(scene) {
@@ -204,11 +205,12 @@ export class BirdBehaviour {
     getRandomPosition() {
         const angle = Math.random() * Math.PI * 2;
         const radius = Math.random() * this.flockRadius;
-        return new BABYLON.Vector3(
-            this.flockCenter.x + Math.cos(angle) * radius,
-            this.flockCenter.y + (Math.random() - 0.5) * 10,
-            this.flockCenter.z + Math.sin(angle) * radius
-        );
+        const x = Math.cos(angle) * radius;
+        const z = Math.sin(angle) * radius;
+        const baseHeight = BowlCreator.getTerrainHeight(x, z);
+        const y = baseHeight + 20 + Math.random() * 20; // Birds fly high above terrain
+
+        return new BABYLON.Vector3(x, y, z);
     }
 
     clamp(value, min, max) {

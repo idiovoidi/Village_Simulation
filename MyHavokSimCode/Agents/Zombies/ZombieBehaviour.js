@@ -1,4 +1,5 @@
 import { ZombieModel } from './ZombieModel.js';
+import { BowlCreator } from '../../BowlCreator.js';
 
 export class ZombieBehaviour {
     constructor(scene) {
@@ -194,7 +195,7 @@ export class ZombieBehaviour {
         const radius = Math.random() * this.wanderRadius;
         const x = Math.cos(angle) * radius;
         const z = Math.sin(angle) * radius;
-        const y = this.getTerrainHeight(x, z);
+        const y = BowlCreator.getTerrainHeight(x, z) + 2; // Add offset to ensure above ground
 
         return new BABYLON.Vector3(x, y, z);
     }

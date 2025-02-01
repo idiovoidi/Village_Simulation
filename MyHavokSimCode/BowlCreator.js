@@ -1,6 +1,50 @@
 export class BowlCreator {
     constructor(scene) {
         this.scene = scene;
+        this.bowlRadius = 100;
+        this.bowlDepth = 25;
+    }
+
+    // Add this static method to get terrain height at any point
+    static getTerrainHeight(x, z) {
+        const bowlRadius = 100;
+        const bowlDepth = 25;
+        
+        const distFromCenter = Math.sqrt(x * x + z * z);
+        const normalizedDist = distFromCenter / bowlRadius;
+        
+        // Base bowl shape
+        let y = -Math.pow(normalizedDist, 2) * bowlDepth;
+        
+        // Add mountains near edges
+        if (normalizedDist > 0.7) {
+            const mountainFactor = (normalizedDist - 0.7) / 0.3;
+            const mountainHeight = 20;
+            const angle = Math.atan2(z, x);
+            
+            const mountainNoise = 
+                Math.sin(angle * 4) * 0.5 +
+                Math.sin(angle * 7 + 1.3) * 0.3 +
+                Math.sin(angle * 13 + 2.4) * 0.2;
+            
+            y += mountainHeight * mountainFactor * (0.7 + 0.3 * mountainNoise);
+        }
+        
+        // Flatten center
+        if (normalizedDist < 0.3) {
+            const flatFactor = 1 - (normalizedDist / 0.3);
+            y *= (1 - Math.pow(flatFactor, 2));
+        }
+        
+        // Add gentle hills
+        if (normalizedDist < 0.6) {
+            const hillNoise = 
+                Math.sin(x * 0.1) * Math.cos(z * 0.1) * 2 +
+                Math.sin((x + z) * 0.05) * Math.cos((x - z) * 0.05);
+            y += hillNoise * (1 - normalizedDist);
+        }
+        
+        return y;
     }
 
     createBowl(bowlRadius = 100, bowlDepth = 25, segments = 96) {

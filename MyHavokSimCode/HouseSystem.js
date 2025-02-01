@@ -1,3 +1,5 @@
+import { BowlCreator } from './BowlCreator.js';
+
 export class HouseSystem {
     constructor(scene) {
         this.scene = scene;
@@ -21,7 +23,7 @@ export class HouseSystem {
 
             const x = Math.cos(angle) * radius;
             const z = Math.sin(angle) * radius;
-            const y = this.getTerrainHeight(x, z);
+            const y = BowlCreator.getTerrainHeight(x, z);
 
             this.createHouse(x, y, z, angle + rotationOffset);
         }
@@ -164,16 +166,5 @@ export class HouseSystem {
                 bush.material = bushMat;
             }
         }
-    }
-
-    getTerrainHeight(x, z) {
-        const bowlRadius = 100;
-        const bowlDepth = 25;
-        const distFromCenter = Math.sqrt(x * x + z * z);
-        
-        let height = -Math.pow(distFromCenter / bowlRadius, 0.8) * bowlDepth;
-        height += Math.sin(x/20) * Math.cos(z/20) * 3;
-        
-        return height;
     }
 } 

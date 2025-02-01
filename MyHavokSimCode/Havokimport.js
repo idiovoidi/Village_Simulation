@@ -1,6 +1,5 @@
 import { VortexBall } from './VortexBall.js';
 import { BowlCreator } from './BowlCreator.js';
-import { BoxCreator } from './BoxCreator.js';
 import { BehavioralSim } from './BehavioralSim.js';
 import { WaterSimulation } from './WaterSimulation.js';
 import { BoatAgent } from './Boats/BoatAgent.js';
@@ -62,10 +61,6 @@ export class LeoScene {
       // Initialize RoadSystem after bowl is created
       console.log("Creating RoadSystem");
       this.roadSystem = new RoadSystem(this.scene);
-
-      // Initialize other systems
-      const boxCreator = new BoxCreator(this.scene);
-      this.boxes = boxCreator.createBoxes();
       
       // Create vortex ball
       this.vortexBall = new VortexBall(this.scene);

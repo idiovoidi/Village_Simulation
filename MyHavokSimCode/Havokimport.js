@@ -12,13 +12,16 @@ import { ZombieBehaviour } from './Agents/Zombies/ZombieBehaviour.js';
 import { MoonSystem } from './MoonSystem.js';
 import { VillageSystem } from './VillageSystem.js';
 import { DogBehaviour } from './Agents/Dogs/DogBehaviour.js';
+import { LevelConfig } from './LevelSystem/LevelConfig.js';
+import { LevelSelector } from './LevelSystem/LevelSelector.js';
 
 export class LeoScene {
   constructor(canvas) {
     this.canvas = canvas;
     this.engine = new BABYLON.Engine(this.canvas, true);
     this.scene = this.createScene();
-    this.boxes = []; // Store references to boxes
+    this.boxes = [];
+    this.currentLevel = null;
     this.init();
   }
 
@@ -28,65 +31,42 @@ export class LeoScene {
   }
 
   async init() {
-    // Set up camera
-    const camera = new BABYLON.ArcRotateCamera(
-      "Camera",
-      Math.PI / 1.5,
-      Math.PI / 4,
-      50,
-      new BABYLON.Vector3(0, 0, 0),
-      this.scene
-    );
-    camera.attachControl(this.canvas, true);
-    camera.lowerRadiusLimit = 10;
-    camera.upperRadiusLimit = 100;
-
-    // Add lighting
-    const light = new BABYLON.HemisphericLight(
-      "light",
-      new BABYLON.Vector3(0, 1, 0),
-      this.scene
-    );
-
     try {
+      // Set up camera
+      const camera = new BABYLON.ArcRotateCamera(
+        "Camera",
+        Math.PI / 1.5,
+        Math.PI / 4,
+        50,
+        new BABYLON.Vector3(0, 0, 0),
+        this.scene
+      );
+      camera.attachControl(this.canvas, true);
+      camera.lowerRadiusLimit = 10;
+      camera.upperRadiusLimit = 100;
+
+      // Add lighting
+      const light = new BABYLON.HemisphericLight(
+        "light",
+        new BABYLON.Vector3(0, 1, 0),
+        this.scene
+      );
+
       // Initialize Havok physics
       const havokInstance = await HavokPhysics();
       const havokPlugin = new BABYLON.HavokPlugin(true, havokInstance);
-      
-      // Enable physics in the scene
       this.scene.enablePhysics(new BABYLON.Vector3(0, -9.81, 0), havokPlugin);
 
-      // Create bowl first and wait for it to be ready
-      const bowlCreator = new BowlCreator(this.scene);
-      await bowlCreator.createBowl();
+      // Initialize level selector
+      this.levelSelector = new LevelSelector(this.scene, (levelId) => this.loadLevel(levelId));
 
-      // Initialize other systems after bowl is created
-      console.log("Creating RoadSystem");
-      this.roadSystem = new RoadSystem(this.scene);
-      
-      // Create vortex ball
-      this.vortexBall = new VortexBall(this.scene);
-
-      // Initialize WaterSimulation
-      this.waterSim = new WaterSimulation(this.scene);
-      const waterInitSuccess = this.waterSim.initialize();
-      // In your init() method after clouds:
-      this.moonSystem = new MoonSystem(this.scene); 
-      
-      if (waterInitSuccess) {
-        // Initialize fish after water is created
-        this.fishSystem = new FishBehaviour(this.scene, this.waterSim.waterMesh);
-        this.fishSystem.initialize(20); // Create 20 fish
-
-        // Initialize boats after fish
-        this.boatAgent = new BoatAgent(this.scene, this.waterSim.waterMesh.position.y);
-        this.boatAgent.initialize();
+      // Load initial level
+      const initialLevel = LevelConfig.getCurrentLevel();
+      if (initialLevel) {
+        await this.loadLevel(initialLevel.config);
+      } else {
+        console.error("No initial level found");
       }
-
-      // Register before render to update physics
-      this.scene.registerBeforeRender(() => {
-        this.vortexBall.applyVortexForce(this.boxes);
-      });
 
       // Start the render loop
       this.engine.runRenderLoop(() => {
@@ -96,31 +76,109 @@ export class LeoScene {
       // Show debug layer
       this.scene.debugLayer.show({ overlay: true });
 
+    } catch (error) {
+      console.error("Error initializing scene:", error);
+    }
+  }
+
+  async loadLevel(level) {
+    try {
+      console.log("Loading level:", level);
+      
+      // Dispose of existing systems
+      this.disposeCurrentSystems();
+
+      // Create bowl first and wait for it to be ready
+      const bowlCreator = new BowlCreator(this.scene);
+      await bowlCreator.createBowl(level.bowlRadius, level.bowlDepth);
+
+      // Initialize systems based on level config
+      if (level.hasVillage) {
+        console.log("Creating village systems");
+        this.roadSystem = new RoadSystem(this.scene);
+        this.villageSystem = new VillageSystem(this.scene);
+      }
+
+      // Create vortex ball
+      this.vortexBall = new VortexBall(this.scene);
+
+      // Initialize WaterSimulation if enabled
+      if (level.hasWater) {
+        console.log("Creating water systems");
+        this.waterSim = new WaterSimulation(this.scene);
+        const waterInitSuccess = this.waterSim.initialize();
+
+        if (waterInitSuccess && level.hasFish) {
+          this.fishSystem = new FishBehaviour(this.scene, this.waterSim.waterMesh);
+          this.fishSystem.initialize(level.fishCount);
+        }
+      }
+
+      // Initialize MoonSystem
+      if (level.hasMoon) {
+        this.moonSystem = new MoonSystem(this.scene);
+      }
+
       // Initialize BehavioralSim
       this.behavioralSim = new BehavioralSim(this.scene);
 
-      // Initialize HouseSystem
-      this.houseSystem = new HouseSystem(this.scene);
+      // Initialize HouseSystem if village is enabled
+      if (level.hasVillage) {
+        this.houseSystem = new HouseSystem(this.scene);
+      }
 
-      // Initialize BirdBehaviour
-      this.birdSystem = new BirdBehaviour(this.scene);
-      this.birdSystem.initialize(15); // Create 15 birds
+      // Initialize BirdBehaviour if enabled
+      if (level.hasBirds) {
+        this.birdSystem = new BirdBehaviour(this.scene);
+        this.birdSystem.initialize(level.birdCount);
+      }
 
-      // Initialize CloudSystem
-      this.cloudSystem = new CloudSystem(this.scene);
+      // Initialize CloudSystem if enabled
+      if (level.hasClouds) {
+        this.cloudSystem = new CloudSystem(this.scene);
+      }
 
-      // Initialize VillageSystem
-      this.villageSystem = new VillageSystem(this.scene);
+      // Initialize DogBehaviour if enabled
+      if (level.hasDogs) {
+        this.dogSystem = new DogBehaviour(this.scene);
+        this.dogSystem.initialize(level.dogCount);
+      }
 
-      // Initialize DogBehaviour
-      this.dogSystem = new DogBehaviour(this.scene);
-      this.dogSystem.initialize(3); // Create 3 dogs
+      // Initialize ZombieBehaviour if enabled
+      if (level.hasZombies) {
+        this.zombieSystem = new ZombieBehaviour(this.scene);
+        this.zombieSystem.initialize(level.zombieCount);
+      }
 
-      // Initialize ZombieBehaviour
-      this.zombieSystem = new ZombieBehaviour(this.scene);
+      console.log("Level loaded successfully");
+      return Promise.resolve();
 
     } catch (error) {
-      console.error("Error initializing physics:", error);
+      console.error("Error loading level:", error);
+      return Promise.reject(error);
     }
+  }
+
+  disposeCurrentSystems() {
+    console.log("Disposing current systems");
+    
+    const systems = [
+      'roadSystem', 'villageSystem', 'vortexBall', 'waterSim',
+      'fishSystem', 'moonSystem', 'behavioralSim', 'houseSystem',
+      'birdSystem', 'cloudSystem', 'dogSystem', 'zombieSystem'
+    ];
+
+    systems.forEach(system => {
+      if (this[system]) {
+        if (typeof this[system].dispose === 'function') {
+          try {
+            this[system].dispose();
+          } catch (error) {
+            console.warn(`Error disposing system ${system}:`, error);
+          }
+        }
+        this[system] = null;
+      }
+    });
   }
 }

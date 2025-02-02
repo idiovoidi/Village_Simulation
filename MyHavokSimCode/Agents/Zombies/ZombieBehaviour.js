@@ -14,11 +14,10 @@ export class ZombieBehaviour {
         this.lurgeChance = 0.02; // Increased chance to lurch
         this.lurgeDuration = 1.0; // Longer lurge duration
         this.lurgeSpeedMultiplier = 4.0; // More dramatic speed increase
-        this.init();
     }
 
-    init() {
-        this.createZombies(10);
+    initialize(count) {
+        this.createZombies(count);
         this.scene.registerBeforeRender(() => {
             const deltaTime = this.scene.getEngine().getDeltaTime() * 0.001;
             this.updateZombies(deltaTime);

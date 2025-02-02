@@ -11,6 +11,7 @@ import { CloudSystem } from './CloudSystem.js';
 import { ZombieBehaviour } from './Agents/Zombies/ZombieBehaviour.js';
 import { MoonSystem } from './MoonSystem.js';
 import { VillageSystem } from './VillageSystem.js';
+import { DogBehaviour } from './Agents/Dogs/DogBehaviour.js';
 
 export class LeoScene {
   constructor(canvas) {
@@ -110,6 +111,10 @@ export class LeoScene {
 
       // Initialize VillageSystem
       this.villageSystem = new VillageSystem(this.scene);
+
+      // Initialize DogBehaviour
+      this.dogSystem = new DogBehaviour(this.scene);
+      this.dogSystem.initialize(3); // Create 3 dogs
 
       // Initialize ZombieBehaviour
       this.zombieSystem = new ZombieBehaviour(this.scene);

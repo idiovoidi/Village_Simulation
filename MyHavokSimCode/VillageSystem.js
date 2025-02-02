@@ -1,14 +1,15 @@
 import { BowlCreator } from './BowlCreator.js';
 import { AssetManager } from '../assets/AssetManager.js';
+import { VillageDecorations } from './Village/VillageDecorations.js';
 
 export class VillageSystem {
     constructor(scene) {
         this.scene = scene;
         this.houses = [];
-        this.decorations = [];
         this.villageRadius = 60; // Village radius
         this.centerOffset = new BABYLON.Vector3(0, 0, 0); // Village center position
         this.houseCount = 15; // Number of houses to create
+        this.decorations = new VillageDecorations(scene);
         this.init();
     }
 
@@ -37,50 +38,93 @@ export class VillageSystem {
 
         // Add central fountain
         this.createFountain(this.centerOffset);
+
+        // Add decorative benches around the fountain
+        this.addPlazaDecorations();
     }
 
     createFountain(position) {
-        const fountainBase = BABYLON.MeshBuilder.CreateCylinder("fountainBase", {
+        // Create large water basin
+        const basin = BABYLON.MeshBuilder.CreateCylinder("fountainBasin", {
             height: 1,
-            diameter: 8,
+            diameter: 12,
             tessellation: 32
         }, this.scene);
         
-        fountainBase.position = position.clone();
-        fountainBase.position.y = BowlCreator.getTerrainHeight(position.x, position.z) + 0.5;
+        basin.position = position.clone();
+        basin.position.y = BowlCreator.getTerrainHeight(position.x, position.z) + 0.5;
 
-        const fountainPillar = BABYLON.MeshBuilder.CreateCylinder("fountainPillar", {
-            height: 3,
+        // Create decorative rim
+        const rim = BABYLON.MeshBuilder.CreateTorus("fountainRim", {
+            diameter: 12,
+            thickness: 0.8,
+            tessellation: 32
+        }, this.scene);
+        rim.position = basin.position.clone();
+        rim.position.y += 0.4;
+
+        // Create central pillar
+        const centralPillar = BABYLON.MeshBuilder.CreateCylinder("fountainPillar", {
+            height: 4,
             diameter: 2,
             tessellation: 16
         }, this.scene);
-        
-        fountainPillar.position = fountainBase.position.clone();
-        fountainPillar.position.y += 2;
+        centralPillar.position = basin.position.clone();
+        centralPillar.position.y += 2;
 
-        const fountainTop = BABYLON.MeshBuilder.CreateCylinder("fountainTop", {
-            height: 1,
-            diameter: 4,
-            tessellation: 32
+        // Create decorative tiers
+        const tiers = [];
+        const tierCount = 3;
+        for (let i = 0; i < tierCount; i++) {
+            const tier = BABYLON.MeshBuilder.CreateCylinder("fountainTier" + i, {
+                height: 0.4,
+                diameter: 6 - (i * 1.5),
+                tessellation: 32
+            }, this.scene);
+            tier.position = centralPillar.position.clone();
+            tier.position.y += i * 1.2;
+            tiers.push(tier);
+        }
+
+        // Create top ornament
+        const topOrnament = BABYLON.MeshBuilder.CreateSphere("fountainTop", {
+            diameter: 1.2,
+            segments: 16
         }, this.scene);
-        
-        fountainTop.position = fountainPillar.position.clone();
-        fountainTop.position.y += 1.5;
+        topOrnament.position = centralPillar.position.clone();
+        topOrnament.position.y += 2.5;
 
-        // Fountain material
-        const fountainMaterial = new BABYLON.StandardMaterial("fountainMat", this.scene);
-        fountainMaterial.diffuseColor = new BABYLON.Color3(0.8, 0.8, 0.8);
-        fountainMaterial.bumpTexture = AssetManager.getTexture('ROCK_NORMAL', this.scene);
-        
-        fountainBase.material = fountainMaterial;
-        fountainPillar.material = fountainMaterial;
-        fountainTop.material = fountainMaterial;
+        // Materials
+        const stoneMaterial = new BABYLON.StandardMaterial("fountainStoneMat", this.scene);
+        stoneMaterial.diffuseColor = new BABYLON.Color3(0.8, 0.8, 0.8);
+        stoneMaterial.bumpTexture = AssetManager.getTexture('ROCK_NORMAL', this.scene);
+        stoneMaterial.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
 
-        // Add water particle system
-        this.createWaterEffect(fountainTop.position);
+        const waterMaterial = new BABYLON.StandardMaterial("fountainWaterMat", this.scene);
+        waterMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.6, 0.8);
+        waterMaterial.alpha = 0.8;
+        waterMaterial.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+        waterMaterial.emissiveColor = new BABYLON.Color3(0.1, 0.2, 0.3);
+
+        // Apply materials
+        basin.material = waterMaterial;
+        rim.material = stoneMaterial;
+        centralPillar.material = stoneMaterial;
+        topOrnament.material = stoneMaterial;
+        tiers.forEach(tier => tier.material = stoneMaterial);
+
+        // Add water particle effects at each tier
+        tiers.forEach((tier, index) => {
+            const emitterPosition = tier.position.clone();
+            emitterPosition.y += 0.2;
+            this.createWaterEffect(emitterPosition, 6 - (index * 1.5));
+        });
+
+        // Add main water effect from top
+        this.createWaterEffect(topOrnament.position, 8);
     }
 
-    createWaterEffect(position) {
+    createWaterEffect(position, scale) {
         const fountain = BABYLON.ParticleSystem.Parse(this.getFountainParticleConfig(), this.scene, "");
         fountain.emitter = new BABYLON.Vector3(position.x, position.y - 0.5, position.z);
         fountain.start();
@@ -294,14 +338,18 @@ export class VillageSystem {
 
         // Window material
         const windowMat = new BABYLON.StandardMaterial("windowMat", this.scene);
-        windowMat.diffuseColor = new BABYLON.Color3(0.7, 0.8, 1.0);
-        windowMat.alpha = 0.5;
-        windowMat.specularColor = new BABYLON.Color3(1, 1, 1);
-        windowMat.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+        windowMat.diffuseColor = new BABYLON.Color3(0.3, 0.4, 1.0);
+        windowMat.alpha = 0.7;
+        windowMat.specularColor = new BABYLON.Color3(0.2, 0.3, 1.0);
+        windowMat.specularPower = 32;
+        windowMat.emissiveColor = new BABYLON.Color3(0.1, 0.2, 0.5);
+        windowMat.ambientColor = new BABYLON.Color3(0.4, 0.6, 1.0);
+        windowMat.backFaceCulling = false;
 
         // Window frame material
         const windowFrameMat = new BABYLON.StandardMaterial("windowFrameMat", this.scene);
         windowFrameMat.diffuseColor = new BABYLON.Color3(0.35, 0.15, 0.05);
+        windowFrameMat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
 
         // Apply materials
         building.material = buildingMat;
@@ -396,48 +444,11 @@ export class VillageSystem {
             
             // Create either a bush or a barrel
             if (Math.random() > 0.5) {
-                this.createBush(house, x, z);
+                this.decorations.createBush(house, x, z);
             } else {
-                this.createBarrel(house, x, z);
+                this.decorations.createBarrel(house, x, z);
             }
         }
-    }
-
-    createBush(parent, x, z) {
-        const bush = BABYLON.MeshBuilder.CreateSphere("bush", {
-            diameter: 1 + Math.random() * 0.5,
-            segments: 8
-        }, this.scene);
-        
-        bush.parent = parent;
-        bush.position.x = x;
-        bush.position.z = z;
-        bush.position.y = 0.5;
-
-        const bushMat = new BABYLON.StandardMaterial("bushMat", this.scene);
-        bushMat.diffuseColor = new BABYLON.Color3(0.2, 0.4 + Math.random() * 0.2, 0.1);
-        bush.material = bushMat;
-
-        this.decorations.push(bush);
-    }
-
-    createBarrel(parent, x, z) {
-        const barrel = BABYLON.MeshBuilder.CreateCylinder("barrel", {
-            height: 1.2,
-            diameter: 0.8,
-            tessellation: 12
-        }, this.scene);
-        
-        barrel.parent = parent;
-        barrel.position.x = x;
-        barrel.position.z = z;
-        barrel.position.y = 0.6;
-
-        const barrelMat = new BABYLON.StandardMaterial("barrelMat", this.scene);
-        barrelMat.diffuseColor = new BABYLON.Color3(0.4, 0.2, 0.1);
-        barrel.material = barrelMat;
-
-        this.decorations.push(barrel);
     }
 
     addDecorations() {
@@ -453,69 +464,34 @@ export class VillageSystem {
             const y = BowlCreator.getTerrainHeight(x, z);
 
             if (Math.random() > 0.7) {
-                this.createRock(x, y, z);
+                this.decorations.createRock(x, y, z);
             } else {
-                this.createTree(x, y, z);
+                this.decorations.createTree(x, y, z);
             }
         }
     }
 
-    createTree(x, y, z) {
-        const height = 4 + Math.random() * 3;
-        
-        // Create trunk
-        const trunk = BABYLON.MeshBuilder.CreateCylinder("trunk", {
-            height: height,
-            diameter: 0.5,
-            tessellation: 8
-        }, this.scene);
-        
-        trunk.position = new BABYLON.Vector3(x, y + height/2, z);
+    addPlazaDecorations() {
+        // Add benches around the fountain
+        const benchCount = 8;
+        const radius = 10; // Distance from center
 
-        // Create foliage
-        const foliage = BABYLON.MeshBuilder.CreateSphere("foliage", {
-            diameter: 3 + Math.random(),
-            segments: 8
-        }, this.scene);
-        
-        foliage.position = trunk.position.clone();
-        foliage.position.y += height/2;
-        foliage.scaling.y = 1.2;
+        for (let i = 0; i < benchCount; i++) {
+            const angle = (i / benchCount) * Math.PI * 2;
+            const x = Math.cos(angle) * radius;
+            const z = Math.sin(angle) * radius;
+            this.decorations.createBench(x, z, angle, this.centerOffset);
+        }
 
-        // Materials
-        const trunkMat = new BABYLON.StandardMaterial("trunkMat", this.scene);
-        trunkMat.diffuseColor = new BABYLON.Color3(0.4, 0.3, 0.2);
-        trunk.material = trunkMat;
+        // Add flower beds
+        const flowerBedCount = 6;
+        const flowerRadius = 13;
 
-        const foliageMat = new BABYLON.StandardMaterial("foliageMat", this.scene);
-        foliageMat.diffuseColor = new BABYLON.Color3(0.2, 0.4 + Math.random() * 0.2, 0.1);
-        foliage.material = foliageMat;
-
-        this.decorations.push(trunk, foliage);
-    }
-
-    createRock(x, y, z) {
-        const rock = BABYLON.MeshBuilder.CreateBox("rock", {
-            size: 1 + Math.random()
-        }, this.scene);
-        
-        rock.position = new BABYLON.Vector3(x, y + 0.5, z);
-        rock.rotation = new BABYLON.Vector3(
-            Math.random() * Math.PI,
-            Math.random() * Math.PI,
-            Math.random() * Math.PI
-        );
-        rock.scaling = new BABYLON.Vector3(
-            1 + Math.random() * 0.5,
-            0.7 + Math.random() * 0.3,
-            1 + Math.random() * 0.5
-        );
-
-        const rockMat = new BABYLON.StandardMaterial("rockMat", this.scene);
-        rockMat.diffuseColor = new BABYLON.Color3(0.4 + Math.random() * 0.2, 0.4 + Math.random() * 0.2, 0.4 + Math.random() * 0.2);
-        rockMat.bumpTexture = AssetManager.getTexture('ROCK_NORMAL', this.scene);
-        rock.material = rockMat;
-
-        this.decorations.push(rock);
+        for (let i = 0; i < flowerBedCount; i++) {
+            const angle = (i / flowerBedCount) * Math.PI * 2;
+            const x = Math.cos(angle) * flowerRadius;
+            const z = Math.sin(angle) * flowerRadius;
+            this.decorations.createFlowerBed(x, z, this.centerOffset);
+        }
     }
 } 

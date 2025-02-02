@@ -14,6 +14,7 @@ import { VillageSystem } from './VillageSystem.js';
 import { DogBehaviour } from './Agents/Dogs/DogBehaviour.js';
 import { LevelConfig } from './LevelSystem/LevelConfig.js';
 import { LevelSelector } from './LevelSystem/LevelSelector.js';
+import { WorldClock } from './UI/WorldClock.js';
 
 export class LeoScene {
   constructor(canvas) {
@@ -22,6 +23,8 @@ export class LeoScene {
     this.scene = this.createScene();
     this.boxes = [];
     this.currentLevel = null;
+    this.gameTime = 8 * 60; // Start at 8:00 AM (in minutes)
+    this.timeScale = 1200; // 1 real second = 20 game minutes
     this.init();
   }
 
@@ -52,6 +55,9 @@ export class LeoScene {
         this.scene
       );
 
+      // Initialize World Clock
+      this.worldClock = new WorldClock(this.scene);
+
       // Initialize Havok physics
       const havokInstance = await HavokPhysics();
       const havokPlugin = new BABYLON.HavokPlugin(true, havokInstance);
@@ -68,8 +74,24 @@ export class LeoScene {
         console.error("No initial level found");
       }
 
-      // Start the render loop
+      // Start the render loop with time update
+      let lastTime = performance.now();
       this.engine.runRenderLoop(() => {
+        const currentTime = performance.now();
+        const deltaTime = (currentTime - lastTime) * 0.001; // Convert to seconds
+        lastTime = currentTime;
+
+        // Update game time
+        this.gameTime += deltaTime * this.timeScale / 60;
+        if (this.gameTime >= 24 * 60) {
+            this.gameTime = 0;
+        }
+
+        // Update world clock
+        if (this.worldClock) {
+            this.worldClock.updateTime(this.gameTime);
+        }
+
         this.scene.render();
       });
 
@@ -165,7 +187,8 @@ export class LeoScene {
     const systems = [
       'roadSystem', 'villageSystem', 'vortexBall', 'waterSim',
       'fishSystem', 'moonSystem', 'behavioralSim', 'houseSystem',
-      'birdSystem', 'cloudSystem', 'dogSystem', 'zombieSystem'
+      'birdSystem', 'cloudSystem', 'dogSystem', 'zombieSystem',
+      'worldClock'
     ];
 
     systems.forEach(system => {

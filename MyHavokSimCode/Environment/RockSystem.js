@@ -5,6 +5,17 @@ export class RockSystem {
         this.scene = scene;
         this.rocks = [];
         
+        // LOD parameters
+        this.LOD_LEVELS = {
+            HIGH: { distance: 0, segments: 32, bumpDetails: 1.0 },
+            MEDIUM: { distance: 50, segments: 16, bumpDetails: 0.5 },
+            LOW: { distance: 100, segments: 8, bumpDetails: 0.2 },
+            VERY_LOW: { distance: 200, segments: 4, bumpDetails: 0 }
+        };
+
+        // Instance mesh arrays for LOD
+        this.rockInstances = new Map();
+        
         // Rock generation parameters
         this.rockTypes = {
             BOULDER: { minSize: 2, maxSize: 4, frequency: 0.2 },
@@ -14,81 +25,190 @@ export class RockSystem {
 
         // Rock materials cache
         this.materials = new Map();
+        this.lodMaterials = new Map();
         
-        // Initialize rock textures
+        // Initialize systems
         this.initializeRockMaterials();
+        this.initializeLODMeshes();
+        this.setupLODSystem();
     }
 
     initializeRockMaterials() {
-        // Create base rock material
-        const baseMaterial = new BABYLON.StandardMaterial("rockBaseMat", this.scene);
-        baseMaterial.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
-        baseMaterial.specularPower = 64;
-        baseMaterial.bumpTexture = new BABYLON.NoiseProceduralTexture("rockNoise", 256, this.scene);
-        baseMaterial.bumpTexture.octaves = 4;
-        this.materials.set('base', baseMaterial);
+        // Create materials for each LOD level
+        Object.keys(this.LOD_LEVELS).forEach(level => {
+            const lodMaterials = new Map();
+            
+            // Create base material for this LOD level
+            const baseMaterial = new BABYLON.StandardMaterial(`rock${level}BaseMat`, this.scene);
+            baseMaterial.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+            baseMaterial.specularPower = 64;
+            
+            // Only add complex textures for higher LOD levels
+            if (this.LOD_LEVELS[level].bumpDetails > 0) {
+                const noiseTexture = new BABYLON.NoiseProceduralTexture(`rock${level}Noise`, 
+                    256 * this.LOD_LEVELS[level].bumpDetails, this.scene);
+                noiseTexture.octaves = Math.max(1, Math.floor(4 * this.LOD_LEVELS[level].bumpDetails));
+                baseMaterial.bumpTexture = noiseTexture;
+                baseMaterial.bumpTexture.level = this.LOD_LEVELS[level].bumpDetails;
+            }
 
-        // Create variations of rock materials
-        const variations = [
-            { name: 'granite', color: new BABYLON.Color3(0.6, 0.6, 0.6) },
-            { name: 'basalt', color: new BABYLON.Color3(0.3, 0.3, 0.3) },
-            { name: 'sandstone', color: new BABYLON.Color3(0.76, 0.69, 0.57) },
-            { name: 'limestone', color: new BABYLON.Color3(0.8, 0.77, 0.71) }
-        ];
+            // Create material variations for this LOD level
+            const variations = [
+                { name: 'granite', color: new BABYLON.Color3(0.6, 0.6, 0.6) },
+                { name: 'basalt', color: new BABYLON.Color3(0.3, 0.3, 0.3) },
+                { name: 'sandstone', color: new BABYLON.Color3(0.76, 0.69, 0.57) },
+                { name: 'limestone', color: new BABYLON.Color3(0.8, 0.77, 0.71) }
+            ];
 
-        variations.forEach(variation => {
-            const material = baseMaterial.clone(`rock${variation.name}Mat`);
-            material.diffuseColor = variation.color;
-            this.materials.set(variation.name, material);
+            variations.forEach(variation => {
+                const material = baseMaterial.clone(`rock${level}${variation.name}Mat`);
+                material.diffuseColor = variation.color;
+                lodMaterials.set(variation.name, material);
+            });
+
+            this.lodMaterials.set(level, lodMaterials);
         });
     }
 
-    generateRocks(count = 50, radius = 100) {
-        for (let i = 0; i < count; i++) {
-            // Determine rock type based on frequency
-            const rockType = this.determineRockType();
-            
-            // Generate random position within radius
-            const angle = Math.random() * Math.PI * 2;
-            const distance = Math.random() * radius;
-            const x = Math.cos(angle) * distance;
-            const z = Math.sin(angle) * distance;
-            
-            // Create rock at position
-            this.createRock(x, z, rockType);
+    initializeLODMeshes() {
+        // Create template meshes for each LOD level
+        Object.entries(this.LOD_LEVELS).forEach(([level, params]) => {
+            const meshes = {
+                polyhedron: this.createLODPolyhedronRock(1, params.segments),
+                custom: this.createLODCustomRock(1, params.segments),
+                boulder: this.createLODBoulderRock(1, params.segments)
+            };
+            this.rockInstances.set(level, meshes);
+        });
+    }
+
+    setupLODSystem() {
+        // Create LOD update observer
+        this.scene.onBeforeRenderObservable.add(() => {
+            const camera = this.scene.activeCamera;
+            if (!camera) return;
+
+            this.rocks.forEach(rock => {
+                const distance = BABYLON.Vector3.Distance(camera.position, rock.position);
+                this.updateRockLOD(rock, distance);
+            });
+        });
+    }
+
+    createLODPolyhedronRock(size, segments) {
+        return BABYLON.MeshBuilder.CreatePolyhedron("rockTemplate", {
+            type: 0,
+            size: size,
+            segments: segments
+        }, this.scene);
+    }
+
+    createLODCustomRock(size, segments) {
+        const points = [];
+        const actualSegments = Math.max(4, segments);
+        
+        for (let i = 0; i < actualSegments; i++) {
+            const angle = (i / actualSegments) * Math.PI * 2;
+            points.push(new BABYLON.Vector3(
+                Math.cos(angle) * size,
+                (Math.random() - 0.5) * size,
+                Math.sin(angle) * size
+            ));
+        }
+
+        return BABYLON.MeshBuilder.CreateLathe("rockTemplate", {
+            shape: points,
+            segments: actualSegments,
+            sideOrientation: BABYLON.Mesh.DOUBLESIDE
+        }, this.scene);
+    }
+
+    createLODBoulderRock(size, segments) {
+        return BABYLON.MeshBuilder.CreateSphere("rockTemplate", {
+            diameter: size * 2,
+            segments: segments
+        }, this.scene);
+    }
+
+    updateRockLOD(rock, distance) {
+        if (!rock.lodLevel) {
+            rock.lodLevel = 'HIGH';
+            return;
+        }
+
+        // Determine appropriate LOD level based on distance
+        let newLevel = 'HIGH';
+        for (const [level, params] of Object.entries(this.LOD_LEVELS)) {
+            if (distance >= params.distance) {
+                newLevel = level;
+            }
+        }
+
+        // Only update if LOD level has changed
+        if (newLevel !== rock.lodLevel) {
+            this.switchRockLOD(rock, newLevel);
+            rock.lodLevel = newLevel;
         }
     }
 
-    determineRockType() {
-        const rand = Math.random();
-        if (rand < this.rockTypes.BOULDER.frequency) return 'BOULDER';
-        if (rand < this.rockTypes.BOULDER.frequency + this.rockTypes.MEDIUM.frequency) return 'MEDIUM';
-        return 'SMALL';
+    switchRockLOD(rock, newLevel) {
+        // Store original properties
+        const position = rock.position.clone();
+        const rotation = rock.rotation.clone();
+        const scaling = rock.scaling.clone();
+
+        // Get appropriate template mesh for new LOD level
+        const templates = this.rockInstances.get(newLevel);
+        const templateMesh = templates[rock.rockType || 'boulder'];
+
+        // Create instance of appropriate LOD mesh
+        const newInstance = templateMesh.createInstance(`rock_${newLevel}_${Date.now()}`);
+        newInstance.position = position;
+        newInstance.rotation = rotation;
+        newInstance.scaling = scaling;
+
+        // Apply appropriate LOD material
+        const lodMaterials = this.lodMaterials.get(newLevel);
+        newInstance.material = lodMaterials.get(rock.materialType || 'granite');
+
+        // Transfer properties
+        newInstance.lodLevel = newLevel;
+        newInstance.rockType = rock.rockType;
+        newInstance.materialType = rock.materialType;
+
+        // Replace old mesh in rocks array
+        const index = this.rocks.indexOf(rock);
+        if (index !== -1) {
+            this.rocks[index] = newInstance;
+        }
+
+        // Dispose old mesh
+        rock.dispose();
     }
 
     createRock(x, z, type) {
-        // Get size range for rock type
         const { minSize, maxSize } = this.rockTypes[type];
         const size = minSize + Math.random() * (maxSize - minSize);
 
-        // Create rock mesh with random geometry
+        // Create high detail rock initially
         const rock = this.createRockMesh(size);
-        
-        // Position rock and align with terrain
-        const y = BowlCreator.getTerrainHeight(x, z);
-        rock.position = new BABYLON.Vector3(x, y, z);
-
-        // Random rotation
+        rock.position = new BABYLON.Vector3(x, BowlCreator.getTerrainHeight(x, z), z);
         rock.rotation = new BABYLON.Vector3(
             Math.random() * Math.PI,
             Math.random() * Math.PI,
             Math.random() * Math.PI
         );
 
-        // Apply random material
-        const materialTypes = ['granite', 'basalt', 'sandstone', 'limestone'];
-        const material = this.materials.get(materialTypes[Math.floor(Math.random() * materialTypes.length)]);
-        rock.material = material;
+        // Store rock type and material type for LOD switching
+        const materialType = ['granite', 'basalt', 'sandstone', 'limestone'][
+            Math.floor(Math.random() * 4)
+        ];
+        rock.materialType = materialType;
+        rock.rockType = type.toLowerCase();
+
+        // Apply initial high LOD material
+        const highLODMaterials = this.lodMaterials.get('HIGH');
+        rock.material = highLODMaterials.get(materialType);
 
         // Add physics
         new BABYLON.PhysicsAggregate(
@@ -98,7 +218,6 @@ export class RockSystem {
             this.scene
         );
 
-        // Add to rocks array
         this.rocks.push(rock);
         return rock;
     }
@@ -195,7 +314,7 @@ export class RockSystem {
     }
 
     dispose() {
-        // Dispose of all rocks
+        // Dispose all rocks
         this.rocks.forEach(rock => {
             if (rock && rock.dispose) {
                 rock.dispose();
@@ -203,12 +322,24 @@ export class RockSystem {
         });
         this.rocks = [];
 
-        // Dispose of materials
-        this.materials.forEach(material => {
-            if (material.dispose) {
-                material.dispose();
-            }
+        // Dispose LOD template meshes
+        this.rockInstances.forEach(templates => {
+            Object.values(templates).forEach(mesh => {
+                if (mesh && mesh.dispose) {
+                    mesh.dispose();
+                }
+            });
         });
-        this.materials.clear();
+        this.rockInstances.clear();
+
+        // Dispose all LOD materials
+        this.lodMaterials.forEach(materials => {
+            materials.forEach(material => {
+                if (material.dispose) {
+                    material.dispose();
+                }
+            });
+        });
+        this.lodMaterials.clear();
     }
 } 

@@ -4,7 +4,7 @@
 export class WorldClock {
     constructor(scene) {
         this.scene = scene;
-        this.advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("clockUI", true);
+        this.advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("clockUI");
         this.createClockUI();
     }
 
@@ -14,12 +14,13 @@ export class WorldClock {
         container.width = "120px";
         container.height = "120px";
         container.cornerRadius = 60;
-        container.thickness = 0;
-        container.background = "rgba(0, 0, 0, 0.5)";
+        container.thickness = 2;
+        container.background = "rgba(0, 0, 0, 0.7)";
         container.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
         container.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
         container.top = "20px";
         container.left = "20px";
+        container.zIndex = 1000; // Ensure it's on top
         this.advancedTexture.addControl(container);
 
         // Create outer progress ring (24-hour indicator)
@@ -34,9 +35,9 @@ export class WorldClock {
         const innerCircle = new BABYLON.GUI.Ellipse("innerCircle");
         innerCircle.width = "100px";
         innerCircle.height = "100px";
-        innerCircle.color = "transparent";
-        innerCircle.thickness = 3;
-        innerCircle.background = "rgba(0, 0, 0, 0.3)";
+        innerCircle.color = "white";
+        innerCircle.thickness = 2;
+        innerCircle.background = "rgba(0, 0, 0, 0.5)";
         container.addControl(innerCircle);
 
         // Create time text
@@ -45,6 +46,8 @@ export class WorldClock {
         this.timeText.color = "white";
         this.timeText.fontSize = 32;
         this.timeText.fontFamily = "Arial";
+        this.timeText.outlineWidth = 2;
+        this.timeText.outlineColor = "black";
         container.addControl(this.timeText);
 
         // Create period text (DAY/NIGHT)
@@ -53,6 +56,8 @@ export class WorldClock {
         this.periodText.color = "#FFD700";
         this.periodText.fontSize = 14;
         this.periodText.fontFamily = "Arial";
+        this.periodText.outlineWidth = 1;
+        this.periodText.outlineColor = "black";
         this.periodText.top = "25px";
         container.addControl(this.periodText);
 
@@ -65,7 +70,6 @@ export class WorldClock {
             segment.height = "110px";
             segment.color = segmentColors[i];
             segment.thickness = 3;
-            // Only show the arc for this quarter
             segment.arc = 0.5;  // Start with 0, will be updated
             segment.rotation = Math.PI * (i / 2);
             container.addControl(segment);
@@ -98,6 +102,7 @@ export class WorldClock {
         glowRect.cornerRadius = 60;
         glowRect.alpha = 0.3;
         glowRect.thickness = 0;
+        glowRect.background = "rgba(255, 255, 255, 0.1)";
         container.addControl(glowRect);
 
         // Add subtle animation

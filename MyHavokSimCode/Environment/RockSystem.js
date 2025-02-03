@@ -27,6 +27,16 @@ export class RockSystem {
         this.materials = new Map();
         this.lodMaterials = new Map();
         
+        // Spawn parameters
+        this.spawnAttempts = 10;  // Maximum attempts to find a safe position
+        this.minSpawnDistance = 2; // Minimum distance between rocks
+        this.safeSpawnRadius = 50; // Initial safe spawn radius
+        this.fallbackZones = [
+            { radius: 50, attempts: 10 },
+            { radius: 75, attempts: 5 },
+            { radius: 100, attempts: 3 }
+        ];
+        
         // Initialize systems
         this.initializeRockMaterials();
         this.initializeLODMeshes();
@@ -311,6 +321,172 @@ export class RockSystem {
             cluster.push(rock);
         }
         return cluster;
+    }
+
+    generateRocks(count = 50, radius = 100) {
+        const spawnedRocks = [];
+        let failedAttempts = 0;
+        
+        while (spawnedRocks.length < count && failedAttempts < this.spawnAttempts * 2) {
+            const position = this.findSafeSpawnPosition(radius, spawnedRocks);
+            
+            if (position) {
+                const rockType = this.determineRockType();
+                const rock = this.createRock(position.x, position.z, rockType);
+                spawnedRocks.push(rock);
+                failedAttempts = 0;  // Reset failed attempts on success
+            } else {
+                failedAttempts++;
+                console.warn(`Failed to find safe spawn position. Attempt ${failedAttempts}`);
+                
+                if (failedAttempts >= this.spawnAttempts) {
+                    // Try fallback spawn logic
+                    const fallbackPosition = this.findFallbackSpawnPosition(spawnedRocks);
+                    if (fallbackPosition) {
+                        const rockType = this.determineRockType();
+                        const rock = this.createRock(fallbackPosition.x, fallbackPosition.z, rockType);
+                        spawnedRocks.push(rock);
+                        failedAttempts = 0;  // Reset failed attempts on fallback success
+                    }
+                }
+            }
+        }
+
+        if (spawnedRocks.length < count) {
+            console.warn(`Could only spawn ${spawnedRocks.length}/${count} rocks safely`);
+        }
+
+        return spawnedRocks;
+    }
+
+    findSafeSpawnPosition(radius, existingRocks) {
+        for (let i = 0; i < this.spawnAttempts; i++) {
+            // Generate random position within radius
+            const angle = Math.random() * Math.PI * 2;
+            const distance = Math.random() * radius;
+            const x = Math.cos(angle) * distance;
+            const z = Math.sin(angle) * distance;
+            
+            if (this.isPositionSafe(x, z, existingRocks)) {
+                return new BABYLON.Vector3(x, 0, z);
+            }
+        }
+        return null;
+    }
+
+    findFallbackSpawnPosition(existingRocks) {
+        // Try increasingly larger zones with fewer attempts
+        for (const zone of this.fallbackZones) {
+            for (let i = 0; i < zone.attempts; i++) {
+                // Try spiral pattern for more systematic coverage
+                const angle = i * (Math.PI * 2 / zone.attempts);
+                const distance = (i / zone.attempts) * zone.radius;
+                const x = Math.cos(angle) * distance;
+                const z = Math.sin(angle) * distance;
+
+                if (this.isPositionSafe(x, z, existingRocks, true)) {
+                    return new BABYLON.Vector3(x, 0, z);
+                }
+            }
+        }
+
+        // Last resort: Find least crowded position
+        return this.findLeastCrowdedPosition(existingRocks);
+    }
+
+    isPositionSafe(x, z, existingRocks, isFailback = false) {
+        // Check terrain height and slope
+        const y = BowlCreator.getTerrainHeight(x, z);
+        if (y === undefined || y === null) return false;
+
+        // Check slope by sampling nearby points
+        const slopeThreshold = isFailback ? 0.8 : 0.5; // More permissive for fallback
+        if (!this.isTerrainSlopeAcceptable(x, z, slopeThreshold)) {
+            return false;
+        }
+
+        // Check distance from other rocks
+        const minDistance = isFailback ? this.minSpawnDistance * 0.75 : this.minSpawnDistance;
+        for (const rock of existingRocks) {
+            const distance = BABYLON.Vector3.Distance(
+                new BABYLON.Vector3(x, y, z),
+                rock.position
+            );
+            if (distance < minDistance) {
+                return false;
+            }
+        }
+
+        // Check for obstacles using raycast
+        const rayStart = new BABYLON.Vector3(x, y + 5, z);
+        const rayEnd = new BABYLON.Vector3(x, y - 1, z);
+        const ray = new BABYLON.Ray(rayStart, rayEnd.subtract(rayStart).normalize(), 6);
+        
+        const hit = this.scene.pickWithRay(ray);
+        if (hit.hit && hit.pickedMesh && hit.pickedMesh.id !== "terrain") {
+            return false;
+        }
+
+        return true;
+    }
+
+    isTerrainSlopeAcceptable(x, z, threshold) {
+        const sampleDistance = 0.5;
+        const centerHeight = BowlCreator.getTerrainHeight(x, z);
+        
+        // Sample heights in a cross pattern
+        const samples = [
+            BowlCreator.getTerrainHeight(x + sampleDistance, z),
+            BowlCreator.getTerrainHeight(x - sampleDistance, z),
+            BowlCreator.getTerrainHeight(x, z + sampleDistance),
+            BowlCreator.getTerrainHeight(x, z - sampleDistance)
+        ];
+
+        // Check max slope difference
+        for (const height of samples) {
+            if (Math.abs(height - centerHeight) > threshold) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    findLeastCrowdedPosition(existingRocks) {
+        let bestPosition = null;
+        let maxMinDistance = 0;
+
+        // Grid search for position with maximum minimum distance to other rocks
+        const gridSize = 20;
+        const stepSize = this.safeSpawnRadius * 2 / gridSize;
+
+        for (let i = 0; i < gridSize; i++) {
+            for (let j = 0; j < gridSize; j++) {
+                const x = -this.safeSpawnRadius + i * stepSize;
+                const z = -this.safeSpawnRadius + j * stepSize;
+
+                // Skip if terrain is not suitable
+                if (!this.isTerrainSlopeAcceptable(x, z, 1.0)) {
+                    continue;
+                }
+
+                let minDistance = Infinity;
+                for (const rock of existingRocks) {
+                    const distance = BABYLON.Vector3.Distance(
+                        new BABYLON.Vector3(x, BowlCreator.getTerrainHeight(x, z), z),
+                        rock.position
+                    );
+                    minDistance = Math.min(minDistance, distance);
+                }
+
+                if (minDistance > maxMinDistance) {
+                    maxMinDistance = minDistance;
+                    bestPosition = new BABYLON.Vector3(x, 0, z);
+                }
+            }
+        }
+
+        return bestPosition;
     }
 
     dispose() {

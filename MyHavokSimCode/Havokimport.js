@@ -19,7 +19,14 @@ import { WorldClock } from './UI/WorldClock.js';
 export class LeoScene {
   constructor(canvas) {
     this.canvas = canvas;
-    this.engine = new BABYLON.Engine(this.canvas, true);
+    // Enable performance monitoring in engine options
+    const engineOptions = {
+      deterministicLockstep: true,
+      lockstepMaxSteps: 4,
+      useHighPrecisionMatrix: true,
+      performanceMonitoringEnabled: true
+    };
+    this.engine = new BABYLON.Engine(this.canvas, true, engineOptions);
     this.scene = this.createScene();
     this.boxes = [];
     this.currentLevel = null;
@@ -30,7 +37,60 @@ export class LeoScene {
 
   createScene() {
     const scene = new BABYLON.Scene(this.engine);
+    
+    // Enable hardware scaling
+    this.engine.setHardwareScalingLevel(1.0);
+    
+    // Enable performance optimization flags
+    scene.skipPointerMovePicking = true;
+    scene.autoClear = false; // Manually clear between frames
+    scene.autoClearDepthAndStencil = false;
+    scene.blockMaterialDirtyMechanism = true;
+    
+    // Optimize meshes
+    scene.useGeometryIdsMap = true;
+    scene.useMaterialMeshMap = true;
+    scene.useClonedMeshMap = true;
+    
+    // Enable performance monitor with detailed metrics
+    scene.performanceMonitor = new BABYLON.PerformanceMonitor();
+    scene.performanceMonitor.enable();
+    
+    // Add FPS counter and performance metrics
+    this.addPerformanceMetrics(scene);
+    
     return scene;
+  }
+
+  addPerformanceMetrics(scene) {
+    // Create performance monitor GUI
+    const advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("performanceUI");
+    
+    const fpsText = new BABYLON.GUI.TextBlock();
+    fpsText.text = "FPS: 0";
+    fpsText.color = "white";
+    fpsText.fontSize = 16;
+    fpsText.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+    fpsText.textVerticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
+    fpsText.top = "10px";
+    fpsText.left = "10px";
+    advancedTexture.addControl(fpsText);
+    
+    const drawCallsText = new BABYLON.GUI.TextBlock();
+    drawCallsText.text = "Draw Calls: 0";
+    drawCallsText.color = "white";
+    drawCallsText.fontSize = 16;
+    drawCallsText.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+    drawCallsText.textVerticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
+    drawCallsText.top = "30px";
+    drawCallsText.left = "10px";
+    advancedTexture.addControl(drawCallsText);
+
+    // Update metrics every frame
+    scene.onBeforeRenderObservable.add(() => {
+      fpsText.text = `FPS: ${Math.round(this.engine.getFps())}`;
+      drawCallsText.text = `Draw Calls: ${scene.getActiveMeshes().length}`;
+    });
   }
 
   async init() {
@@ -55,7 +115,7 @@ export class LeoScene {
         this.scene
       );
 
-      // Initialize World Clock
+      // Initialize World Clock first, before other systems
       this.worldClock = new WorldClock(this.scene);
 
       // Initialize Havok physics
@@ -87,7 +147,7 @@ export class LeoScene {
             this.gameTime = 0;
         }
 
-        // Update world clock
+        // Update world clock with current game time
         if (this.worldClock) {
             this.worldClock.updateTime(this.gameTime);
         }
@@ -109,6 +169,9 @@ export class LeoScene {
       
       // Dispose of existing systems
       this.disposeCurrentSystems();
+
+      // Create new world clock for the new level
+      this.worldClock = new WorldClock(this.scene);
 
       // Create bowl first and wait for it to be ready
       const bowlCreator = new BowlCreator(this.scene);
@@ -187,8 +250,7 @@ export class LeoScene {
     const systems = [
       'roadSystem', 'villageSystem', 'vortexBall', 'waterSim',
       'fishSystem', 'moonSystem', 'behavioralSim', 'houseSystem',
-      'birdSystem', 'cloudSystem', 'dogSystem', 'zombieSystem',
-      'worldClock'
+      'birdSystem', 'cloudSystem', 'dogSystem', 'zombieSystem'
     ];
 
     systems.forEach(system => {
@@ -203,5 +265,11 @@ export class LeoScene {
         this[system] = null;
       }
     });
+
+    // Dispose world clock separately to ensure it's recreated
+    if (this.worldClock) {
+      this.worldClock.dispose();
+      this.worldClock = null;
+    }
   }
 }

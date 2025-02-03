@@ -1,6 +1,7 @@
 import { BowlCreator } from '../BowlCreator.js';
 import { WorldClock } from '../UI/WorldClock.js';
 import { DayNightCycle } from '../Environment/DayNightCycle.js';
+import { VillagerGoals } from './VillagerGoals.js';
 
 export class VillagerBehaviour {
     constructor(scene) {
@@ -24,6 +25,9 @@ export class VillagerBehaviour {
 
         // Force initial update
         this.updateTime(0);
+
+        // Add goals system
+        this.villagerGoals = new Map();
     }
 
     updateTime(deltaTime) {
@@ -124,8 +128,9 @@ export class VillagerBehaviour {
             }
         }
 
-        // Update current activity
+        // Update current activity and goals
         this.updateActivity(villager);
+        this.updateVillagerNeeds(villager);
     }
 
     getScheduledActivity(villager, hour) {
@@ -164,24 +169,58 @@ export class VillagerBehaviour {
         villager.currentActivity = activity;
         villager.activityStartTime = this.gameTime;
         
+        // Update goals and moods based on activity
+        const goals = this.villagerGoals.get(villager.id);
+        if (goals) {
+            switch (activity) {
+                case 'sleep':
+                    goals.setGoal('REST');
+                    goals.setMood('TIRED');
+                    break;
+                case 'work':
+                    goals.setGoal('WORK');
+                    if (goals.getNeed('energy') < 30) {
+                        goals.setMood('EXHAUSTED');
+                    } else {
+                        goals.setMood('FOCUSED');
+                    }
+                    break;
+                case 'eat':
+                    goals.setGoal('EAT');
+                    if (goals.getNeed('hunger') > 70) {
+                        goals.setMood('HUNGRY');
+                    } else {
+                        goals.setMood('SATISFIED');
+                    }
+                    break;
+                case 'socialize':
+                    goals.setGoal('SOCIALIZE');
+                    goals.setMood('HAPPY');
+                    break;
+                case 'wander':
+                    goals.setGoal('EXPLORE');
+                    if (goals.getNeed('safety') < 50) {
+                        goals.setMood('WORRIED');
+                    } else {
+                        goals.setMood('CONTENT');
+                    }
+                    break;
+                case 'rest':
+                    goals.setGoal('REST');
+                    goals.setMood('RELAXED');
+                    break;
+                case 'flee':
+                    goals.setGoal('FLEE');
+                    goals.setMood('SCARED');
+                    break;
+            }
+        }
+        
         // Get destination for activity
         const destination = this.getActivityLocation(villager, activity);
         if (destination) {
             villager.destination = destination;
             villager.state = 'moving';
-        }
-
-        // Handle special transitions
-        switch (activity) {
-            case 'socialize':
-                this.initiateSocialActivity(villager);
-                break;
-            case 'work':
-                this.assignWork(villager);
-                break;
-            case 'sleep':
-                villager.state = 'resting';
-                break;
         }
     }
 
@@ -214,13 +253,40 @@ export class VillagerBehaviour {
             return;
         }
 
-        // Move towards destination
-        direction.normalize().scaleInPlace(villager.speed);
-        villager.mesh.position.addInPlace(direction);
+        // Get current physics aggregate
+        const physicsAggregate = villager.mesh.getPhysicsBody();
+        if (!physicsAggregate) return;
+
+        // Calculate movement direction and speed
+        direction.normalize();
+        const moveSpeed = villager.speed;
+        const currentVelocity = physicsAggregate.getLinearVelocity();
         
-        // Update rotation to face movement direction
+        // Calculate target velocity
+        const targetVelocity = new BABYLON.Vector3(
+            direction.x * moveSpeed,
+            currentVelocity.y, // Preserve vertical velocity
+            direction.z * moveSpeed
+        );
+
+        // Smoothly interpolate to target velocity
+        const smoothFactor = 0.1;
+        const newVelocity = new BABYLON.Vector3(
+            currentVelocity.x + (targetVelocity.x - currentVelocity.x) * smoothFactor,
+            targetVelocity.y,
+            currentVelocity.z + (targetVelocity.z - currentVelocity.z) * smoothFactor
+        );
+
+        // Apply the new velocity
+        physicsAggregate.setLinearVelocity(newVelocity);
+
+        // Update rotation to face movement direction (only Y axis)
         const targetRotation = Math.atan2(direction.x, direction.z);
-        villager.mesh.rotation.y = targetRotation;
+        const currentRotation = villager.mesh.rotation.y;
+        
+        // Smoothly interpolate rotation
+        const rotationDiff = BABYLON.Scalar.WrapAngle(targetRotation - currentRotation);
+        villager.mesh.rotation.y += rotationDiff * 0.1;
     }
 
     initiateSocialActivity(villager) {
@@ -368,7 +434,13 @@ export class VillagerBehaviour {
         villager.currentActivity = 'idle';
         villager.state = 'wandering';
         villager.speed = 0.05;
+        
+        // Initialize goals system for this villager
+        const goals = new VillagerGoals(this.scene, villager);
+        this.villagerGoals.set(villager.id, goals);
+        
         this.villagers.push(villager);
+        return villager;
     }
 
     generatePersonality() {
@@ -381,7 +453,71 @@ export class VillagerBehaviour {
         return roles[Math.floor(Math.random() * roles.length)];
     }
 
+    updateVillagerNeeds(villager) {
+        const goals = this.villagerGoals.get(villager.id);
+        if (!goals) return;
+
+        // Decay needs over time
+        goals.satisfyNeed('energy', -0.1);
+        goals.satisfyNeed('hunger', -0.15);
+        goals.satisfyNeed('social', -0.05);
+        
+        // Update safety based on nearby threats
+        const threats = this.checkForThreats(villager);
+        if (threats.length > 0) {
+            goals.satisfyNeed('safety', -0.3);
+        } else {
+            goals.satisfyNeed('safety', 0.05);
+        }
+
+        // Emergency mood updates based on critical needs
+        if (goals.getNeed('energy') < 10) {
+            goals.setMood('EXHAUSTED');
+        }
+        if (goals.getNeed('hunger') < 10) {
+            goals.setMood('STARVING');
+        }
+        if (goals.getNeed('social') < 10) {
+            goals.setMood('LONELY');
+        }
+        if (goals.getNeed('safety') < 20) {
+            goals.setMood('TERRIFIED');
+        }
+    }
+
+    respondToThreat(guard, threat) {
+        const goals = this.villagerGoals.get(guard.id);
+        if (goals) {
+            goals.setMood('ANGRY');
+            goals.setGoal('GUARD');
+        }
+
+        guard.workTask.state = 'responding';
+        guard.destination = threat.position;
+        guard.state = 'moving';
+    }
+
+    fleeFromThreat(villager, threat) {
+        const goals = this.villagerGoals.get(villager.id);
+        if (goals) {
+            goals.setMood('SCARED');
+            goals.setGoal('FLEE');
+        }
+
+        // Calculate flee direction (opposite of threat)
+        const fleeDirection = villager.mesh.position.subtract(threat.position).normalize();
+        const fleeDistance = 20;
+        villager.destination = villager.mesh.position.add(fleeDirection.scale(fleeDistance));
+        villager.state = 'fleeing';
+    }
+
     dispose() {
+        // Dispose all villager goals
+        for (const goals of this.villagerGoals.values()) {
+            goals.dispose();
+        }
+        this.villagerGoals.clear();
+
         this.worldClock.dispose();
         this.dayNightCycle.dispose();
         this.villagers.forEach(villager => {

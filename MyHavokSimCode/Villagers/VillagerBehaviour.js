@@ -20,18 +20,47 @@ export class VillagerBehaviour {
         // Initialize time system
         this.scene.onBeforeRenderObservable.add(() => {
             const deltaTime = this.scene.getEngine().getDeltaTime() * 0.001;
-            this.updateTime(deltaTime);
+            this.updateVillagers(deltaTime);
         });
 
         // Force initial update
-        this.updateTime(0);
+        this.updateVillagers(0);
 
         // Add goals system
         this.villagerGoals = new Map();
     }
 
-    updateTime(deltaTime) {
-        // Update game time (in minutes)
+    updateVillagers(deltaTime) {
+        this.villagers.forEach(villager => {
+            if (!villager.isInfected) {
+                // Update time-based activities
+                const currentHour = Math.floor(this.gameTime / 60);
+                this.updateVillagerSchedule(villager, currentHour);
+
+                // Update current activity and goals
+                this.updateActivity(villager);
+                this.updateVillagerNeeds(villager);
+
+                // Check for threats
+                const threats = this.checkForThreats(villager);
+                if (threats.length > 0) {
+                    this.handleThreats(villager, threats);
+                }
+
+                // Ensure physics body is properly configured
+                const physicsBody = villager.mesh.physicsBody;
+                if (physicsBody) {
+                    physicsBody.setMassProperties({
+                        mass: 1,
+                        centerOfMass: new BABYLON.Vector3(0, 0, 0),
+                        inertia: new BABYLON.Vector3(0, 1, 0),
+                        rotationalInertia: new BABYLON.Vector3(0, 1, 0)
+                    });
+                }
+            }
+        });
+
+        // Update game time
         this.gameTime += deltaTime * this.timeScale / 60;
         if (this.gameTime >= 24 * 60) {
             this.gameTime = 0;
@@ -41,16 +70,6 @@ export class VillagerBehaviour {
         // Update UI and environment
         this.worldClock.updateTime(this.gameTime);
         this.dayNightCycle.update(this.gameTime);
-
-        // Get current hour
-        const currentHour = Math.floor(this.gameTime / 60);
-        
-        // Update villager schedules
-        this.villagers.forEach(villager => {
-            if (!villager.isInfected) {
-                this.updateVillagerSchedule(villager, currentHour);
-            }
-        });
     }
 
     onDayEnd() {
@@ -244,49 +263,69 @@ export class VillagerBehaviour {
     updateMovement(villager) {
         if (!villager.destination) return;
 
+        // Get delta time for smooth movement
+        const deltaTime = this.scene.getEngine().getDeltaTime() * 0.001;
+
+        // Calculate direction and distance
         const direction = villager.destination.subtract(villager.mesh.position);
         const distance = direction.length();
 
         if (distance < 0.1) {
             // Arrived at destination
             villager.state = this.getStateForActivity(villager.currentActivity);
+            villager.destination = null;
             return;
         }
 
-        // Get current physics aggregate
-        const physicsAggregate = villager.mesh.getPhysicsBody();
-        if (!physicsAggregate) return;
-
-        // Calculate movement direction and speed
+        // Normalize direction and apply movement
         direction.normalize();
-        const moveSpeed = villager.speed;
-        const currentVelocity = physicsAggregate.getLinearVelocity();
-        
-        // Calculate target velocity
-        const targetVelocity = new BABYLON.Vector3(
-            direction.x * moveSpeed,
-            currentVelocity.y, // Preserve vertical velocity
-            direction.z * moveSpeed
-        );
+        const moveStep = direction.scale(villager.speed * deltaTime * 60); // Scale by deltaTime for consistent speed
+        const newPosition = villager.mesh.position.add(moveStep);
 
-        // Smoothly interpolate to target velocity
-        const smoothFactor = 0.1;
-        const newVelocity = new BABYLON.Vector3(
-            currentVelocity.x + (targetVelocity.x - currentVelocity.x) * smoothFactor,
-            targetVelocity.y,
-            currentVelocity.z + (targetVelocity.z - currentVelocity.z) * smoothFactor
-        );
+        // Get ground height at new position
+        const groundHeight = BowlCreator.getTerrainHeight(newPosition.x, newPosition.z);
+        if (groundHeight !== null) {
+            newPosition.y = groundHeight + 0.9; // Constant offset from ground
+            villager.mesh.position = newPosition;
+        }
 
-        // Apply the new velocity
-        physicsAggregate.setLinearVelocity(newVelocity);
-
-        // Update rotation to face movement direction (only Y axis)
+        // Update rotation to face movement direction
         const targetRotation = Math.atan2(direction.x, direction.z);
         const currentRotation = villager.mesh.rotation.y;
-        
-        // Smoothly interpolate rotation
         const rotationDiff = BABYLON.Scalar.WrapAngle(targetRotation - currentRotation);
         villager.mesh.rotation.y += rotationDiff * 0.1;
+
+        // Keep physics body in sync with mesh position
+        if (villager.mesh.physicsBody) {
+            villager.mesh.physicsBody.setTargetTransform(
+                newPosition,
+                new BABYLON.Quaternion(0, villager.mesh.rotation.y, 0, 1)
+            );
+        }
+    }
+
+    maintainUprightOrientation(mesh, physicsBody) {
+        // Reset any unwanted rotation
+        physicsBody.setAngularVelocity(new BABYLON.Vector3(0, physicsBody.getAngularVelocity().y, 0));
+        
+        // Force upright orientation
+        const currentRotation = mesh.rotationQuaternion || 
+            BABYLON.Quaternion.FromEulerAngles(mesh.rotation.x, mesh.rotation.y, mesh.rotation.z);
+        
+        // Create target quaternion (only Y rotation)
+        const targetQuaternion = BABYLON.Quaternion.FromEulerAngles(0, currentRotation.toEulerAngles().y, 0);
+        
+        // Smoothly interpolate to upright orientation
+        BABYLON.Quaternion.SlerpToRef(currentRotation, targetQuaternion, 0.2, currentRotation);
+        mesh.rotationQuaternion = currentRotation;
+
+        // Ensure proper ground height
+        const groundHeight = BowlCreator.getTerrainHeight(mesh.position.x, mesh.position.z);
+        if (mesh.position.y < groundHeight + 0.9) {
+            mesh.position.y = groundHeight + 0.9;
+            const velocity = physicsBody.getLinearVelocity();
+            physicsBody.setLinearVelocity(new BABYLON.Vector3(velocity.x, 0, velocity.z));
+        }
     }
 
     initiateSocialActivity(villager) {

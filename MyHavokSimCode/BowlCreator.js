@@ -3,10 +3,11 @@ import { AssetManager } from '../assets/AssetManager.js';
 export class BowlCreator {
     constructor(scene) {
         this.scene = scene;
-        this.bowlRadius = 100;
-        this.bowlDepth = 25;
-        this.minSegments = 32;  // Minimum segments for flat areas
-        this.maxSegments = 96;  // Maximum segments for detailed areas
+        this.bowlRadius = 300;    // Increased from 200
+        this.bowlDepth = 50;      // Increased from 40
+        this.minSegments = 64;    // Keep same detail level
+        this.maxSegments = 128;   // Keep same detail level
+        this.wallOffset = 50;     // Add offset for walls beyond bowl radius
 
         // Optimize wheel event handling
         this.initializeEventHandling();
@@ -44,54 +45,54 @@ export class BowlCreator {
 
     // Add this static method to get terrain height at any point
     static getTerrainHeight(x, z) {
-        const bowlRadius = 100;
-        const bowlDepth = 25;
+        const bowlRadius = 300;    // Match constructor value
+        const bowlDepth = 50;      // Match constructor value
         
         const distFromCenter = Math.sqrt(x * x + z * z);
         const normalizedDist = distFromCenter / bowlRadius;
         
-        // Much flatter base shape
-        let y = -Math.pow(normalizedDist, 3) * bowlDepth;
+        // Flatter, more gradual base shape
+        let y = -Math.pow(normalizedDist, 2.5) * bowlDepth; // Changed from cubic to power of 2.5 for more gradual slope
         
-        // Create a very flat central meadow
-        if (normalizedDist < 0.4) {
+        // Create a very flat central meadow (larger area)
+        if (normalizedDist < 0.5) { // Increased from 0.4
             // Almost completely flat center with very subtle undulation
             const meadowNoise = 
-                Math.sin(x * 0.05) * Math.cos(z * 0.05) * 0.5 + // Very gentle rolling
-                Math.sin((x + z) * 0.03) * Math.cos((x - z) * 0.03) * 0.3; // Subtle variation
+                Math.sin(x * 0.015) * Math.cos(z * 0.015) * 1.2 + // Even gentler rolling
+                Math.sin((x + z) * 0.01) * Math.cos((x - z) * 0.01) * 0.8; // More subtle variation
             
-            y = -2 + meadowNoise; // Slight depression to hold water
+            y = -3 + meadowNoise; // Keep same water depression
             
-            // Smooth transition to surrounding terrain
-            if (normalizedDist > 0.3) {
-                const transitionFactor = (normalizedDist - 0.3) / 0.1;
-                y = y * (1 - transitionFactor) + (-5 * transitionFactor);
+            // Smoother transition to surrounding terrain
+            if (normalizedDist > 0.4) { // Adjusted transition zone
+                const transitionFactor = (normalizedDist - 0.4) / 0.1;
+                y = y * (1 - transitionFactor) + (-8 * transitionFactor);
             }
         }
-        // Rolling hills in the middle region
-        else if (normalizedDist < 0.7) {
-            const hillFactor = (normalizedDist - 0.4) / 0.3;
+        // Rolling hills in the middle region (wider area)
+        else if (normalizedDist < 0.8) { // Increased from 0.7
+            const hillFactor = (normalizedDist - 0.5) / 0.3;
             const hillNoise = 
-                Math.sin(x * 0.08) * Math.cos(z * 0.08) * 4 +
-                Math.sin((x + z) * 0.05) * Math.cos((x - z) * 0.05) * 3;
+                Math.sin(x * 0.02) * Math.cos(z * 0.02) * 10 + // Larger, gentler hills
+                Math.sin((x + z) * 0.015) * Math.cos((x - z) * 0.015) * 8;
             
-            y = -5 + hillNoise * hillFactor;
+            y = -8 + hillNoise * hillFactor;
         }
-        // Mountains at the edges
+        // Mountains at the edges (more gradual rise)
         else {
-            const mountainFactor = (normalizedDist - 0.7) / 0.3;
-            const mountainHeight = 25;
+            const mountainFactor = (normalizedDist - 0.8) / 0.2;
+            const mountainHeight = 50; // Increased height
             const angle = Math.atan2(z, x);
             
             // Create more natural-looking mountain ranges
             const mountainNoise = 
-                Math.sin(angle * 3) * 0.6 +
-                Math.sin(angle * 5 + 1.5) * 0.3 +
-                Math.sin(angle * 8 + 2.4) * 0.2;
+                Math.sin(angle * 2) * 0.7 + // Reduced frequency for wider ranges
+                Math.sin(angle * 3 + 1.5) * 0.4 +
+                Math.sin(angle * 5 + 2.4) * 0.3;
             
             const ridgeNoise = 
-                Math.sin(x * 0.1 + z * 0.1) * 0.5 +
-                Math.cos(x * 0.15 - z * 0.15) * 0.3;
+                Math.sin(x * 0.03 + z * 0.03) * 0.6 + // Gentler ridges
+                Math.cos(x * 0.045 - z * 0.045) * 0.4;
             
             y += mountainHeight * mountainFactor * (0.8 + 0.4 * (mountainNoise + ridgeNoise));
         }
@@ -99,7 +100,7 @@ export class BowlCreator {
         return y;
     }
 
-    createBowl(bowlRadius = 100, bowlDepth = 25, maxSegments = 96) {
+    createBowl(bowlRadius = 200, bowlDepth = 40, maxSegments = 128) {
         return new Promise((resolve) => {
             const ground = new BABYLON.Mesh("bowl", this.scene);
             const vertexData = new BABYLON.VertexData();
@@ -327,20 +328,21 @@ export class BowlCreator {
     }
 
     createWalls(bowlRadius, bowlDepth, material) {
-        const wallHeight = 30;
-        const wallThickness = 8;
+        const wallHeight = 40; // Increased wall height
+        const wallThickness = 10; // Increased thickness
+        const wallRadius = bowlRadius + this.wallOffset; // Place walls further out
         
         for (let i = 0; i < 4; i++) {
             const wall = BABYLON.MeshBuilder.CreateBox(`wall${i}`, {
-                width: i % 2 === 0 ? bowlRadius * 2 + wallThickness : wallThickness,
+                width: i % 2 === 0 ? wallRadius * 2 + wallThickness : wallThickness,
                 height: wallHeight,
-                depth: i % 2 === 0 ? wallThickness : bowlRadius * 2 + wallThickness
+                depth: i % 2 === 0 ? wallThickness : wallRadius * 2 + wallThickness
             }, this.scene);
             
             wall.position = new BABYLON.Vector3(
-                i === 1 ? bowlRadius + wallThickness/2 : i === 3 ? -(bowlRadius + wallThickness/2) : 0,
-                wallHeight/2 - bowlDepth,
-                i === 0 ? bowlRadius + wallThickness/2 : i === 2 ? -(bowlRadius + wallThickness/2) : 0
+                i === 1 ? wallRadius + wallThickness/2 : i === 3 ? -(wallRadius + wallThickness/2) : 0,
+                wallHeight/2 - bowlDepth/2, // Adjusted height position
+                i === 0 ? wallRadius + wallThickness/2 : i === 2 ? -(wallRadius + wallThickness/2) : 0
             );
             
             wall.material = material;

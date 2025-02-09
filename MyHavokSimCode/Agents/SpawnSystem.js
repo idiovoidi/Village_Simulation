@@ -343,48 +343,34 @@ export class SpawnSystem {
     }
 
     createVillagerMesh(position) {
-        // Create basic villager mesh (can be enhanced with more detailed models)
+        // Create basic villager mesh
         const villager = BABYLON.MeshBuilder.CreateCapsule("villager", {
             radius: 0.4,
             height: 1.8,
             tessellation: 16
         }, this.scene);
-        villager.position = position;
         
-        // Add physics with locked rotations
+        // Set initial position with correct ground height
+        const groundHeight = BowlCreator.getTerrainHeight(position.x, position.z);
+        villager.position = new BABYLON.Vector3(position.x, groundHeight + 0.9, position.z);
+
+        // Create static physics body for collision detection only
         const aggregate = new BABYLON.PhysicsAggregate(
             villager,
             BABYLON.PhysicsShapeType.CAPSULE,
             { 
-                mass: 1, 
-                restitution: 0.2, 
-                friction: 0.8,
-                // Lock rotations except for Y axis (turning)
-                enabledRotations: {
-                    x: false,
-                    y: true,
-                    z: false
-                }
+                mass: 0,           // Static body
+                friction: 0,       // No friction needed
+                restitution: 0,    // No bounce
+                computeParentNodeTransform: true, // Allow manual position updates
+                group: 1,          // Collision group for villagers
+                mask: ~1,          // Collide with everything except other villagers
             },
             this.scene
         );
 
-        // Add a physics behavior to keep the villager upright
-        this.scene.onBeforeRenderObservable.add(() => {
-            // Reset angular velocity to prevent unwanted rotation
-            aggregate.body.setAngularVelocity(new BABYLON.Vector3(0, aggregate.body.getAngularVelocity().y, 0));
-            
-            // Keep position above ground
-            const groundHeight = BowlCreator.getTerrainHeight(villager.position.x, villager.position.z);
-            if (villager.position.y < groundHeight + 0.9) { // 0.9 is half height
-                villager.position.y = groundHeight + 0.9;
-                aggregate.body.setLinearVelocity(new BABYLON.Vector3(
-                    aggregate.body.getLinearVelocity().x,
-                    0,
-                    aggregate.body.getLinearVelocity().z
-                ));
-            }
-        });
+        // Store physics body reference
+        villager.physicsBody = aggregate.body;
 
         // Add villager material
         const villagerMaterial = new BABYLON.StandardMaterial("villagerMat", this.scene);

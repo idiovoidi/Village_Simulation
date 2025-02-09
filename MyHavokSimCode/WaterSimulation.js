@@ -31,19 +31,19 @@ export class WaterSimulation {
         waterMaterial.backFaceCulling = true;
         
         try {
-            // Create water surface
+            // Create larger water surface
             this.waterMesh = BABYLON.MeshBuilder.CreateGround(
                 "waterSurface",
                 {
-                    width: 180,
-                    height: 180,
-                    subdivisions: 50
+                    width: 600,  // Increased to match new bowl size
+                    height: 600, // Increased to match new bowl size
+                    subdivisions: 150 // Increased subdivisions for larger area
                 },
                 this.scene
             );
 
             // Position water
-            this.waterMesh.position.y = -8;
+            this.waterMesh.position.y = -10; // Adjusted to match new terrain
 
             // Apply material
             this.waterMesh.material = waterMaterial;
@@ -65,16 +65,16 @@ export class WaterSimulation {
         const positions = this.waterMesh.getVerticesData(BABYLON.VertexBuffer.PositionKind);
         const normals = [];
         
-        // Update vertices for wave motion
+        // Update vertices for wave motion - adjusted for larger scale
         for (let i = 0; i < positions.length; i += 3) {
             const x = positions[i];
             const z = positions[i + 2];
             
-            // Create gentle waves using multiple sine waves
+            // Create gentler waves with longer wavelengths for larger surface
             positions[i + 1] = this.waterMesh.position.y + 
-                Math.sin(x * 0.1 + this.time) * 0.3 +
-                Math.cos(z * 0.1 + this.time * 0.8) * 0.3 +
-                Math.sin((x + z) * 0.1 + this.time * 1.2) * 0.2;
+                Math.sin(x * 0.02 + this.time) * 0.8 +
+                Math.cos(z * 0.02 + this.time * 0.5) * 0.8 +
+                Math.sin((x + z) * 0.015 + this.time * 0.7) * 0.5;
         }
 
         // Compute normals for proper lighting
@@ -90,11 +90,11 @@ export class WaterSimulation {
     }
 
     getWaterHeight(x, z) {
-        // Get current water height at position (for other objects to use)
+        // Get current water height at position - adjusted for larger waves
         const time = this.time;
         return this.waterMesh.position.y + 
-            Math.sin(x * 0.1 + time) * 0.3 +
-            Math.cos(z * 0.1 + time * 0.8) * 0.3 +
-            Math.sin((x + z) * 0.1 + time * 1.2) * 0.2;
+            Math.sin(x * 0.02 + time) * 0.8 +
+            Math.cos(z * 0.02 + time * 0.5) * 0.8 +
+            Math.sin((x + z) * 0.015 + time * 0.7) * 0.5;
     }
 } 

@@ -83,6 +83,7 @@ export class VillagerWork {
             lastThreatCheck: Date.now()
         };
 
+        // Set initial destination
         villager.destination = patrolPoints[0];
         villager.state = 'moving';
     }
@@ -99,15 +100,15 @@ export class VillagerWork {
 
         // Update patrol movement
         if (villager.state === 'moving') {
-            const currentPoint = villager.workTask.route[villager.workTask.currentPoint];
-            const distance = BABYLON.Vector3.Distance(villager.mesh.position, currentPoint);
-
-            if (distance < 0.1) {
-                // Reached current patrol point
+            // Current point is already set as destination in villager.destination
+            // Movement is handled by VillagerBehaviour.updateMovement
+            // We just need to check if we've arrived
+            if (!villager.destination) {
+                // If destination is null, we've arrived (handled by updateMovement)
                 this.guardPostBehavior(villager);
             }
         } else if (villager.state === 'observing') {
-            villager.workTask.observeTime -= this.scene.getEngine().getDeltaTime() * 0.001;
+            villager.workTask.observeTime -= villager.scene.getEngine().getDeltaTime() * 0.001;
             if (villager.workTask.observeTime <= 0) {
                 // Move to next patrol point
                 villager.workTask.currentPoint = (villager.workTask.currentPoint + 1) % villager.workTask.route.length;
@@ -192,6 +193,8 @@ export class VillagerWork {
             const midPoint = BABYLON.Vector3.Lerp(route[i], route[i + 1], 0.5);
             midPoint.x += (Math.random() - 0.5) * 5;
             midPoint.z += (Math.random() - 0.5) * 5;
+            // Ensure proper ground height for patrol points
+            midPoint.y = BowlCreator.getTerrainHeight(midPoint.x, midPoint.z) + 0.9;
             route.splice(i + 1, 0, midPoint);
             i++;
         }
@@ -201,18 +204,36 @@ export class VillagerWork {
     static guardPostBehavior(villager) {
         villager.state = 'observing';
         villager.workTask.observeTime = 5 + Math.random() * 5; // 5-10 seconds
+        villager.destination = null; // Clear destination while observing
         
-        // Rotate to scan area
-        const rotationDuration = 2000;
-        const startRotation = villager.mesh.rotation.y;
-        const totalRotation = Math.PI * 2;
-        
-        const rotationInterval = setInterval(() => {
-            const progress = (Date.now() % rotationDuration) / rotationDuration;
-            villager.mesh.rotation.y = startRotation + totalRotation * progress;
-        }, 16);
+        // Store initial rotation for scanning
+        villager.workTask.startRotation = villager.mesh.rotation.y;
+        villager.workTask.scanStartTime = Date.now();
+        villager.workTask.scanDuration = 2000; // 2 seconds for full rotation
 
-        setTimeout(() => clearInterval(rotationInterval), rotationDuration);
+        // Add rotation update to scene's render loop
+        const rotationObserver = villager.scene.onBeforeRenderObservable.add(() => {
+            if (villager.state !== 'observing') {
+                // Remove observer when no longer observing
+                villager.scene.onBeforeRenderObservable.remove(rotationObserver);
+                return;
+            }
+
+            // Calculate rotation progress
+            const elapsed = (Date.now() - villager.workTask.scanStartTime) % villager.workTask.scanDuration;
+            const progress = elapsed / villager.workTask.scanDuration;
+            
+            // Perform smooth rotation
+            villager.mesh.rotation.y = villager.workTask.startRotation + Math.PI * 2 * progress;
+
+            // Update physics body rotation if it exists
+            if (villager.mesh.physicsBody) {
+                villager.mesh.physicsBody.setTargetTransform(
+                    villager.mesh.position,
+                    new BABYLON.Quaternion(0, villager.mesh.rotation.y, 0, 1)
+                );
+            }
+        });
     }
 
     static checkForThreats(villager) {

@@ -1,6 +1,7 @@
 import { BowlCreator } from './BowlCreator.js';
 import { AssetManager } from '../assets/AssetManager.js';
 import { VillageDecorations } from './Village/VillageDecorations.js';
+import { MarketSystem } from './Village/MarketSystem.js';
 
 export class VillageSystem {
     constructor(scene) {
@@ -10,11 +11,13 @@ export class VillageSystem {
         this.centerOffset = new BABYLON.Vector3(0, 0, 0); // Village center position
         this.houseCount = 15; // Number of houses to create
         this.decorations = new VillageDecorations(scene);
+        this.marketSystem = new MarketSystem(scene);
         this.init();
     }
 
     init() {
         this.createVillageCenter();
+        this.createMarketDistrict();
         this.createHouses();
         this.addDecorations();
     }
@@ -493,5 +496,22 @@ export class VillageSystem {
             const z = Math.sin(angle) * flowerRadius;
             this.decorations.createFlowerBed(x, z, this.centerOffset);
         }
+    }
+
+    createMarketDistrict() {
+        // Create market district to the east of the village center
+        const marketCenter = this.centerOffset.clone();
+        marketCenter.x += this.villageRadius * 0.4; // Position market district east of center
+        marketCenter.z += this.villageRadius * 0.2; // Slightly to the south
+        
+        this.marketSystem.createMarketDistrict(marketCenter);
+    }
+
+    dispose() {
+        this.decorations.dispose();
+        if (this.marketSystem) {
+            this.marketSystem.dispose();
+        }
+        // ... rest of dispose code ...
     }
 } 

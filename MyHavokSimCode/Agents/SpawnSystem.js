@@ -40,6 +40,10 @@ export class SpawnSystem {
     }
 
     initialize(villagerCount = 20, zombieCount = 15) {
+        // Initialize behavior systems first
+        this.villagerBehaviour.initialize();
+        this.zombieBehaviour.initialize();
+
         // Spawn initial population
         this.spawnVillagers(villagerCount);
         this.spawnZombies(zombieCount);
@@ -63,6 +67,9 @@ export class SpawnSystem {
                 if (villager) {
                     this.villagerSpawnPoints.push(position);
                     spawned++;
+                    
+                    // Register locations for activities
+                    this.registerVillagerLocations(villager);
                 }
             }
             
@@ -290,10 +297,30 @@ export class SpawnSystem {
     }
 
     createVillager(position) {
-        return this.villagerBehaviour.addVillager({
+        // Create the villager mesh
+        const villagerMesh = this.createVillagerMesh(position);
+        
+        // Create villager data object
+        const villager = {
+            mesh: villagerMesh,
             position: position,
-            mesh: this.createVillagerMesh(position)
-        });
+            speed: 0.05,
+            currentActivity: 'idle',
+            state: 'wandering',
+            needs: {
+                energy: 100,
+                hunger: 100,
+                social: 100,
+                safety: 100
+            },
+            lastScheduleHour: -1,
+            dailyWorkDone: 0,
+            socialInteractions: 0,
+            dailyInteractions: new Map()
+        };
+
+        // Add villager to behavior system
+        return this.villagerBehaviour.addVillager(villager);
     }
 
     createZombieGroup(position, size) {
@@ -359,7 +386,29 @@ export class SpawnSystem {
             }
         });
 
+        // Add villager material
+        const villagerMaterial = new BABYLON.StandardMaterial("villagerMat", this.scene);
+        villagerMaterial.diffuseColor = new BABYLON.Color3(0.8, 0.6, 0.5); // Skin tone
+        villager.material = villagerMaterial;
+
         return villager;
+    }
+
+    registerVillagerLocations(villager) {
+        // Register house as sleep location
+        this.villagerBehaviour.registerLocation('sleep', villager.mesh.position.clone());
+        
+        // Register work locations based on role
+        const workPos = villager.mesh.position.clone();
+        workPos.x += (Math.random() - 0.5) * 10;
+        workPos.z += (Math.random() - 0.5) * 10;
+        this.villagerBehaviour.registerLocation('work', workPos);
+        
+        // Register social locations
+        const socialPos = villager.mesh.position.clone();
+        socialPos.x += (Math.random() - 0.5) * 15;
+        socialPos.z += (Math.random() - 0.5) * 15;
+        this.villagerBehaviour.registerLocation('socialize', socialPos);
     }
 
     updateSpawns() {

@@ -39,11 +39,17 @@ export class VillageDecorations {
         
         plaza.position = this.villageCenter.clone();
         plaza.position.y = BowlCreator.getTerrainHeight(this.villageCenter.x, this.villageCenter.z);
+        plaza.receiveShadows = true;
 
-        // Plaza material
+        // Create standard material for plaza (PBR was causing lighting issues)
         const plazaMaterial = new BABYLON.StandardMaterial("plazaMat", this.scene);
-        plazaMaterial.diffuseColor = new BABYLON.Color3(0.7, 0.7, 0.7);
+        plazaMaterial.diffuseColor = new BABYLON.Color3(0.35, 0.35, 0.35);
+        plazaMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+        plazaMaterial.specularPower = 64;
         plazaMaterial.bumpTexture = AssetManager.getTexture('ROCK_NORMAL', this.scene);
+        plazaMaterial.bumpTexture.uScale = 8;
+        plazaMaterial.bumpTexture.vScale = 8;
+        plazaMaterial.ambientColor = new BABYLON.Color3(0.2, 0.2, 0.2);
         plaza.material = plazaMaterial;
 
         this.decorations.push(plaza);
@@ -78,7 +84,7 @@ export class VillageDecorations {
     createFountain() {
         if (!this.villageCenter) return;
 
-        // Create water basin
+        // Create water basin with improved materials
         const basin = BABYLON.MeshBuilder.CreateCylinder("fountainBasin", {
             height: 1,
             diameter: 12,
@@ -87,6 +93,7 @@ export class VillageDecorations {
         
         basin.position = this.villageCenter.clone();
         basin.position.y = BowlCreator.getTerrainHeight(this.villageCenter.x, this.villageCenter.z) + 0.5;
+        basin.receiveShadows = true;
 
         // Create decorative rim
         const rim = BABYLON.MeshBuilder.CreateTorus("fountainRim", {
@@ -96,6 +103,7 @@ export class VillageDecorations {
         }, this.scene);
         rim.position = basin.position.clone();
         rim.position.y += 0.4;
+        rim.receiveShadows = true;
 
         // Create central pillar
         const centralPillar = BABYLON.MeshBuilder.CreateCylinder("fountainPillar", {
@@ -105,6 +113,7 @@ export class VillageDecorations {
         }, this.scene);
         centralPillar.position = basin.position.clone();
         centralPillar.position.y += 2;
+        centralPillar.receiveShadows = true;
 
         // Create decorative tiers
         const tiers = [];
@@ -117,6 +126,7 @@ export class VillageDecorations {
             }, this.scene);
             tier.position = centralPillar.position.clone();
             tier.position.y += i * 1.2;
+            tier.receiveShadows = true;
             tiers.push(tier);
         }
 
@@ -127,17 +137,22 @@ export class VillageDecorations {
         }, this.scene);
         topOrnament.position = centralPillar.position.clone();
         topOrnament.position.y += 2.5;
+        topOrnament.receiveShadows = true;
 
-        // Materials
+        // Create materials for fountain
         const stoneMaterial = new BABYLON.StandardMaterial("fountainStoneMat", this.scene);
-        stoneMaterial.diffuseColor = new BABYLON.Color3(0.8, 0.8, 0.8);
+        stoneMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.4, 0.4);
+        stoneMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+        stoneMaterial.specularPower = 64;
         stoneMaterial.bumpTexture = AssetManager.getTexture('ROCK_NORMAL', this.scene);
-        stoneMaterial.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+        stoneMaterial.bumpTexture.uScale = 4;
+        stoneMaterial.bumpTexture.vScale = 4;
+        stoneMaterial.ambientColor = new BABYLON.Color3(0.2, 0.2, 0.2);
 
         const waterMaterial = new BABYLON.StandardMaterial("fountainWaterMat", this.scene);
         waterMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.6, 0.8);
-        waterMaterial.alpha = 0.8;
         waterMaterial.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+        waterMaterial.alpha = 0.8;
         waterMaterial.emissiveColor = new BABYLON.Color3(0.1, 0.2, 0.3);
 
         // Apply materials
@@ -145,7 +160,11 @@ export class VillageDecorations {
         rim.material = stoneMaterial;
         centralPillar.material = stoneMaterial;
         topOrnament.material = stoneMaterial;
-        tiers.forEach(tier => tier.material = stoneMaterial);
+        tiers.forEach(tier => {
+            const tierMat = stoneMaterial.clone(`tierMat_${tier.name}`);
+            tierMat.specularPower = 32; // Slightly different specular for visual interest
+            tier.material = tierMat;
+        });
 
         // Add water effects
         tiers.forEach((tier, index) => {
@@ -203,29 +222,12 @@ export class VillageDecorations {
         // Calculate direction to face village center if available
         let benchRotation = rotation;
         if (this.villageCenter) {
-            // Create vector from bench to center
             const toCenter = new BABYLON.Vector3(
                 this.villageCenter.x - benchPosition.x,
                 0,
                 this.villageCenter.z - benchPosition.z
             );
-            
-            // Calculate angle and adjust so bench faces inward
             benchRotation = Math.atan2(toCenter.z, toCenter.x) - Math.PI/2;
-
-            if (this.debug) {
-                // Draw debug line from bench to center
-                const line = BABYLON.MeshBuilder.CreateLines("debugLine", {
-                    points: [
-                        benchPosition,
-                        this.villageCenter
-                    ]
-                }, this.scene);
-                line.color = new BABYLON.Color3(0, 1, 0);
-                this.decorations.push(line);
-
-                console.log(`Bench at (${x}, ${z}): Original rotation: ${rotation}, New rotation: ${benchRotation}`);
-            }
         }
 
         // Create bench seat
@@ -237,7 +239,7 @@ export class VillageDecorations {
         seat.position = benchPosition.clone();
         seat.rotation.y = benchRotation;
 
-        // Create bench back (facing inward)
+        // Create bench back
         const back = BABYLON.MeshBuilder.CreateBox("benchBack", {
             width: 2,
             height: 0.6,
@@ -245,11 +247,18 @@ export class VillageDecorations {
         }, this.scene);
         back.position = benchPosition.clone();
         back.position.y += 0.35;
-        back.position.z += 0.25 * Math.cos(benchRotation); // Changed minus to plus to face inward
-        back.position.x -= 0.25 * Math.sin(benchRotation); // Changed plus to minus to face inward
+        back.position.z += 0.25 * Math.cos(benchRotation);
+        back.position.x -= 0.25 * Math.sin(benchRotation);
         back.rotation.y = benchRotation;
 
-        // Create bench legs
+        // Create PBR material for bench
+        const benchMaterial = new BABYLON.PBRMaterial("benchPBRMat", this.scene);
+        benchMaterial.albedoColor = new BABYLON.Color3(0.3, 0.15, 0.05);
+        benchMaterial.metallic = 0;
+        benchMaterial.roughness = 0.9;
+        benchMaterial.ambientOcclusionStrength = 1;
+
+        // Create bench legs with same material
         [-0.8, 0.8].forEach(offset => {
             const leg = BABYLON.MeshBuilder.CreateBox("benchLeg", {
                 width: 0.1,
@@ -261,16 +270,9 @@ export class VillageDecorations {
             leg.position.x += Math.cos(benchRotation) * offset;
             leg.position.z += Math.sin(benchRotation) * offset;
             leg.rotation.y = benchRotation;
-
-            // Bench material
-            const benchMaterial = new BABYLON.StandardMaterial("benchMat", this.scene);
-            benchMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.2, 0.1);
             leg.material = benchMaterial;
         });
 
-        // Bench material
-        const benchMaterial = new BABYLON.StandardMaterial("benchMat", this.scene);
-        benchMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.2, 0.1);
         seat.material = benchMaterial;
         back.material = benchMaterial;
 

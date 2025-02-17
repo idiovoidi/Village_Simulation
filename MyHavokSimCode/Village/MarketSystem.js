@@ -15,6 +15,10 @@ export class MarketSystem {
             pathWidth: 4,         // Width of market paths
             centerRadius: 10,     // Radius of central marketplace
             roofHeight: 3,        // Height of stall roofs
+            marketOffset: 40,     // Distance from village center
+            marketRotation: Math.PI / 6, // Rotation of entire market (30 degrees)
+            plazaTiers: 3,        // Number of plaza tiers
+            plazaStepHeight: 0.15, // Height of each plaza step
             stallTypes: [
                 { type: 'FOOD', color: new BABYLON.Color3(0.8, 0.4, 0.3) },
                 { type: 'CRAFTS', color: new BABYLON.Color3(0.6, 0.4, 0.8) },
@@ -25,38 +29,146 @@ export class MarketSystem {
     }
 
     createMarketDistrict(centerPosition) {
-        // Create central marketplace
-        this.createCentralPlaza(centerPosition);
+        // Apply market offset and rotation to create the actual market center
+        const marketCenter = new BABYLON.Vector3(
+            centerPosition.x + Math.cos(this.config.marketRotation) * this.config.marketOffset,
+            centerPosition.y,
+            centerPosition.z + Math.sin(this.config.marketRotation) * this.config.marketOffset
+        );
+
+        // Calculate direction vector from market to village center
+        const directionToVillage = centerPosition.subtract(marketCenter).normalize();
+        this.villageDirection = Math.atan2(directionToVillage.z, directionToVillage.x);
         
-        // Create market stalls in a circular arrangement
-        this.createMarketStalls(centerPosition);
+        // Create central marketplace
+        this.createCentralPlaza(marketCenter);
+        
+        // Create market stalls in a circular arrangement, oriented towards village
+        this.createMarketStalls(marketCenter);
         
         // Add decorative elements
-        this.addMarketDecorations(centerPosition);
+        this.addMarketDecorations(marketCenter);
         
         // Create pathways between stalls
-        this.createMarketPaths(centerPosition);
+        this.createMarketPaths(marketCenter);
     }
 
     createCentralPlaza(center) {
-        // Create central plaza ground
-        const plaza = BABYLON.MeshBuilder.CreateDisc("marketPlaza", {
-            radius: this.config.centerRadius,
-            tessellation: 64
-        }, this.scene);
-        
-        plaza.position = center.clone();
-        plaza.position.y = BowlCreator.getTerrainHeight(center.x, center.z) + 0.05;
-        plaza.rotation.x = Math.PI / 2;
+        // Create tiered plaza effect
+        for (let i = 0; i < this.config.plazaTiers; i++) {
+            const tierRadius = this.config.centerRadius * (1 - i * 0.15);
+            const plaza = BABYLON.MeshBuilder.CreateDisc("marketPlaza_" + i, {
+                radius: tierRadius,
+                tessellation: 64
+            }, this.scene);
+            
+            plaza.position = center.clone();
+            plaza.position.y = BowlCreator.getTerrainHeight(center.x, center.z) + 0.05 + (i * this.config.plazaStepHeight);
+            plaza.rotation.x = Math.PI / 2;
 
-        // Create plaza material
-        const plazaMaterial = new BABYLON.StandardMaterial("plazaMat", this.scene);
-        plazaMaterial.diffuseColor = new BABYLON.Color3(0.7, 0.7, 0.6);
-        plazaMaterial.bumpTexture = AssetManager.getTexture('ROCK_NORMAL', this.scene);
-        plaza.material = plazaMaterial;
+            // Create plaza material with slight variation per tier
+            const plazaMaterial = new BABYLON.StandardMaterial("plazaMat_" + i, this.scene);
+            plazaMaterial.diffuseColor = new BABYLON.Color3(
+                0.7 - (i * 0.05),
+                0.7 - (i * 0.05),
+                0.6 - (i * 0.05)
+            );
+            plazaMaterial.bumpTexture = AssetManager.getTexture('ROCK_NORMAL', this.scene);
+            plazaMaterial.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+            plaza.material = plazaMaterial;
+
+            // Add decorative rim for each tier
+            if (i < this.config.plazaTiers - 1) {
+                const rim = BABYLON.MeshBuilder.CreateTorus("plazaRim_" + i, {
+                    diameter: tierRadius * 2,
+                    thickness: 0.3,
+                    tessellation: 64
+                }, this.scene);
+                
+                rim.position = center.clone();
+                rim.position.y = plaza.position.y + (this.config.plazaStepHeight / 2);
+                rim.rotation.x = Math.PI / 2;
+
+                const rimMaterial = new BABYLON.StandardMaterial("rimMat_" + i, this.scene);
+                rimMaterial.diffuseColor = new BABYLON.Color3(0.6, 0.6, 0.5);
+                rimMaterial.bumpTexture = AssetManager.getTexture('ROCK_NORMAL', this.scene);
+                rim.material = rimMaterial;
+            }
+        }
+
+        // Create main entrance path facing village
+        this.createPlazaEntrance(center);
 
         // Add central feature (fountain or statue)
         this.createCentralFeature(center);
+    }
+
+    createPlazaEntrance(center) {
+        // Create wider entrance path facing the village
+        const entranceWidth = this.config.pathWidth * 1.5;
+        const entranceLength = this.config.centerRadius * 1.2;
+        
+        const entrance = BABYLON.MeshBuilder.CreateBox("plazaEntrance", {
+            width: entranceWidth,
+            height: 0.1,
+            depth: entranceLength
+        }, this.scene);
+
+        entrance.position = center.clone();
+        entrance.position.x += Math.cos(this.villageDirection) * (this.config.centerRadius - entranceLength/2);
+        entrance.position.z += Math.sin(this.villageDirection) * (this.config.centerRadius - entranceLength/2);
+        entrance.position.y = BowlCreator.getTerrainHeight(entrance.position.x, entrance.position.z) + 0.02;
+        entrance.rotation.y = this.villageDirection;
+
+        // Create entrance material
+        const entranceMaterial = new BABYLON.StandardMaterial("entranceMat", this.scene);
+        entranceMaterial.diffuseColor = new BABYLON.Color3(0.65, 0.65, 0.55);
+        entranceMaterial.bumpTexture = AssetManager.getTexture('ROCK_NORMAL', this.scene);
+        entrance.material = entranceMaterial;
+
+        // Add decorative pillars at entrance
+        this.createEntrancePillars(center, entranceWidth);
+    }
+
+    createEntrancePillars(center, entranceWidth) {
+        const pillarPositions = [
+            { x: entranceWidth/2 + 0.5, z: this.config.centerRadius },
+            { x: -(entranceWidth/2 + 0.5), z: this.config.centerRadius }
+        ];
+
+        pillarPositions.forEach((pos, index) => {
+            const pillar = BABYLON.MeshBuilder.CreateCylinder("entrancePillar_" + index, {
+                height: 4,
+                diameter: 1,
+                tessellation: 12
+            }, this.scene);
+
+            const rotatedPos = {
+                x: center.x + (pos.x * Math.cos(this.villageDirection) - pos.z * Math.sin(this.villageDirection)),
+                z: center.z + (pos.x * Math.sin(this.villageDirection) + pos.z * Math.cos(this.villageDirection))
+            };
+
+            pillar.position = new BABYLON.Vector3(
+                rotatedPos.x,
+                BowlCreator.getTerrainHeight(rotatedPos.x, rotatedPos.z) + 2,
+                rotatedPos.z
+            );
+
+            // Add pillar cap
+            const pillarCap = BABYLON.MeshBuilder.CreateCylinder("pillarCap_" + index, {
+                height: 0.5,
+                diameter: 1.3,
+                tessellation: 12
+            }, this.scene);
+            pillarCap.position = pillar.position.clone();
+            pillarCap.position.y += 2;
+
+            const pillarMaterial = new BABYLON.StandardMaterial("pillarMat_" + index, this.scene);
+            pillarMaterial.diffuseColor = new BABYLON.Color3(0.75, 0.75, 0.65);
+            pillarMaterial.bumpTexture = AssetManager.getTexture('ROCK_NORMAL', this.scene);
+            pillar.material = pillarMaterial;
+            pillarCap.material = pillarMaterial;
+        });
     }
 
     createCentralFeature(center) {

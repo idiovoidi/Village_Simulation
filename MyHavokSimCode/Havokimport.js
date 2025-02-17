@@ -15,6 +15,77 @@ import { LevelConfig } from './LevelSystem/LevelConfig.js';
 import { LevelSelector } from './LevelSystem/LevelSelector.js';
 import { WorldClock } from './UI/WorldClock.js';
 
+// Define system configurations
+const SYSTEM_CONFIGS = {
+  village: {
+    condition: 'hasVillage',
+    systems: [
+      { name: 'roadSystem', class: RoadSystem },
+      { name: 'villageSystem', class: VillageSystem },
+      { name: 'houseSystem', class: HouseSystem }
+    ]
+  },
+  water: {
+    condition: 'hasWater',
+    systems: [
+      { 
+        name: 'waterSim', 
+        class: WaterSimulation,
+        initialize: (instance) => instance.initialize()
+      }
+    ],
+    dependencies: [
+      {
+        condition: 'hasFish',
+        systems: [
+          { 
+            name: 'fishSystem', 
+            class: FishBehaviour,
+            initialize: (instance, level) => instance.initialize(level.fishCount),
+            constructorArgs: (scene) => [scene, this.waterSim.waterMesh]
+          }
+        ]
+      }
+    ]
+  },
+  birds: {
+    condition: 'hasBirds',
+    systems: [
+      { 
+        name: 'birdSystem', 
+        class: BirdBehaviour,
+        initialize: (instance, level) => instance.initialize(level.birdCount)
+      }
+    ]
+  },
+  clouds: {
+    condition: 'hasClouds',
+    systems: [
+      { name: 'cloudSystem', class: CloudSystem }
+    ]
+  },
+  dogs: {
+    condition: 'hasDogs',
+    systems: [
+      { 
+        name: 'dogSystem', 
+        class: DogBehaviour,
+        initialize: (instance, level) => instance.initialize(level.dogCount)
+      }
+    ]
+  },
+  zombies: {
+    condition: 'hasZombies',
+    systems: [
+      { 
+        name: 'zombieSystem', 
+        class: ZombieBehaviour,
+        initialize: (instance, level) => instance.initialize(level.zombieCount)
+      }
+    ]
+  }
+};
+
 export class LeoScene {
   constructor(canvas) {
     this.canvas = canvas;
@@ -176,58 +247,12 @@ export class LeoScene {
       const bowlCreator = new BowlCreator(this.scene);
       await bowlCreator.createBowl(level.bowlRadius, level.bowlDepth);
 
-      // Initialize systems based on level config
-      if (level.hasVillage) {
-        console.log("Creating village systems");
-        this.roadSystem = new RoadSystem(this.scene);
-        this.villageSystem = new VillageSystem(this.scene);
-      }
-
-      // Create vortex ball
+      // Create core systems that are always present
       this.vortexBall = new VortexBall(this.scene);
-
-      // Initialize WaterSimulation if enabled
-      if (level.hasWater) {
-        console.log("Creating water systems");
-        this.waterSim = new WaterSimulation(this.scene);
-        const waterInitSuccess = this.waterSim.initialize();
-
-        if (waterInitSuccess && level.hasFish) {
-          this.fishSystem = new FishBehaviour(this.scene, this.waterSim.waterMesh);
-          this.fishSystem.initialize(level.fishCount);
-        }
-      }
-
-      // Initialize BehavioralSim
       this.behavioralSim = new BehavioralSim(this.scene);
 
-      // Initialize HouseSystem if village is enabled
-      if (level.hasVillage) {
-        this.houseSystem = new HouseSystem(this.scene);
-      }
-
-      // Initialize BirdBehaviour if enabled
-      if (level.hasBirds) {
-        this.birdSystem = new BirdBehaviour(this.scene);
-        this.birdSystem.initialize(level.birdCount);
-      }
-
-      // Initialize CloudSystem if enabled
-      if (level.hasClouds) {
-        this.cloudSystem = new CloudSystem(this.scene);
-      }
-
-      // Initialize DogBehaviour if enabled
-      if (level.hasDogs) {
-        this.dogSystem = new DogBehaviour(this.scene);
-        this.dogSystem.initialize(level.dogCount);
-      }
-
-      // Initialize ZombieBehaviour if enabled
-      if (level.hasZombies) {
-        this.zombieSystem = new ZombieBehaviour(this.scene);
-        this.zombieSystem.initialize(level.zombieCount);
-      }
+      // Initialize configured systems
+      await this.initializeSystems(level);
 
       console.log("Level loaded successfully");
       return Promise.resolve();
@@ -235,6 +260,52 @@ export class LeoScene {
     } catch (error) {
       console.error("Error loading level:", error);
       return Promise.reject(error);
+    }
+  }
+
+  async initializeSystems(level) {
+    for (const [key, config] of Object.entries(SYSTEM_CONFIGS)) {
+      if (level[config.condition]) {
+        // Initialize main systems
+        for (const system of config.systems) {
+          try {
+            const constructorArgs = system.constructorArgs ? 
+              system.constructorArgs(this.scene) : 
+              [this.scene];
+
+            this[system.name] = new system.class(...constructorArgs);
+            
+            if (system.initialize) {
+              await system.initialize(this[system.name], level);
+            }
+          } catch (error) {
+            console.error(`Error initializing ${system.name}:`, error);
+          }
+        }
+
+        // Initialize dependent systems if they exist
+        if (config.dependencies) {
+          for (const dep of config.dependencies) {
+            if (level[dep.condition]) {
+              for (const system of dep.systems) {
+                try {
+                  const constructorArgs = system.constructorArgs ? 
+                    system.constructorArgs(this.scene) : 
+                    [this.scene];
+
+                  this[system.name] = new system.class(...constructorArgs);
+                  
+                  if (system.initialize) {
+                    await system.initialize(this[system.name], level);
+                  }
+                } catch (error) {
+                  console.error(`Error initializing dependent system ${system.name}:`, error);
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 

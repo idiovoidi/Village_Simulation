@@ -1,31 +1,49 @@
 import { DogBehaviour } from './Agents/Dogs/DogBehaviour.js';
+import { NavigationMesh } from './Navigation/NavigationMesh.js';
+import { BasicAgent } from './Agents/BasicAgent.js';
 
 export class BehavioralSim {
     constructor(scene) {
         this.scene = scene;
         this.agents = [];
         this.targetPoints = [];
-        this.pathNodes = [];
         this.zombies = [];
-        this.zombieCount = 10; // Start with 10 zombies
-        this.dogBehaviour = null; // Add dog behavior reference
+        this.zombieCount = 10;
+        this.dogBehaviour = null;
+        this.navigationMesh = new NavigationMesh(scene);
+        this.basicAgent = new BasicAgent(scene);
         
-        this.init();
+        // Return the initialization promise
+        return this.init();
     }
 
-    init() {
-        // Create navigation mesh for pathfinding
-        this.createNavigationMesh();
-        // Create AI agents
-        this.createAgents(10);
-        // Create target points for agents to seek
-        this.createTargetPoints();
-        // Create zombies
-        this.createZombies();
-        // Initialize dogs
-        this.initializeDogs();
-        // Start behavior update loop
-        this.scene.registerBeforeRender(() => this.updateBehaviors());
+    async init() {
+        try {
+            // Initialize navigation system
+            await this.navigationMesh.initialize({
+                gridSize: 20,
+                spacing: 10,
+                debug: this.scene.debugLayer.isVisible()
+            });
+
+            // Create target points for agents to seek
+            this.createTargetPoints();
+            // Create some basic agents
+            this.createAgents(10); // Create 10 basic agents
+            // Create zombies
+            this.createZombies();
+            // Initialize dogs
+            this.initializeDogs();
+
+            // Start behavior update loop
+            this.scene.registerBeforeRender(() => this.updateBehaviors());
+
+            // Return this for chaining
+            return this;
+        } catch (error) {
+            console.error('Failed to initialize BehavioralSim:', error);
+            throw error;
+        }
     }
 
     initializeDogs() {
@@ -35,136 +53,9 @@ export class BehavioralSim {
         this.dogBehaviour.initialize(5);
     }
 
-    createNavigationMesh() {
-        // Create path nodes across the landscape
-        const gridSize = 20;
-        const spacing = 10;
-        
-        for (let x = -gridSize; x <= gridSize; x += spacing) {
-            for (let z = -gridSize; z <= gridSize; z += spacing) {
-                const node = new BABYLON.TransformNode(`pathNode_${x}_${z}`, this.scene);
-                node.position = new BABYLON.Vector3(x * 5, this.getHeightAtPoint(x, z), z * 5);
-                this.pathNodes.push(node);
-                
-                // Visualize nodes in debug mode
-                if (this.scene.debugLayer.isVisible()) {
-                    const sphere = BABYLON.MeshBuilder.CreateSphere(`nodeVis_${x}_${z}`, {
-                        diameter: 1
-                    }, this.scene);
-                    sphere.position = node.position;
-                    sphere.visibility = 0.3;
-                }
-            }
-        }
-    }
-
     createAgent(name) {
-        // Create root mesh for the agent
-        const root = new BABYLON.TransformNode(name, this.scene);
-        
-        // Create body parts with better proportions
-        const torso = BABYLON.MeshBuilder.CreateCapsule(
-            `${name}_torso`,
-            { radius: 0.4, height: 1.2, tessellation: 16 },
-            this.scene
-        );
-        torso.parent = root;
-        torso.position.y = 1.6;
-
-        // Create head
-        const head = BABYLON.MeshBuilder.CreateSphere(
-            `${name}_head`,
-            { diameter: 0.5, segments: 16 },
-            this.scene
-        );
-        head.parent = torso;
-        head.position.y = 0.8;
-
-        // Create limbs
-        const limbs = {
-            leftArm: this.createLimb(name, "leftArm", { radius: 0.15, height: 0.8 }),
-            rightArm: this.createLimb(name, "rightArm", { radius: 0.15, height: 0.8 }),
-            leftLeg: this.createLimb(name, "leftLeg", { radius: 0.2, height: 1 }),
-            rightLeg: this.createLimb(name, "rightLeg", { radius: 0.2, height: 1 })
-        };
-
-        // Position limbs
-        limbs.leftArm.parent = torso;
-        limbs.rightArm.parent = torso;
-        limbs.leftLeg.parent = torso;
-        limbs.rightLeg.parent = torso;
-
-        limbs.leftArm.position = new BABYLON.Vector3(-0.5, 0.3, 0);
-        limbs.rightArm.position = new BABYLON.Vector3(0.5, 0.3, 0);
-        limbs.leftLeg.position = new BABYLON.Vector3(-0.3, -0.8, 0);
-        limbs.rightLeg.position = new BABYLON.Vector3(0.3, -0.8, 0);
-
-        // Create materials with better colors
-        const bodyMaterial = new BABYLON.StandardMaterial(`${name}_material`, this.scene);
-        const skinTone = new BABYLON.Color3(
-            0.8 + Math.random() * 0.2,
-            0.6 + Math.random() * 0.2,
-            0.4 + Math.random() * 0.2
-        );
-        
-        const clothingColor = new BABYLON.Color3(
-            Math.random(),
-            Math.random(),
-            Math.random()
-        );
-
-        bodyMaterial.diffuseColor = skinTone;
-        bodyMaterial.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
-
-        const clothingMaterial = new BABYLON.StandardMaterial(`${name}_clothing`, this.scene);
-        clothingMaterial.diffuseColor = clothingColor;
-
-        // Apply materials
-        head.material = bodyMaterial;
-        torso.material = clothingMaterial;
-        Object.values(limbs).forEach(limb => limb.material = clothingMaterial);
-
-        // Add physics
-        const aggregate = new BABYLON.PhysicsAggregate(
-            root,
-            BABYLON.PhysicsShapeType.CAPSULE,
-            { mass: 1, friction: 0.5, restitution: 0.3 },
-            this.scene
-        );
-
-        // Random starting position
         const startPos = this.getRandomStartPosition();
-        root.position = startPos;
-
-        return {
-            mesh: root,
-            parts: {
-                torso,
-                head,
-                ...limbs
-            },
-            physics: aggregate,
-            currentTarget: null,
-            speed: 0.5 + Math.random() * 0.5,
-            state: 'seeking',
-            waitTime: 0,
-            flockingParams: {
-                separationWeight: 1.0,
-                alignmentWeight: 0.7,
-                cohesionWeight: 0.5,
-                separationRadius: 5,
-                alignmentRadius: 10,
-                cohesionRadius: 15
-            }
-        };
-    }
-
-    createLimb(name, limbName, dimensions) {
-        return BABYLON.MeshBuilder.CreateCapsule(
-            `${name}_${limbName}`,
-            { radius: dimensions.radius, height: dimensions.height, tessellation: 16 },
-            this.scene
-        );
+        return this.basicAgent.createAgent(name, startPos);
     }
 
     createAgents(count) {

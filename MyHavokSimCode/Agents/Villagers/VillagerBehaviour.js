@@ -1,8 +1,7 @@
 import { BowlCreator } from '../../BowlCreator.js';
 import { WorldClock } from '../../UI/WorldClock.js';
 import { DayNightCycle } from '../../Environment/DayNightCycle.js';
-import { VillagerModel } from './VillagerModel.js';
-import { VillagerAgent } from './VillagerAgent.js';
+import { BasicAgent } from '../BasicAgent.js';
 
 export class VillagerBehaviour {
     constructor(scene) {
@@ -10,8 +9,7 @@ export class VillagerBehaviour {
         this.villagers = [];
         this.timeScale = 1200; // 1 real second = 20 game minutes
         this.gameTime = 8 * 60; // Start at 8:00 AM
-        this.villagerModel = new VillagerModel(scene);
-        this.villagerAgent = new VillagerAgent(scene);
+        this.basicAgent = new BasicAgent(scene);
         
         // Initialize time-related systems
         this.worldClock = new WorldClock(this.scene);
@@ -40,7 +38,8 @@ export class VillagerBehaviour {
             const z = Math.sin(angle) * radius;
             const y = BowlCreator.getTerrainHeight(x, z) + 2;
 
-            const villager = this.villagerModel.createVillager(new BABYLON.Vector3(x, y, z));
+            const position = new BABYLON.Vector3(x, y, z);
+            const villager = this.basicAgent.createAgent(`villager_${i}`, position);
             this.addVillager(villager);
         }
     }
@@ -185,6 +184,6 @@ export class VillagerBehaviour {
             }
         });
         this.villagers = [];
-        this.villagerModel.dispose();
+        this.basicAgent.dispose();
     }
 } 

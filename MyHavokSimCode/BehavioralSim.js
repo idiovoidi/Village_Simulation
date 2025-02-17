@@ -2,6 +2,7 @@ import { DogBehaviour } from './Agents/Dogs/DogBehaviour.js';
 import { NavigationMesh } from './Navigation/NavigationMesh.js';
 import { BasicAgent } from './Agents/BasicAgent.js';
 import { VillagerBehaviour } from './Agents/Villagers/VillagerBehaviour.js';
+import { DinosaurBehaviour } from './Agents/Dinosaurs/DinosaurBehaviour.js';
 
 export class BehavioralSim {
     constructor(scene) {
@@ -12,6 +13,7 @@ export class BehavioralSim {
         this.zombieCount = 10;
         this.dogBehaviour = null;
         this.villagerBehaviour = null;
+        this.dinosaurBehaviour = null;
         this.navigationMesh = new NavigationMesh(scene);
         this.basicAgent = new BasicAgent(scene);
         
@@ -38,6 +40,8 @@ export class BehavioralSim {
             this.initializeDogs();
             // Initialize villagers
             this.initializeVillagers();
+            // Initialize dinosaur
+            this.initializeDinosaur();
 
             // Start behavior update loop
             this.scene.registerBeforeRender(() => this.updateBehaviors());
@@ -62,6 +66,13 @@ export class BehavioralSim {
         this.villagerBehaviour = new VillagerBehaviour(this.scene);
         // Initialize with 10 villagers
         this.villagerBehaviour.initialize(10);
+    }
+
+    initializeDinosaur() {
+        // Create dinosaur behavior manager
+        this.dinosaurBehaviour = new DinosaurBehaviour(this.scene);
+        // Initialize with 1 dinosaur
+        this.dinosaurBehaviour.initialize(1);
     }
 
     createAgent(name) {
@@ -421,6 +432,11 @@ export class BehavioralSim {
         // Clean up villagers
         if (this.villagerBehaviour) {
             this.villagerBehaviour.dispose();
+        }
+
+        // Clean up dinosaur
+        if (this.dinosaurBehaviour) {
+            this.dinosaurBehaviour.dispose();
         }
 
         // Clean up zombies

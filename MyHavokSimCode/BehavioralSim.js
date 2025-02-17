@@ -1,3 +1,5 @@
+import { DogBehaviour } from './Agents/Dogs/DogBehaviour.js';
+
 export class BehavioralSim {
     constructor(scene) {
         this.scene = scene;
@@ -6,6 +8,7 @@ export class BehavioralSim {
         this.pathNodes = [];
         this.zombies = [];
         this.zombieCount = 10; // Start with 10 zombies
+        this.dogBehaviour = null; // Add dog behavior reference
         
         this.init();
     }
@@ -19,8 +22,17 @@ export class BehavioralSim {
         this.createTargetPoints();
         // Create zombies
         this.createZombies();
+        // Initialize dogs
+        this.initializeDogs();
         // Start behavior update loop
         this.scene.registerBeforeRender(() => this.updateBehaviors());
+    }
+
+    initializeDogs() {
+        // Create dog behavior manager
+        this.dogBehaviour = new DogBehaviour(this.scene);
+        // Initialize with 5 dogs
+        this.dogBehaviour.initialize(5);
     }
 
     createNavigationMesh() {

@@ -9,7 +9,6 @@ import { FishBehaviour } from './Fish/FishBehaviour.js';
 import { BirdBehaviour } from './Agents/Birds/BirdBehaviour.js';
 import { CloudSystem } from './CloudSystem.js';
 import { ZombieBehaviour } from './Agents/Zombies/ZombieBehaviour.js';
-import { MoonSystem } from './MoonSystem.js';
 import { VillageSystem } from './VillageSystem.js';
 import { DogBehaviour } from './Agents/Dogs/DogBehaviour.js';
 import { LevelConfig } from './LevelSystem/LevelConfig.js';
@@ -197,11 +196,6 @@ export class LeoScene {
           this.fishSystem = new FishBehaviour(this.scene, this.waterSim.waterMesh);
           this.fishSystem.initialize(level.fishCount);
         }
-      }
-
-      // Initialize MoonSystem
-      if (level.hasMoon) {
-        this.moonSystem = new MoonSystem(this.scene);
       }
 
       // Initialize BehavioralSim

@@ -45,7 +45,7 @@ export class DogBehaviour {
 
     update() {
         this.dogs.forEach(dog => {
-            if (!dog.mesh) return;
+            if (!dog.mesh || !dog.physics) return;
 
             if (dog.isResting) {
                 dog.restTimer -= this.scene.getEngine().getDeltaTime() / 1000;
@@ -61,7 +61,7 @@ export class DogBehaviour {
                 return;
             }
 
-            // Move towards target
+            // Move towards target using physics
             const currentPos = dog.getPosition();
             const direction = dog.targetPosition.subtract(currentPos);
             const distance = direction.length();
@@ -72,25 +72,46 @@ export class DogBehaviour {
                 dog.isResting = true;
                 dog.restTimer = 2 + Math.random() * 3; // Rest for 2-5 seconds
                 dog.targetPosition = null;
+                // Stop any movement
+                dog.physics.body.setLinearVelocity(BABYLON.Vector3.Zero());
                 return;
             }
 
-            // Update position and rotation
+            // Calculate desired velocity
             direction.normalize();
             const targetY = BowlCreator.getTerrainHeight(currentPos.x, currentPos.z) + 1;
-            const movement = direction.scale(dog.speed);
+            const heightDiff = targetY - currentPos.y;
             
-            // Apply movement
-            dog.mesh.position.x += movement.x;
-            dog.mesh.position.z += movement.z;
-            dog.mesh.position.y = targetY;
+            // Create movement force
+            const force = new BABYLON.Vector3(
+                direction.x * dog.speed * 40,
+                heightDiff * 10, // Vertical force to follow terrain
+                direction.z * dog.speed * 40
+            );
+            
+            // Apply force for movement
+            dog.physics.body.applyForce(force, currentPos);
+
+            // Keep dog upright
+            const rotation = dog.mesh.rotationQuaternion || 
+                           BABYLON.Quaternion.FromEulerAngles(dog.mesh.rotation.x, dog.mesh.rotation.y, dog.mesh.rotation.z);
+            const upright = BABYLON.Quaternion.Identity();
+            BABYLON.Quaternion.SlerpToRef(rotation, upright, 0.1, rotation);
+            dog.mesh.rotationQuaternion = rotation;
 
             // Update rotation to face movement direction
-            const targetRotation = Math.atan2(direction.x, direction.z);
-            dog.mesh.rotation.y = targetRotation;
+            const velocity = dog.physics.body.getLinearVelocity();
+            if (velocity.length() > 0.1) {
+                const targetRotation = Math.atan2(velocity.x, velocity.z);
+                dog.mesh.rotation.y = targetRotation;
+            }
 
-            // Ensure walking animation is playing
-            dog.startWalking();
+            // Ensure walking animation is playing if moving
+            if (velocity.length() > 0.1) {
+                dog.startWalking();
+            } else {
+                dog.stopWalking();
+            }
         });
     }
 

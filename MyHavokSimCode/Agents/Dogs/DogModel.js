@@ -4,7 +4,8 @@ export class DogModel {
     constructor(scene) {
         this.scene = scene;
         this.mesh = null;
-        this.speed = 0.05;
+        this.physics = null;
+        this.speed = 0.15;
         this.isRunning = false;
         this.targetPosition = null;
     }
@@ -59,6 +60,7 @@ export class DogModel {
             { x: 0.3, z: -0.4 }   // Back Right
         ];
 
+        this.legs = [];
         legPositions.forEach((pos, index) => {
             const leg = BABYLON.MeshBuilder.CreateBox("dogLeg" + index, {
                 width: 0.15,
@@ -69,6 +71,7 @@ export class DogModel {
             leg.position.x = pos.x;
             leg.position.z = pos.z;
             leg.position.y = -0.6;
+            this.legs.push(leg);
         });
 
         // Create tail
@@ -81,6 +84,7 @@ export class DogModel {
         tail.position.z = -0.6;
         tail.position.y = 0.1;
         tail.rotation.x = Math.PI / 4;
+        this.tail = tail;
 
         // Materials
         const bodyMaterial = new BABYLON.StandardMaterial("dogBodyMat", this.scene);
@@ -104,88 +108,17 @@ export class DogModel {
         head.material = bodyMaterial;
         snout.material = darkMaterial;
         tail.material = bodyMaterial;
-        
-        // Create animations
-        this.createAnimations(body, tail, legPositions);
 
         // Add physics
-        const bodyAggregate = new BABYLON.PhysicsAggregate(
+        this.physics = new BABYLON.PhysicsAggregate(
             body,
             BABYLON.PhysicsShapeType.BOX,
-            { mass: 1, restitution: 0.1, friction: 0.9 },
+            { mass: 1, restitution: 0.2, friction: 0.8 },
             this.scene
         );
 
         this.mesh = body;
         return body;
-    }
-
-    createAnimations(body, tail, legPositions) {
-        // Tail wagging animation
-        const tailAnimation = new BABYLON.Animation(
-            "tailWag",
-            "rotation.z",
-            30,
-            BABYLON.Animation.ANIMATIONTYPE_FLOAT,
-            BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
-        );
-
-        const tailKeys = [];
-        tailKeys.push({ frame: 0, value: -Math.PI / 4 });
-        tailKeys.push({ frame: 15, value: Math.PI / 4 });
-        tailKeys.push({ frame: 30, value: -Math.PI / 4 });
-        tailAnimation.setKeys(tailKeys);
-
-        tail.animations = [tailAnimation];
-        this.scene.beginAnimation(tail, 0, 30, true);
-
-        // Walking animation for legs
-        body.getChildMeshes().forEach((mesh, index) => {
-            if (mesh.name.startsWith("dogLeg")) {
-                const legAnimation = new BABYLON.Animation(
-                    "legWalk" + index,
-                    "position.y",
-                    30,
-                    BABYLON.Animation.ANIMATIONTYPE_FLOAT,
-                    BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
-                );
-
-                const legKeys = [];
-                const baseY = -0.6;
-                const phase = (index % 2) * Math.PI; // Alternate legs
-                
-                for (let frame = 0; frame <= 30; frame++) {
-                    const angle = (frame / 30) * Math.PI * 2 + phase;
-                    const value = baseY + Math.abs(Math.sin(angle)) * 0.2;
-                    legKeys.push({ frame: frame, value: value });
-                }
-
-                legAnimation.setKeys(legKeys);
-                mesh.animations = [legAnimation];
-            }
-        });
-    }
-
-    startWalking() {
-        if (!this.isRunning) {
-            this.isRunning = true;
-            this.mesh.getChildMeshes().forEach(mesh => {
-                if (mesh.name.startsWith("dogLeg")) {
-                    this.scene.beginAnimation(mesh, 0, 30, true);
-                }
-            });
-        }
-    }
-
-    stopWalking() {
-        if (this.isRunning) {
-            this.isRunning = false;
-            this.mesh.getChildMeshes().forEach(mesh => {
-                if (mesh.name.startsWith("dogLeg")) {
-                    this.scene.stopAnimation(mesh);
-                }
-            });
-        }
     }
 
     getPosition() {
@@ -198,7 +131,70 @@ export class DogModel {
         }
     }
 
+    startWalking() {
+        if (!this.isRunning) {
+            this.isRunning = true;
+            // Animate legs while walking
+            this.legs.forEach((leg, index) => {
+                const phase = (index % 2) * Math.PI;
+                const animation = new BABYLON.Animation(
+                    "legWalk" + index,
+                    "rotation.x",
+                    30,
+                    BABYLON.Animation.ANIMATIONTYPE_FLOAT,
+                    BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
+                );
+
+                const keys = [];
+                for (let frame = 0; frame <= 30; frame++) {
+                    const angle = (frame / 30) * Math.PI * 2 + phase;
+                    keys.push({
+                        frame: frame,
+                        value: Math.sin(angle) * 0.3
+                    });
+                }
+                animation.setKeys(keys);
+                leg.animations = [animation];
+                this.scene.beginAnimation(leg, 0, 30, true);
+            });
+
+            // Wag tail while walking
+            const tailAnimation = new BABYLON.Animation(
+                "tailWag",
+                "rotation.z",
+                30,
+                BABYLON.Animation.ANIMATIONTYPE_FLOAT,
+                BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
+            );
+
+            const tailKeys = [];
+            tailKeys.push({ frame: 0, value: -Math.PI / 4 });
+            tailKeys.push({ frame: 15, value: Math.PI / 4 });
+            tailKeys.push({ frame: 30, value: -Math.PI / 4 });
+            tailAnimation.setKeys(tailKeys);
+            this.tail.animations = [tailAnimation];
+            this.scene.beginAnimation(this.tail, 0, 30, true);
+        }
+    }
+
+    stopWalking() {
+        if (this.isRunning) {
+            this.isRunning = false;
+            // Stop all animations
+            this.legs.forEach(leg => {
+                this.scene.stopAnimation(leg);
+                leg.rotation.x = 0;
+            });
+            this.scene.stopAnimation(this.tail);
+            this.tail.rotation.x = Math.PI / 4;
+            this.tail.rotation.z = 0;
+        }
+    }
+
     dispose() {
+        if (this.physics) {
+            this.physics.dispose();
+        }
         if (this.mesh) {
             this.mesh.dispose();
         }

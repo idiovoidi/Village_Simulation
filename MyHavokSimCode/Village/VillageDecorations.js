@@ -5,6 +5,193 @@ export class VillageDecorations {
     constructor(scene) {
         this.scene = scene;
         this.decorations = [];
+        this.villageCenter = null;
+        this.debug = false;
+        this.plazaRadius = 16;  // Half of the 32 diameter from VillageSystem
+    }
+
+    setVillageCenter(centerPosition) {
+        this.villageCenter = centerPosition;
+        
+        // Create the central plaza and its features
+        this.createCentralPlaza();
+        this.createFountain();
+        this.createPlazaDecorations();
+        
+        if (this.debug) {
+            const marker = BABYLON.MeshBuilder.CreateSphere("centerMarker", {
+                diameter: 1
+            }, this.scene);
+            marker.position = centerPosition;
+            marker.material = new BABYLON.StandardMaterial("markerMat", this.scene);
+            marker.material.diffuseColor = new BABYLON.Color3(1, 0, 0);
+            this.decorations.push(marker);
+        }
+    }
+
+    createCentralPlaza() {
+        // Create central plaza
+        const plaza = BABYLON.MeshBuilder.CreateCylinder("plaza", {
+            height: 0.9,
+            diameter: this.plazaRadius * 2,
+            tessellation: 64
+        }, this.scene);
+        
+        plaza.position = this.villageCenter.clone();
+        plaza.position.y = BowlCreator.getTerrainHeight(this.villageCenter.x, this.villageCenter.z);
+
+        // Plaza material
+        const plazaMaterial = new BABYLON.StandardMaterial("plazaMat", this.scene);
+        plazaMaterial.diffuseColor = new BABYLON.Color3(0.7, 0.7, 0.7);
+        plazaMaterial.bumpTexture = AssetManager.getTexture('ROCK_NORMAL', this.scene);
+        plaza.material = plazaMaterial;
+
+        this.decorations.push(plaza);
+    }
+
+    createPlazaDecorations() {
+        if (!this.villageCenter) return;
+
+        // Add benches around the fountain
+        const benchCount = 8;
+        const benchRadius = this.plazaRadius * 0.625; // 10 units when plaza radius is 16
+
+        for (let i = 0; i < benchCount; i++) {
+            const angle = (i / benchCount) * Math.PI * 2;
+            const x = Math.cos(angle) * benchRadius;
+            const z = Math.sin(angle) * benchRadius;
+            this.createBench(x, z, angle, this.villageCenter);
+        }
+
+        // Add flower beds
+        const flowerBedCount = 6;
+        const flowerRadius = this.plazaRadius * 0.8125; // 13 units when plaza radius is 16
+
+        for (let i = 0; i < flowerBedCount; i++) {
+            const angle = (i / flowerBedCount) * Math.PI * 2;
+            const x = Math.cos(angle) * flowerRadius;
+            const z = Math.sin(angle) * flowerRadius;
+            this.createFlowerBed(x, z, this.villageCenter);
+        }
+    }
+
+    createFountain() {
+        if (!this.villageCenter) return;
+
+        // Create water basin
+        const basin = BABYLON.MeshBuilder.CreateCylinder("fountainBasin", {
+            height: 1,
+            diameter: 12,
+            tessellation: 32
+        }, this.scene);
+        
+        basin.position = this.villageCenter.clone();
+        basin.position.y = BowlCreator.getTerrainHeight(this.villageCenter.x, this.villageCenter.z) + 0.5;
+
+        // Create decorative rim
+        const rim = BABYLON.MeshBuilder.CreateTorus("fountainRim", {
+            diameter: 12,
+            thickness: 1.3,
+            tessellation: 32
+        }, this.scene);
+        rim.position = basin.position.clone();
+        rim.position.y += 0.4;
+
+        // Create central pillar
+        const centralPillar = BABYLON.MeshBuilder.CreateCylinder("fountainPillar", {
+            height: 4,
+            diameter: 2,
+            tessellation: 16
+        }, this.scene);
+        centralPillar.position = basin.position.clone();
+        centralPillar.position.y += 2;
+
+        // Create decorative tiers
+        const tiers = [];
+        const tierCount = 3;
+        for (let i = 0; i < tierCount; i++) {
+            const tier = BABYLON.MeshBuilder.CreateCylinder("fountainTier" + i, {
+                height: 0.4,
+                diameter: 6 - (i * 1.5),
+                tessellation: 32
+            }, this.scene);
+            tier.position = centralPillar.position.clone();
+            tier.position.y += i * 1.2;
+            tiers.push(tier);
+        }
+
+        // Create top ornament
+        const topOrnament = BABYLON.MeshBuilder.CreateSphere("fountainTop", {
+            diameter: 1.2,
+            segments: 16
+        }, this.scene);
+        topOrnament.position = centralPillar.position.clone();
+        topOrnament.position.y += 2.5;
+
+        // Materials
+        const stoneMaterial = new BABYLON.StandardMaterial("fountainStoneMat", this.scene);
+        stoneMaterial.diffuseColor = new BABYLON.Color3(0.8, 0.8, 0.8);
+        stoneMaterial.bumpTexture = AssetManager.getTexture('ROCK_NORMAL', this.scene);
+        stoneMaterial.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+
+        const waterMaterial = new BABYLON.StandardMaterial("fountainWaterMat", this.scene);
+        waterMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.6, 0.8);
+        waterMaterial.alpha = 0.8;
+        waterMaterial.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+        waterMaterial.emissiveColor = new BABYLON.Color3(0.1, 0.2, 0.3);
+
+        // Apply materials
+        basin.material = waterMaterial;
+        rim.material = stoneMaterial;
+        centralPillar.material = stoneMaterial;
+        topOrnament.material = stoneMaterial;
+        tiers.forEach(tier => tier.material = stoneMaterial);
+
+        // Add water effects
+        tiers.forEach((tier, index) => {
+            const emitterPosition = tier.position.clone();
+            emitterPosition.y += 0.2;
+            this.createWaterEffect(emitterPosition, 6 - (index * 1.5));
+        });
+
+        this.createWaterEffect(topOrnament.position, 8);
+
+        // Add to decorations array
+        this.decorations.push(basin, rim, centralPillar, topOrnament, ...tiers);
+    }
+
+    createWaterEffect(position, scale) {
+        const fountain = BABYLON.ParticleSystem.Parse(this.getFountainParticleConfig(), this.scene, "");
+        fountain.emitter = new BABYLON.Vector3(position.x, position.y - 0.5, position.z);
+        fountain.start();
+    }
+
+    getFountainParticleConfig() {
+        return {
+            "name": "fountain",
+            "capacity": 2000,
+            "emitter": [0, 0, 0],
+            "particleEmitterType": {
+                "type": "ConeParticleEmitter",
+                "radius": 1,
+                "angle": 0.5
+            },
+            "textureName": "null",
+            "color1": [0.7, 0.8, 1.0, 1.0],
+            "color2": [0.2, 0.5, 1.0, 1.0],
+            "colorDead": [0, 0, 0.2, 0.0],
+            "emitRate": 100,
+            "minEmitBox": [0, 0, 0],
+            "maxEmitBox": [0, 0, 0],
+            "minLifeTime": 0.5,
+            "maxLifeTime": 2.0,
+            "minSize": 0.1,
+            "maxSize": 0.3,
+            "direction1": [0, 4, 0],
+            "direction2": [0, 8, 0],
+            "gravity": [0, -9.81, 0],
+            "blendMode": 0
+        };
     }
 
     createBench(x, z, rotation, centerOffset) {
@@ -13,6 +200,34 @@ export class VillageDecorations {
         benchPosition.z += z;
         benchPosition.y = BowlCreator.getTerrainHeight(benchPosition.x, benchPosition.z) + 0.8;
 
+        // Calculate direction to face village center if available
+        let benchRotation = rotation;
+        if (this.villageCenter) {
+            // Create vector from bench to center
+            const toCenter = new BABYLON.Vector3(
+                this.villageCenter.x - benchPosition.x,
+                0,
+                this.villageCenter.z - benchPosition.z
+            );
+            
+            // Calculate angle and adjust so bench faces inward
+            benchRotation = Math.atan2(toCenter.z, toCenter.x) - Math.PI/2;
+
+            if (this.debug) {
+                // Draw debug line from bench to center
+                const line = BABYLON.MeshBuilder.CreateLines("debugLine", {
+                    points: [
+                        benchPosition,
+                        this.villageCenter
+                    ]
+                }, this.scene);
+                line.color = new BABYLON.Color3(0, 1, 0);
+                this.decorations.push(line);
+
+                console.log(`Bench at (${x}, ${z}): Original rotation: ${rotation}, New rotation: ${benchRotation}`);
+            }
+        }
+
         // Create bench seat
         const seat = BABYLON.MeshBuilder.CreateBox("benchSeat", {
             width: 2,
@@ -20,9 +235,9 @@ export class VillageDecorations {
             depth: 0.6
         }, this.scene);
         seat.position = benchPosition.clone();
-        seat.rotation.y = rotation;
+        seat.rotation.y = benchRotation;
 
-        // Create bench back
+        // Create bench back (facing inward)
         const back = BABYLON.MeshBuilder.CreateBox("benchBack", {
             width: 2,
             height: 0.6,
@@ -30,9 +245,9 @@ export class VillageDecorations {
         }, this.scene);
         back.position = benchPosition.clone();
         back.position.y += 0.35;
-        back.position.z -= 0.25 * Math.cos(rotation);
-        back.position.x += 0.25 * Math.sin(rotation);
-        back.rotation.y = rotation;
+        back.position.z += 0.25 * Math.cos(benchRotation); // Changed minus to plus to face inward
+        back.position.x -= 0.25 * Math.sin(benchRotation); // Changed plus to minus to face inward
+        back.rotation.y = benchRotation;
 
         // Create bench legs
         [-0.8, 0.8].forEach(offset => {
@@ -43,9 +258,9 @@ export class VillageDecorations {
             }, this.scene);
             leg.position = benchPosition.clone();
             leg.position.y -= 0.2;
-            leg.position.x += Math.cos(rotation) * offset;
-            leg.position.z += Math.sin(rotation) * offset;
-            leg.rotation.y = rotation;
+            leg.position.x += Math.cos(benchRotation) * offset;
+            leg.position.z += Math.sin(benchRotation) * offset;
+            leg.rotation.y = benchRotation;
 
             // Bench material
             const benchMaterial = new BABYLON.StandardMaterial("benchMat", this.scene);

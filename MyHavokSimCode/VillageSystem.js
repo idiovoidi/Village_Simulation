@@ -24,14 +24,14 @@ export class VillageSystem {
 
     createVillageCenter() {
         // Create central plaza
-        const plaza = BABYLON.MeshBuilder.CreateDisc("plaza", {
-            radius: 16,
+        const plaza = BABYLON.MeshBuilder.CreateCylinder("plaza", {
+            height: 0.9,
+            diameter: 32,
             tessellation: 64
         }, this.scene);
         
         plaza.position = this.centerOffset.clone();
-        plaza.position.y = BowlCreator.getTerrainHeight(this.centerOffset.x, this.centerOffset.z) + 0.65;
-        plaza.rotation.x = Math.PI / 2;
+        plaza.position.y = BowlCreator.getTerrainHeight(this.centerOffset.x, this.centerOffset.z);
 
         // Plaza material
         const plazaMaterial = new BABYLON.StandardMaterial("plazaMat", this.scene);
@@ -47,7 +47,7 @@ export class VillageSystem {
     }
 
     createFountain(position) {
-        // Create large water basin
+        // Create water 
         const basin = BABYLON.MeshBuilder.CreateCylinder("fountainBasin", {
             height: 1,
             diameter: 12,
@@ -60,7 +60,7 @@ export class VillageSystem {
         // Create decorative rim
         const rim = BABYLON.MeshBuilder.CreateTorus("fountainRim", {
             diameter: 12,
-            thickness: 0.8,
+            thickness: 1.3,
             tessellation: 32
         }, this.scene);
         rim.position = basin.position.clone();
@@ -75,7 +75,7 @@ export class VillageSystem {
         centralPillar.position = basin.position.clone();
         centralPillar.position.y += 2;
 
-        // Create decorative tiers
+        // Create decorative cake tiers
         const tiers = [];
         const tierCount = 3;
         for (let i = 0; i < tierCount; i++) {

@@ -21,15 +21,16 @@ export class DayNightCycle {
     createLights() {
         // Main directional light (sun)
         this.sunLight = new BABYLON.DirectionalLight("sunLight", new BABYLON.Vector3(0, -1, 0), this.scene);
-        this.sunLight.intensity = 1;
+        this.sunLight.intensity = 5;
         this.sunLight.shadowEnabled = true;
         this.sunLight.shadowMinZ = 1;
         this.sunLight.shadowMaxZ = 1000;
 
         // Ambient light for night
         this.ambientLight = new BABYLON.HemisphericLight("ambientLight", new BABYLON.Vector3(0, 1, 0), this.scene);
-        this.ambientLight.intensity = 0.2;
-        this.ambientLight.groundColor = new BABYLON.Color3(0.1, 0.1, 0.25);
+        this.ambientLight.intensity = 0.1;
+        this.ambientLight.groundColor = new BABYLON.Color3(0.05, 0.05, 0.15); // Bluer ground color for night
+        this.ambientLight.specular = new BABYLON.Color3(0.1, 0.1, 0.1);
 
         // Add volumetric light
         this.volumetricLight = new BABYLON.VolumetricLightScatteringPostProcess(
@@ -198,16 +199,17 @@ export class DayNightCycle {
 
     calculateCelestialHeight(currentHour, riseHour, setHour) {
         let hour = currentHour % 24;
-        const transitHour = (riseHour + ((setHour - riseHour) / 2)) % 24;
+        let transitHour = (riseHour + ((setHour - riseHour) / 2)) % 24;
+        let adjustedSetHour = setHour;
         
         // Normalize hours to handle day/night cycle
         if (hour < riseHour) hour += 24;
         if (transitHour < riseHour) transitHour += 24;
-        if (setHour < riseHour) setHour += 24;
+        if (adjustedSetHour < riseHour) adjustedSetHour += 24;
 
         // Calculate progress through celestial arc
-        if (hour >= riseHour && hour <= setHour) {
-            const progress = (hour - riseHour) / (setHour - riseHour);
+        if (hour >= riseHour && hour <= adjustedSetHour) {
+            const progress = (hour - riseHour) / (adjustedSetHour - riseHour);
             // Use sine curve for smooth movement
             return this.ORBIT_HEIGHT_MIN + (this.ORBIT_HEIGHT_MAX - this.ORBIT_HEIGHT_MIN) * 
                    Math.sin(progress * Math.PI);
@@ -221,21 +223,48 @@ export class DayNightCycle {
         const normalizedHeight = (sunHeight - this.ORBIT_HEIGHT_MIN) / 
                                (this.ORBIT_HEIGHT_MAX - this.ORBIT_HEIGHT_MIN);
         
-        // Update sun light intensity
-        this.sunLight.intensity = Math.max(0, normalizedHeight) * 1.5;
+        // Update sun light intensity with smoother transition
+        const baseSunIntensity = Math.max(0, normalizedHeight) * 2;
+        this.sunLight.intensity = baseSunIntensity;
 
-        // Update ambient light for night
+        // Update sun color based on height
+        const sunsetProgress = Math.max(0, Math.min(1, 1 - Math.abs(normalizedHeight)));
+        this.sunLight.diffuse = BABYLON.Color3.Lerp(
+            new BABYLON.Color3(1, 1, 1),  // Midday color
+            new BABYLON.Color3(1, 0.5, 0.2),  // Sunset color
+            sunsetProgress
+        );
+
+        // Update ambient light for night/day cycle
         const isNight = sunHeight < 0;
         const twilightZone = Math.abs(sunHeight) < 100;
         
         if (isNight) {
-            this.ambientLight.intensity = twilightZone ? 0.3 : 0.2;
-            this.moonGlow.intensity = 0.3;
+            // Night settings
+            this.ambientLight.intensity = twilightZone ? 0.2 : 0.1;
+            this.ambientLight.diffuse = new BABYLON.Color3(0.1, 0.1, 0.3);
+            this.moonGlow.intensity = 0.4;
             this.sunGlow.intensity = 0;
+            
+            // Add stars
+            this.stars.forEach(star => {
+                if (star.material) {
+                    star.material.alpha = Math.min(1, Math.abs(sunHeight) / 100);
+                }
+            });
         } else {
-            this.ambientLight.intensity = twilightZone ? 0.4 : 0.2;
+            // Day settings
+            this.ambientLight.intensity = twilightZone ? 0.3 : 0.2;
+            this.ambientLight.diffuse = new BABYLON.Color3(0.7, 0.7, 1.0);
             this.moonGlow.intensity = 0;
-            this.sunGlow.intensity = 0.5;
+            this.sunGlow.intensity = 0.7;
+            
+            // Hide stars during day
+            this.stars.forEach(star => {
+                if (star.material) {
+                    star.material.alpha = Math.max(0, 1 - (sunHeight / 50));
+                }
+            });
         }
     }
 
@@ -249,20 +278,24 @@ export class DayNightCycle {
         
         if (sunHeight > 0) {
             if (isSunrise || isSunset) {
-                // Dawn/Dusk colors
-                grd.addColorStop(0, "#FF7F50"); // Coral
-                grd.addColorStop(0.2, "#FFB6C1"); // Pink
-                grd.addColorStop(0.4, "#87CEEB"); // Sky blue
-                grd.addColorStop(1, "#4B0082"); // Indigo
+                // Dawn/Dusk colors with more dramatic gradient
+                grd.addColorStop(0, "#FF6B4A");    // Deep orange
+                grd.addColorStop(0.2, "#FF9E8F");  // Soft pink
+                grd.addColorStop(0.4, "#FFB6C1");  // Light pink
+                grd.addColorStop(0.6, "#87CEEB");  // Sky blue
+                grd.addColorStop(0.8, "#4169E1");  // Royal blue
+                grd.addColorStop(1, "#191970");    // Midnight blue
             } else {
-                // Daytime colors
-                grd.addColorStop(0, "#87CEEB"); // Sky blue
-                grd.addColorStop(1, "#B0E2FF"); // Lighter blue
+                // Daytime colors with more depth
+                grd.addColorStop(0, "#00BFFF");    // Deep sky blue
+                grd.addColorStop(0.5, "#87CEEB");  // Sky blue
+                grd.addColorStop(1, "#E0FFFF");    // Light cyan
             }
         } else {
-            // Nighttime colors
-            grd.addColorStop(0, "#000033"); // Dark blue
-            grd.addColorStop(1, "#191970"); // Midnight blue
+            // Nighttime colors with more stars visible
+            grd.addColorStop(0, "#000033");    // Dark blue
+            grd.addColorStop(0.5, "#0000FF");  // Deep blue
+            grd.addColorStop(1, "#191970");    // Midnight blue
         }
 
         ctx.fillStyle = grd;
@@ -282,56 +315,48 @@ export class DayNightCycle {
 
         if (isSunrise || isSunset) {
             // Thicker, colored fog during sunrise/sunset
-            this.scene.fogDensity = 0.003;
-            this.scene.fogColor = new BABYLON.Color3(0.8, 0.6, 0.5);
+            this.scene.fogDensity = 0.005;
+            this.scene.fogColor = new BABYLON.Color3(0.9, 0.6, 0.4);
         } else if (isNight) {
             // Darker, thicker fog at night
-            this.scene.fogDensity = 0.002;
-            this.scene.fogColor = new BABYLON.Color3(0.1, 0.1, 0.2);
+            this.scene.fogDensity = 0.003;
+            this.scene.fogColor = new BABYLON.Color3(0.05, 0.05, 0.15);
         } else {
             // Clear fog during day
             this.scene.fogDensity = 0.001;
-            this.scene.fogColor = new BABYLON.Color3(0.8, 0.9, 1.0);
+            this.scene.fogColor = new BABYLON.Color3(0.7, 0.8, 1.0);
         }
 
-        // Update stars with twinkling effect
+        // Update volumetric light
+        if (this.volumetricLight) {
+            this.volumetricLight.exposure = isNight ? 0.1 : 0.8;
+            this.volumetricLight.decay = isNight ? 0.9 : 0.95;
+            this.volumetricLight.weight = isSunrise || isSunset ? 0.5 : 0.3;
+        }
+
+        // Update clouds
+        this.clouds.forEach(cloud => {
+            const material = cloud.mesh.material;
+            if (isNight) {
+                material.alpha = 0.2;
+                material.emissiveColor = new BABYLON.Color3(0.05, 0.05, 0.1);
+            } else if (isSunrise || isSunset) {
+                material.alpha = 0.7;
+                material.emissiveColor = new BABYLON.Color3(0.9, 0.6, 0.4);
+            } else {
+                material.alpha = 0.6;
+                material.emissiveColor = new BABYLON.Color3(1, 1, 1);
+            }
+        });
+
+        // Update star visibility and twinkling
         const starVisibility = Math.max(0, Math.min(1, (100 - sunHeight) / 200));
         this.stars.forEach(star => {
             if (star.material) {
                 const time = performance.now() * 0.001;
                 const twinkle = Math.sin(time * star.twinkleSpeed) * star.twinkleAmount;
-                star.material.alpha = starVisibility * (0.8 + twinkle * 0.2);
-            }
-        });
-
-        // Update volumetric light
-        if (this.volumetricLight) {
-            this.volumetricLight.exposure = isNight ? 0.2 : 0.7;
-            this.volumetricLight.decay = isNight ? 0.8 : 0.95;
-        }
-
-        // Update clouds
-        this.clouds.forEach(cloud => {
-            // Move clouds
-            cloud.mesh.position.addInPlace(cloud.direction.scale(cloud.speed));
-            
-            // Wrap clouds around when they go too far
-            if (cloud.mesh.position.x > 800) cloud.mesh.position.x = -800;
-            if (cloud.mesh.position.x < -800) cloud.mesh.position.x = 800;
-            if (cloud.mesh.position.z > 800) cloud.mesh.position.z = -800;
-            if (cloud.mesh.position.z < -800) cloud.mesh.position.z = 800;
-
-            // Adjust cloud visibility based on time
-            const material = cloud.mesh.material;
-            if (isNight) {
-                material.alpha = 0.3;
-                material.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.15);
-            } else if (isSunrise || isSunset) {
-                material.alpha = 0.6;
-                material.emissiveColor = new BABYLON.Color3(0.8, 0.6, 0.5);
-            } else {
-                material.alpha = 0.8;
-                material.emissiveColor = new BABYLON.Color3(1, 1, 1);
+                star.material.alpha = starVisibility * (0.7 + twinkle * 0.3);
+                star.material.emissiveColor = star.material.diffuseColor.scale(0.8 + twinkle * 0.2);
             }
         });
     }

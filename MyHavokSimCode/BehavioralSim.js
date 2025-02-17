@@ -1,6 +1,7 @@
 import { DogBehaviour } from './Agents/Dogs/DogBehaviour.js';
 import { NavigationMesh } from './Navigation/NavigationMesh.js';
 import { BasicAgent } from './Agents/BasicAgent.js';
+import { VillagerBehaviour } from './Agents/Villagers/VillagerBehaviour.js';
 
 export class BehavioralSim {
     constructor(scene) {
@@ -10,6 +11,7 @@ export class BehavioralSim {
         this.zombies = [];
         this.zombieCount = 10;
         this.dogBehaviour = null;
+        this.villagerBehaviour = null;
         this.navigationMesh = new NavigationMesh(scene);
         this.basicAgent = new BasicAgent(scene);
         
@@ -34,6 +36,8 @@ export class BehavioralSim {
             this.createZombies();
             // Initialize dogs
             this.initializeDogs();
+            // Initialize villagers
+            this.initializeVillagers();
 
             // Start behavior update loop
             this.scene.registerBeforeRender(() => this.updateBehaviors());
@@ -51,6 +55,13 @@ export class BehavioralSim {
         this.dogBehaviour = new DogBehaviour(this.scene);
         // Initialize with 5 dogs
         this.dogBehaviour.initialize(5);
+    }
+
+    initializeVillagers() {
+        // Create villager behavior manager
+        this.villagerBehaviour = new VillagerBehaviour(this.scene);
+        // Initialize with 10 villagers
+        this.villagerBehaviour.initialize(10);
     }
 
     createAgent(name) {
@@ -389,5 +400,42 @@ export class BehavioralSim {
     getHeightAtPoint(x, z) {
         // Simplified height calculation - replace with actual terrain height
         return Math.sin(x/20) * Math.cos(z/20) * 5;
+    }
+
+    dispose() {
+        // Clean up navigation
+        if (this.navigationMesh) {
+            this.navigationMesh.dispose();
+        }
+
+        // Clean up basic agents
+        if (this.basicAgent) {
+            this.basicAgent.dispose();
+        }
+
+        // Clean up dogs
+        if (this.dogBehaviour) {
+            this.dogBehaviour.dispose();
+        }
+
+        // Clean up villagers
+        if (this.villagerBehaviour) {
+            this.villagerBehaviour.dispose();
+        }
+
+        // Clean up zombies
+        this.zombies.forEach(zombie => {
+            if (zombie.physics) {
+                zombie.physics.dispose();
+            }
+            if (zombie.mesh) {
+                zombie.mesh.dispose();
+            }
+        });
+        this.zombies = [];
+
+        // Clear arrays
+        this.agents = [];
+        this.targetPoints = [];
     }
 } 

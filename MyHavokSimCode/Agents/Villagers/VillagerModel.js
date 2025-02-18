@@ -74,10 +74,10 @@ export class VillagerModel {
         Object.values(limbs).forEach(limb => limb.material = clothingMaterial);
 
         // Add physics
-        const physicsImpostor = new BABYLON.PhysicsImpostor(
+        this.physics = new BABYLON.PhysicsAggregate(
             root,
-            BABYLON.PhysicsImpostor.CapsuleImpostor,
-            { mass: 1, friction: 0.5, restitution: 0.3 },
+            BABYLON.PhysicsShapeType.CAPSULE,
+            { mass: 1, restitution: 0.2, friction: 0.8 },
             this.scene
         );
 

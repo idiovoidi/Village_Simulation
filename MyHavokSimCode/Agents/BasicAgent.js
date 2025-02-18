@@ -123,15 +123,11 @@ export class BasicAgent {
     }
 
     dispose() {
-        // Clean up all meshes
-        this.meshes.forEach(mesh => {
-            if (mesh && mesh.dispose) {
-                if (mesh.physicsImpostor) {
-                    mesh.physicsImpostor.dispose();
-                }
-                mesh.dispose();
+        if (this.mesh) {
+            if (this.physics) {
+                this.physics.dispose();
             }
-        });
-        this.meshes = [];
+            this.mesh.dispose();
+        }
     }
 } 

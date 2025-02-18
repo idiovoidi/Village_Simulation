@@ -175,6 +175,79 @@ export class VillagerBehaviour {
         }
     }
 
+    update() {
+        this.villagers.forEach(villager => {
+            if (!villager.mesh || !villager.physics) {
+                return;
+            }
+
+            // Update villager behavior based on current state
+            switch (villager.state) {
+                case 'idle':
+                    this.updateIdleState(villager);
+                    break;
+                case 'walking':
+                    this.updateWalkingState(villager);
+                    break;
+                case 'working':
+                    this.updateWorkingState(villager);
+                    break;
+            }
+        });
+    }
+
+    updateIdleState(villager) {
+        if (!villager.mesh || !villager.physics) return;
+
+        // Occasionally transition to walking
+        if (Math.random() < 0.01) {
+            villager.state = 'walking';
+            this.setNewWalkTarget(villager);
+            return;
+        }
+
+        // Keep villager upright and stable while idle
+        const velocity = villager.physics.body.getLinearVelocity();
+        villager.physics.body.setLinearVelocity(new BABYLON.Vector3(velocity.x, 0, velocity.z));
+        villager.physics.body.setAngularVelocity(BABYLON.Vector3.Zero());
+    }
+
+    updateWalkingState(villager) {
+        if (!villager.mesh || !villager.physics) return;
+
+        const currentPos = villager.mesh.position;
+        
+        if (!villager.targetPosition) {
+            this.setNewWalkTarget(villager);
+            return;
+        }
+
+        const direction = villager.targetPosition.subtract(currentPos);
+        const distance = direction.length();
+
+        // If we've reached the target
+        if (distance < 0.5) {
+            villager.state = 'idle';
+            villager.targetPosition = null;
+            villager.physics.body.setLinearVelocity(BABYLON.Vector3.Zero());
+            villager.physics.body.setAngularVelocity(BABYLON.Vector3.Zero());
+            return;
+        }
+
+        // Calculate movement
+        direction.normalize();
+        const deltaTime = this.scene.getEngine().getDeltaTime() / 1000;
+        const moveStep = direction.scale(villager.speed);
+
+        // Apply movement using physics
+        villager.physics.body.setLinearVelocity(moveStep.scale(1/deltaTime));
+        villager.physics.body.setAngularVelocity(BABYLON.Vector3.Zero());
+
+        // Update rotation to face movement direction
+        const targetRotation = Math.atan2(direction.x, direction.z);
+        villager.mesh.rotation.y = targetRotation;
+    }
+
     dispose() {
         this.worldClock.dispose();
         this.dayNightCycle.dispose();

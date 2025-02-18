@@ -222,6 +222,11 @@ export class LeoScene {
             this.worldClock.updateTime(this.gameTime);
         }
 
+        // Update cloud system with current time
+        if (this.cloudSystem) {
+            this.cloudSystem.setTimeOfDay(this.gameTime / 60); // Convert minutes to hours
+        }
+
         this.scene.render();
       });
 

@@ -1,21 +1,17 @@
 export class DayNightCycle {
     constructor(scene) {
         this.scene = scene;
-        this.createLights();
-        this.createSkybox();
-        this.createCelestialBodies();
-        this.createAtmosphericEffects();
-
-        // Constants for celestial movement
-        this.SUNRISE_HOUR = 6;     // 6 AM
-        this.SUNSET_HOUR = 18;     // 6 PM
-        this.NOON_HOUR = 12;       // 12 PM
-        this.MIDNIGHT_HOUR = 0;    // 12 AM
+        this.ORBIT_RADIUS = 1000;
+        this.ORBIT_HEIGHT_MAX = 800;
+        this.ORBIT_HEIGHT_MIN = -200;
+        this.SUNRISE_HOUR = 6;
+        this.SUNSET_HOUR = 18;
         
-        // Orbit parameters
-        this.ORBIT_RADIUS = 800;   // Distance from center
-        this.ORBIT_HEIGHT_MAX = 600; // Maximum height
-        this.ORBIT_HEIGHT_MIN = -200; // Minimum height (below horizon)
+        this.createSkybox();
+        this.createLights();
+        this.createCelestialBodies();
+        this.createStars();
+        this.createAtmosphericEffects();
     }
 
     createLights() {
@@ -86,12 +82,7 @@ export class DayNightCycle {
         this.moonGlow.addIncludedOnlyMesh(this.moon);
     }
 
-    createAtmosphericEffects() {
-        // Create fog
-        this.scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
-        this.scene.fogDensity = 0.001;
-        this.scene.fogColor = new BABYLON.Color3(0.8, 0.9, 1.0);
-
+    createStars() {
         // Create stars with different sizes and colors
         this.stars = [];
         const starColors = [
@@ -127,32 +118,13 @@ export class DayNightCycle {
             
             this.stars.push(star);
         }
+    }
 
-        // Create clouds
-        this.clouds = [];
-        for (let i = 0; i < 20; i++) {
-            const cloud = BABYLON.MeshBuilder.CreatePlane("cloud", { size: 100 + Math.random() * 200 }, this.scene);
-            const cloudMaterial = new BABYLON.StandardMaterial("cloudMat", this.scene);
-            cloudMaterial.diffuseTexture = new BABYLON.Texture("textures/cloud.png", this.scene);
-            cloudMaterial.diffuseTexture.hasAlpha = true;
-            cloudMaterial.useAlphaFromDiffuseTexture = true;
-            cloudMaterial.emissiveColor = new BABYLON.Color3(1, 1, 1);
-            cloud.material = cloudMaterial;
-            
-            // Position clouds randomly in sky
-            cloud.position = new BABYLON.Vector3(
-                (Math.random() - 0.5) * 800,
-                200 + Math.random() * 100,
-                (Math.random() - 0.5) * 800
-            );
-            cloud.rotation.x = Math.PI / 2;
-            
-            this.clouds.push({
-                mesh: cloud,
-                speed: 0.1 + Math.random() * 0.2,
-                direction: new BABYLON.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize()
-            });
-        }
+    createAtmosphericEffects() {
+        // Create fog
+        this.scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+        this.scene.fogDensity = 0.001;
+        this.scene.fogColor = new BABYLON.Color3(0.8, 0.9, 1.0);
     }
 
     update(gameTime) {
@@ -334,21 +306,6 @@ export class DayNightCycle {
             this.volumetricLight.weight = isSunrise || isSunset ? 0.5 : 0.3;
         }
 
-        // Update clouds
-        this.clouds.forEach(cloud => {
-            const material = cloud.mesh.material;
-            if (isNight) {
-                material.alpha = 0.2;
-                material.emissiveColor = new BABYLON.Color3(0.05, 0.05, 0.1);
-            } else if (isSunrise || isSunset) {
-                material.alpha = 0.7;
-                material.emissiveColor = new BABYLON.Color3(0.9, 0.6, 0.4);
-            } else {
-                material.alpha = 0.6;
-                material.emissiveColor = new BABYLON.Color3(1, 1, 1);
-            }
-        });
-
         // Update star visibility and twinkling
         const starVisibility = Math.max(0, Math.min(1, (100 - sunHeight) / 200));
         this.stars.forEach(star => {
@@ -375,9 +332,5 @@ export class DayNightCycle {
         if (this.volumetricLight) {
             this.volumetricLight.dispose();
         }
-        this.clouds.forEach(cloud => {
-            cloud.mesh.dispose();
-            cloud.mesh.material.dispose();
-        });
     }
 } 

@@ -36,7 +36,8 @@ export class CloudSystem {
                     Math.random() - 0.5,
                     0,
                     Math.random() - 0.5
-                ).normalize()
+                ).normalize(),
+                materials: [] // Store materials for time of day updates
             });
         }
     }
@@ -45,6 +46,7 @@ export class CloudSystem {
         // Create cloud from multiple spheres
         const cloud = new BABYLON.TransformNode("cloud", this.scene);
         const segments = 3 + Math.floor(Math.random() * 3);
+        const cloudData = { mesh: cloud, materials: [] };
         
         for (let i = 0; i < segments; i++) {
             const sphere = BABYLON.MeshBuilder.CreateSphere(`cloudPart${i}`, {
@@ -71,9 +73,12 @@ export class CloudSystem {
             cloudMaterial.emissiveColor = new BABYLON.Color3(0.5, 0.5, 0.5);
             cloudMaterial.alpha = 0.8;
             sphere.material = cloudMaterial;
+            
+            // Store material reference
+            cloudData.materials.push(cloudMaterial);
         }
 
-        return cloud;
+        return cloudData;
     }
 
     getRandomPosition() {
@@ -109,11 +114,46 @@ export class CloudSystem {
         });
     }
 
+    setTimeOfDay(hours) {
+        // Adjust cloud appearance based on time of day
+        const isSunrise = hours >= 5 && hours <= 7;
+        const isSunset = hours >= 17 && hours <= 19;
+        const isNight = hours < 5 || hours > 19;
+
+        this.clouds.forEach(cloud => {
+            cloud.materials.forEach(material => {
+                if (isNight) {
+                    material.alpha = 0.4;
+                    material.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.2);
+                } else if (isSunrise) {
+                    material.alpha = 0.7;
+                    material.emissiveColor = new BABYLON.Color3(1, 0.7, 0.5);
+                } else if (isSunset) {
+                    material.alpha = 0.7;
+                    material.emissiveColor = new BABYLON.Color3(1, 0.5, 0.3);
+                } else {
+                    material.alpha = 0.8;
+                    material.emissiveColor = new BABYLON.Color3(0.9, 0.9, 0.9);
+                }
+            });
+        });
+    }
+
     setWeather(cloudiness) {
         // 0 = clear, 1 = overcast
         this.clouds.forEach(cloud => {
-            const material = cloud.mesh.getChildMeshes()[0].material;
-            material.alpha = 0.4 + cloudiness * 0.4;
+            cloud.materials.forEach(material => {
+                material.alpha = 0.4 + cloudiness * 0.4;
+            });
         });
+    }
+
+    dispose() {
+        this.clouds.forEach(cloud => {
+            if (cloud.mesh) {
+                cloud.mesh.dispose();
+            }
+        });
+        this.clouds = [];
     }
 } 

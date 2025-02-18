@@ -7,8 +7,6 @@ export class VillagerBehaviour {
     constructor(scene) {
         this.scene = scene;
         this.villagers = [];
-        this.timeScale = 1200; // 1 real second = 20 game minutes
-        this.gameTime = 8 * 60; // Start at 8:00 AM
         this.basicAgent = new BasicAgent(scene);
         
         // Initialize time-related systems
@@ -114,19 +112,13 @@ export class VillagerBehaviour {
     }
 
     updateVillagers(deltaTime) {
+        // Update UI with current time from DayNightCycle
+        this.worldClock.updateTime(this.dayNightCycle.getGameTime());
+
+        // Update villagers
         this.villagers.forEach(villager => {
             this.updateVillagerMovement(villager, deltaTime);
-            
-            // Update game time
-            this.gameTime += deltaTime * this.timeScale / 60;
-            if (this.gameTime >= 24 * 60) {
-                this.gameTime = 0;
-            }
         });
-
-        // Update UI and environment
-        this.worldClock.updateTime(this.gameTime);
-        this.dayNightCycle.update(this.gameTime);
     }
 
     updateVillagerMovement(villager, deltaTime) {

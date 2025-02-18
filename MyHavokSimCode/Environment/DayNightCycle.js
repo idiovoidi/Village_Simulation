@@ -7,11 +7,52 @@ export class DayNightCycle {
         this.SUNRISE_HOUR = 6;
         this.SUNSET_HOUR = 18;
         
+        // Time management
+        this.timeScale = 1200; // 1 real second = 20 game minutes
+        this.gameTime = 8 * 60; // Start at 8:00 AM
+        
         this.createSkybox();
         this.createLights();
         this.createCelestialBodies();
         this.createStars();
         this.createAtmosphericEffects();
+        
+        // Initialize update loop
+        this.scene.onBeforeRenderObservable.add(() => {
+            const deltaTime = this.scene.getEngine().getDeltaTime() * 0.001;
+            this.updateTime(deltaTime);
+        });
+    }
+
+    updateTime(deltaTime) {
+        // Update game time
+        this.gameTime += deltaTime * this.timeScale / 60;
+        if (this.gameTime >= 24 * 60) {
+            this.gameTime = 0;
+        }
+        
+        // Update day/night cycle
+        this.update(this.gameTime);
+    }
+
+    // Get current game time in minutes
+    getGameTime() {
+        return this.gameTime;
+    }
+
+    // Get current hour (0-23)
+    getCurrentHour() {
+        return Math.floor(this.gameTime / 60);
+    }
+
+    // Set time scale (minutes per real second)
+    setTimeScale(scale) {
+        this.timeScale = scale;
+    }
+
+    // Set specific time (in minutes)
+    setTime(timeInMinutes) {
+        this.gameTime = timeInMinutes % (24 * 60);
     }
 
     createLights() {

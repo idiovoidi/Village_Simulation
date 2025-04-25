@@ -5,7 +5,13 @@ export class WorldClock {
     constructor(scene) {
         this.scene = scene;
         this.advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("clockUI");
-        this.createClockUI();
+        
+        // Only create UI if scene is valid
+        if (this.scene) {
+            this.createClockUI();
+        } else {
+            console.warn("WorldClock: Scene is undefined, clock UI will not be created");
+        }
     }
 
     createClockUI() {
@@ -105,14 +111,23 @@ export class WorldClock {
         glowRect.background = "rgba(255, 255, 255, 0.1)";
         container.addControl(glowRect);
 
-        // Add subtle animation
-        this.scene.onBeforeRenderObservable.add(() => {
-            const time = performance.now() * 0.001;
-            glowRect.alpha = 0.2 + Math.sin(time * 2) * 0.1;
-        });
+        // Add subtle animation - ensure scene exists and has onBeforeRenderObservable
+        if (this.scene && this.scene.onBeforeRenderObservable) {
+            this.scene.onBeforeRenderObservable.add(() => {
+                const time = performance.now() * 0.001;
+                glowRect.alpha = 0.2 + Math.sin(time * 2) * 0.1;
+            });
+        } else {
+            console.warn("WorldClock: Scene onBeforeRenderObservable is not available, animation disabled");
+        }
     }
 
     updateTime(gameTime) {
+        // Make sure all UI elements are initialized
+        if (!this.timeText || !this.progressRing || !this.periodText || !this.segments) {
+            return;
+        }
+        
         // Convert game time (minutes) to hours and minutes
         const hours = Math.floor(gameTime / 60);
         const minutes = Math.floor(gameTime % 60);

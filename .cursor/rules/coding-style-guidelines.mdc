@@ -1,0 +1,19 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Coding Style Guidelines
+
+Follow these principles when writing code for this project:
+
+-   **Composition over Inheritance:** Favor composing functionality from smaller, independent units rather than relying heavily on deep inheritance hierarchies.
+-   **Modularity & Dependency Injection:** Keep code modular with clear logical separation of concerns. Inject dependencies explicitly.
+-   **Error Checking:** Use decorators for error checking where appropriate. Define these decorators in a central, reusable location. Use subclasses for categorizing different types of checks if needed.
+-   **Custom Exceptions:** Organize custom exceptions by creating a hierarchy of exception subclasses for better error handling and clarity.
+
+**Code Structure:**
+-   Refer to the existing project structure outlined in [docs/README.md](mdc:docs/README.md) and the code within the `MyHavokSimCode/` directory for examples of modularity and component implementation.
+
+
+

@@ -14,6 +14,7 @@ import { DogBehaviour } from './Agents/Dogs/DogBehaviour.js';
 import { LevelConfig } from './LevelSystem/LevelConfig.js';
 import { LevelSelector } from './LevelSystem/LevelSelector.js';
 import { WorldClock } from './UI/WorldClock.js';
+import { VillageEngine } from './NewVillageEngine.js';
 
 // Define system configurations
 const SYSTEM_CONFIGS = {
@@ -89,15 +90,8 @@ const SYSTEM_CONFIGS = {
 export class LeoScene {
   constructor(canvas) {
     this.canvas = canvas;
-    // Enable performance monitoring in engine options
-    const engineOptions = {
-      deterministicLockstep: true,
-      lockstepMaxSteps: 4,
-      useHighPrecisionMatrix: true,
-      performanceMonitoringEnabled: true
-    };
-    this.engine = new BABYLON.Engine(this.canvas, true, engineOptions);
-    this.scene = this.createScene();
+    this.engine = null;
+    this.villageEngine = null;
     this.boxes = [];
     this.currentLevel = null;
     this.gameTime = 8 * 60; // Start at 8:00 AM (in minutes)
@@ -105,66 +99,16 @@ export class LeoScene {
     this.init();
   }
 
-  createScene() {
-    const scene = new BABYLON.Scene(this.engine);
-    
-    // Enable hardware scaling
-    this.engine.setHardwareScalingLevel(1.0);
-    
-    // Enable performance optimization flags
-    scene.skipPointerMovePicking = true;
-    scene.autoClear = false; // Manually clear between frames
-    scene.autoClearDepthAndStencil = false;
-    scene.blockMaterialDirtyMechanism = true;
-    
-    // Optimize meshes
-    scene.useGeometryIdsMap = true;
-    scene.useMaterialMeshMap = true;
-    scene.useClonedMeshMap = true;
-    
-    // Enable performance monitor with detailed metrics
-    scene.performanceMonitor = new BABYLON.PerformanceMonitor();
-    scene.performanceMonitor.enable();
-    
-    // Add FPS counter and performance metrics
-    this.addPerformanceMetrics(scene);
-    
-    return scene;
-  }
-
-  addPerformanceMetrics(scene) {
-    // Create performance monitor GUI
-    const advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("performanceUI");
-    
-    const fpsText = new BABYLON.GUI.TextBlock();
-    fpsText.text = "FPS: 0";
-    fpsText.color = "white";
-    fpsText.fontSize = 16;
-    fpsText.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-    fpsText.textVerticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
-    fpsText.top = "10px";
-    fpsText.left = "10px";
-    advancedTexture.addControl(fpsText);
-    
-    const drawCallsText = new BABYLON.GUI.TextBlock();
-    drawCallsText.text = "Draw Calls: 0";
-    drawCallsText.color = "white";
-    drawCallsText.fontSize = 16;
-    drawCallsText.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-    drawCallsText.textVerticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
-    drawCallsText.top = "30px";
-    drawCallsText.left = "10px";
-    advancedTexture.addControl(drawCallsText);
-
-    // Update metrics every frame
-    scene.onBeforeRenderObservable.add(() => {
-      fpsText.text = `FPS: ${Math.round(this.engine.getFps())}`;
-      drawCallsText.text = `Draw Calls: ${scene.getActiveMeshes().length}`;
-    });
-  }
-
   async init() {
     try {
+      // Initialize the new village engine
+      this.villageEngine = new VillageEngine(this.canvas);
+      await this.villageEngine.initialize();
+      
+      // Store reference to the Babylon.js engine for backward compatibility
+      this.engine = this.villageEngine.engine;
+      this.scene = this.villageEngine.scene;
+      
       // Set up camera
       const camera = new BABYLON.ArcRotateCamera(
         "Camera",
@@ -185,13 +129,17 @@ export class LeoScene {
         this.scene
       );
 
-      // Initialize World Clock first, before other systems
-      this.worldClock = new WorldClock(this.scene);
-
-      // Initialize Havok physics
+      // Initialize Havok physics first
       const havokInstance = await HavokPhysics();
       const havokPlugin = new BABYLON.HavokPlugin(true, havokInstance);
       this.scene.enablePhysics(new BABYLON.Vector3(0, -9.81, 0), havokPlugin);
+
+      // Initialize World Clock after scene is fully setup
+      if (this.scene) {
+        this.worldClock = new WorldClock(this.scene);
+      } else {
+        console.warn("Cannot initialize WorldClock: scene is not available");
+      }
 
       // Initialize level selector
       this.levelSelector = new LevelSelector(this.scene, (levelId) => this.loadLevel(levelId));
@@ -231,8 +179,11 @@ export class LeoScene {
       });
 
       // Show debug layer
-      this.scene.debugLayer.show({ overlay: true });
+      if (this.scene && this.scene.debugLayer) {
+        this.scene.debugLayer.show({ overlay: true });
+      }
 
+      console.log("Village simulation started successfully");
     } catch (error) {
       console.error("Error initializing scene:", error);
     }
@@ -246,15 +197,15 @@ export class LeoScene {
       this.disposeCurrentSystems();
 
       // Create new world clock for the new level
-      this.worldClock = new WorldClock(this.scene);
+      this.worldClock = new WorldClock(this.engine.scene);
 
       // Create bowl first and wait for it to be ready
-      const bowlCreator = new BowlCreator(this.scene);
+      const bowlCreator = new BowlCreator(this.engine.scene);
       await bowlCreator.createBowl(level.bowlRadius, level.bowlDepth);
 
       // Create core systems that are always present
-      this.vortexBall = new VortexBall(this.scene);
-      this.behavioralSim = new BehavioralSim(this.scene);
+      this.vortexBall = new VortexBall(this.engine.scene);
+      this.behavioralSim = new BehavioralSim(this.engine.scene);
 
       // Initialize configured systems
       await this.initializeSystems(level);
@@ -275,8 +226,8 @@ export class LeoScene {
         for (const system of config.systems) {
           try {
             const constructorArgs = system.constructorArgs ? 
-              system.constructorArgs(this.scene) : 
-              [this.scene];
+              system.constructorArgs(this.engine.scene) : 
+              [this.engine.scene];
 
             this[system.name] = new system.class(...constructorArgs);
             
@@ -295,8 +246,8 @@ export class LeoScene {
               for (const system of dep.systems) {
                 try {
                   const constructorArgs = system.constructorArgs ? 
-                    system.constructorArgs(this.scene) : 
-                    [this.scene];
+                    system.constructorArgs(this.engine.scene) : 
+                    [this.engine.scene];
 
                   this[system.name] = new system.class(...constructorArgs);
                   

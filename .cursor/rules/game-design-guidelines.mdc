@@ -1,0 +1,21 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Game Design Document Guidelines
+
+**IMPORTANT:** Always read the main game design document *before* writing any code.
+
+This document outlines the game's features, mechanics, and overall vision. Understanding it is crucial for implementing features correctly.
+
+**Core Design Document:**
+-   [memory-bank/@game-design-document.md](mdc:memory-bank/@game-design-document.md) (Create this if it doesn't exist!)
+
+**Supporting Technical Documentation (Relevant to Design):**
+-   Agent Types & Behaviors: See [docs/AI_SYSTEMS.md](mdc:docs/AI_SYSTEMS.md) for details on existing AI capabilities.
+-   Level Types & Configurations: See [docs/LEVEL_SYSTEM.md](mdc:docs/LEVEL_SYSTEM.md) for different environment setups and scenarios.
+-   Environmental Features: See [docs/ENVIRONMENTAL_SYSTEMS.md](mdc:docs/ENVIRONMENTAL_SYSTEMS.md) for world simulation features.
+
+Ensure new features align with the documented agent capabilities, level structures, and environmental interactions.
+

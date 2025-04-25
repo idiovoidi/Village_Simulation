@@ -1,0 +1,23 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Architecture Document Guidelines
+
+**IMPORTANT:** Always read the architecture document and relevant system documentation *before* writing any code. These documents contain critical information about the project's structure, technology choices, and overall design.
+
+**Core Documents:**
+-   Architecture Overview: [memory-bank/@architecture.md](mdc:memory-bank/@architecture.md) (Create this if it doesn't exist!)
+-   Project README: [docs/README.md](mdc:docs/README.md) (Contains tech stack, setup, and project structure)
+-   Level System: [docs/LEVEL_SYSTEM.md](mdc:docs/LEVEL_SYSTEM.md) (Defines level configurations and management)
+-   AI Systems: [docs/AI_SYSTEMS.md](mdc:docs/AI_SYSTEMS.md) (Details agent behaviors and implementation)
+-   Environmental Systems: [docs/ENVIRONMENTAL_SYSTEMS.md](mdc:docs/ENVIRONMENTAL_SYSTEMS.md) (Details world simulation components)
+
+**Key Considerations:**
+-   Adhere to the Tech Stack defined in [docs/README.md](mdc:docs/README.md).
+-   Understand the modular, component-based architecture.
+-   Consult the relevant system documentation ([docs/AI_SYSTEMS.md](mdc:docs/AI_SYSTEMS.md), [docs/ENVIRONMENTAL_SYSTEMS.md](mdc:docs/ENVIRONMENTAL_SYSTEMS.md), etc.) when working on specific features.
+
+**Updating:**
+After adding a major feature or completing a significant milestone, **you must update** the main architecture document ([memory-bank/@architecture.md](mdc:memory-bank/@architecture.md)) and any relevant system docs to reflect the changes. Ensure the database schema section (if applicable) is kept current.

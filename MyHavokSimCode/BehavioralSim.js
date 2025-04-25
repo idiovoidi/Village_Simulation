@@ -64,8 +64,29 @@ export class BehavioralSim {
     initializeVillagers() {
         // Create villager behavior manager
         this.villagerBehaviour = new VillagerBehaviour(this.scene);
-        // Initialize with 10 villagers
-        this.villagerBehaviour.initialize(10);
+        
+        // Initialize with 20 villagers (increased from 10 for more interactions)
+        console.log('Initializing Villager Behavior System with enhanced AI...');
+        this.villagerBehaviour.initialize(20);
+        
+        // Set up a scheduled event to update day/night-specific behaviors
+        const checkTimeInterval = setInterval(() => {
+            if (this.scene.isDisposed) {
+                clearInterval(checkTimeInterval);
+                return;
+            }
+            
+            // Get current time from the villager's day/night cycle
+            if (this.villagerBehaviour && this.villagerBehaviour.dayNightCycle) {
+                const gameTime = this.villagerBehaviour.dayNightCycle.getGameTime();
+                const hour = Math.floor(gameTime / 60);
+                
+                // Log time of day transitions for debugging
+                if (hour === 6 || hour === 9 || hour === 17 || hour === 22) {
+                    console.log(`Time transition: ${hour}:00 - Villagers updating schedule`);
+                }
+            }
+        }, 10000); // Check every 10 seconds
     }
 
     initializeDinosaur() {
@@ -414,32 +435,18 @@ export class BehavioralSim {
     }
 
     dispose() {
-        // Clean up navigation
-        if (this.navigationMesh) {
-            this.navigationMesh.dispose();
-        }
-
-        // Clean up basic agents
-        if (this.basicAgent) {
-            this.basicAgent.dispose();
-        }
-
-        // Clean up dogs
         if (this.dogBehaviour) {
             this.dogBehaviour.dispose();
         }
-
-        // Clean up villagers
+        
         if (this.villagerBehaviour) {
             this.villagerBehaviour.dispose();
         }
-
-        // Clean up dinosaur
+        
         if (this.dinosaurBehaviour) {
             this.dinosaurBehaviour.dispose();
         }
-
-        // Clean up zombies
+        
         this.zombies.forEach(zombie => {
             if (zombie.physics) {
                 zombie.physics.dispose();
@@ -448,9 +455,21 @@ export class BehavioralSim {
                 zombie.mesh.dispose();
             }
         });
+        
+        this.agents.forEach(agent => {
+            if (agent.mesh) {
+                if (agent.physics) {
+                    agent.physics.dispose();
+                }
+                agent.mesh.dispose();
+            }
+        });
+        
+        if (this.navigationMesh) {
+            this.navigationMesh.dispose();
+        }
+        
         this.zombies = [];
-
-        // Clear arrays
         this.agents = [];
         this.targetPoints = [];
     }

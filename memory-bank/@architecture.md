@@ -30,12 +30,12 @@ Key systems are designed as largely independent modules that interact through we
 3.  **AI Agent Systems (`docs/AI_SYSTEMS.md`):**
     *   Manage intelligent entities within the simulation.
     *   Implement behaviors using State Machines and environmental awareness.
-    *   Examples: `FishBehaviour`, `BirdBehaviour`, `DogBehaviour`, `ZombieBehaviour`, `BoatAgent`.
+    *   Examples: `FishBehaviour`, `BirdBehaviour`, `DogBehaviour`, `ZombieBehaviour`, `BoatAgent`, `VillagerBehaviour` (Planned - see `memory-bank/agent-ai/villager.md`).
     *   Managed via an `AgentSystem` for initialization and disposal.
     *   **AI Components:**
-        *   **Agent Model:** Handles 3D representation and animation (`ZombieModel`).
-        *   **Agent Behavior:** Manages state and group behavior (`ZombieBehaviour`).
-        *   **Agent Instance:** Individual agent with its own state (`ZombieAgent`).
+        *   **Agent Model:** Handles 3D representation and animation (e.g., `ZombieModel`, `VillagerModel`).
+        *   **Agent Behavior:** Manages state and group behavior (e.g., `ZombieBehaviour`, `VillagerBehaviour`).
+        *   **Agent Instance:** Individual agent with its own state (e.g., `ZombieAgent`, `VillagerAgent`).
 
 4.  **Management Systems:**
     *   **Level System (`docs/LEVEL_SYSTEM.md`):** Manages loading, configuration, and transitions between different simulation setups (`LevelConfig`, `LevelSelector`).

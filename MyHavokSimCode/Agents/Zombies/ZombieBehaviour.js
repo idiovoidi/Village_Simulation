@@ -1,212 +1,266 @@
-import { ZombieModel } from './ZombieModel.js';
+import { ZombieAgent } from './ZombieAgent.js';
 import { BowlCreator } from '../../BowlCreator.js';
 
 export class ZombieBehaviour {
-    constructor(scene) {
+    constructor(scene, options = {}) {
+        // Inject dependencies
         this.scene = scene;
         this.zombies = [];
-        this.wanderRadius = 80;
-        this.minHeight = -20;
-        this.maxHeight = 0;
-        this.groupCohesion = 15; // Distance zombies try to maintain in group
-        this.maxSpeed = 0.05;  // Slower base speed
-        this.minSpeed = 0.02;  // Even slower minimum
-        this.lurgeChance = 0.02; // Increased chance to lurch
-        this.lurgeDuration = 1.0; // Longer lurge duration
-        this.lurgeSpeedMultiplier = 4.0; // More dramatic speed increase
+        
+        // Configuration parameters with defaults
+        this.config = {
+            wanderRadius: options.wanderRadius || 80,
+            terrainBounds: {
+                minHeight: options.minHeight || -20,
+                maxHeight: options.maxHeight || 0
+            },
+            grouping: {
+                cohesionDistance: options.groupCohesion || 15,
+                groupMinSize: 2,
+                groupMaxSize: 4
+            },
+            speed: {
+                min: options.minSpeed || 0.02,
+                max: options.maxSpeed || 0.05,
+                lurgeMultiplier: options.lurgeSpeedMultiplier || 4.0
+            },
+            lurge: {
+                chance: options.lurgeChance || 0.02,
+                duration: options.lurgeDuration || 1.0
+            },
+            detection: {
+                playerAwarenessRadius: options.playerAwarenessRadius || 40,
+                aggressiveRadius: options.aggressiveRadius || 30
+            }
+        };
     }
 
-    initialize(count) {
-        this.createZombies(count);
+    initialize(count, options = {}) {
+        // Create zombie agents
+        this.createZombies(count, options);
+        
+        // Register update loop
         this.scene.registerBeforeRender(() => {
             const deltaTime = this.scene.getEngine().getDeltaTime() * 0.001;
-            this.updateZombies(deltaTime);
+            this.update(deltaTime);
         });
     }
 
-    createZombies(count) {
+    createZombies(count, options = {}) {
         // Create zombies in groups
         const groupCount = Math.ceil(count / 3);
+        
         for (let g = 0; g < groupCount; g++) {
-            const groupPos = this.getRandomPosition();
+            const groupPos = this._getRandomPosition();
             
-            // Create 2-3 zombies per group
-            const groupSize = Math.min(count - g * 3, 2 + Math.floor(Math.random() * 2));
+            // Determine group size (2-4 zombies per group)
+            const groupSize = Math.min(
+                count - this.zombies.length,
+                this.config.grouping.groupMinSize + 
+                Math.floor(Math.random() * (this.config.grouping.groupMaxSize - this.config.grouping.groupMinSize))
+            );
+            
+            // Create zombies for this group
             for (let i = 0; i < groupSize; i++) {
+                // Create position with slight offset from group center
                 const offset = new BABYLON.Vector3(
                     (Math.random() - 0.5) * 5,
                     0,
                     (Math.random() - 0.5) * 5
                 );
                 const position = groupPos.add(offset);
-                position.y = this.getTerrainHeight(position.x, position.z);
+                position.y = this._getTerrainHeight(position.x, position.z);
 
-                const zombie = new ZombieModel(this.scene);
-                zombie.create(position);
-
-                this.zombies.push({
-                    model: zombie,
-                    velocity: new BABYLON.Vector3(0, 0, 0),
-                    target: position.clone(),
-                    speed: this.minSpeed + Math.random() * (this.maxSpeed - this.minSpeed),
-                    timeSinceLastTarget: 0,
+                // Create zombie agent with shared configuration
+                const zombie = new ZombieAgent(this.scene, {
+                    position: position,
+                    initialState: 'idle',
                     groupId: g,
-                    isLurging: false,
-                    lurgeTimer: 0,
-                    swayOffset: Math.random() * Math.PI * 2 // Random sway phase
+                    minSpeed: this.config.speed.min,
+                    maxSpeed: this.config.speed.max,
+                    lurgeSpeedMultiplier: this.config.speed.lurgeMultiplier,
+                    lurgeChance: this.config.lurge.chance,
+                    lurgeDuration: this.config.lurge.duration,
+                    swayAmount: 0.2 + Math.random() * 0.2 // Vary the shamble amount
                 });
+                
+                // Add to our managed zombies collection
+                this.zombies.push(zombie);
             }
         }
+        
+        return this.zombies;
     }
 
-    updateZombies(deltaTime) {
+    update(deltaTime) {
+        // Update each zombie
         this.zombies.forEach(zombie => {
-            // Update target periodically or when close to current target
-            const distToTarget = BABYLON.Vector3.Distance(
-                zombie.model.mesh.position,
-                zombie.target
-            );
-
-            zombie.timeSinceLastTarget += deltaTime;
-            if (distToTarget < 1 || zombie.timeSinceLastTarget > 5 + Math.random() * 2) {
-                this.updateZombieTarget(zombie);
-                zombie.timeSinceLastTarget = 0;
-            }
-
-            // Check for lurge with increased randomness
-            if (!zombie.isLurging && Math.random() < this.lurgeChance * 
-                (BABYLON.Vector3.Distance(zombie.model.mesh.position, this.scene.activeCamera.position) < 30 ? 2 : 1)) {
-                zombie.isLurging = true;
-                zombie.lurgeTimer = this.lurgeDuration;
-                zombie.speed = this.maxSpeed * this.lurgeSpeedMultiplier;
-                zombie.lurgeDirection = zombie.model.mesh.position.subtract(this.scene.activeCamera.position).normalize();
-            }
-
-            // Update lurge state with more dramatic deceleration
-            if (zombie.isLurging) {
-                zombie.lurgeTimer -= deltaTime;
-                if (zombie.lurgeTimer <= 0) {
-                    zombie.isLurging = false;
-                    zombie.speed = this.minSpeed + Math.random() * (this.maxSpeed - this.minSpeed);
-                } else {
-                    // Maintain direction during lurge
-                    const direction = zombie.lurgeDirection.scale(-1); // Move towards target
-                    zombie.model.mesh.position.addInPlace(direction.scale(zombie.speed));
-                    zombie.model.mesh.rotation.y = Math.atan2(direction.x, direction.z);
-                    zombie.model.animate(deltaTime, 2);
-                    return; // Skip normal movement during lurge
-                }
-            }
-
-            // Calculate movement direction
-            const direction = this.calculateZombieDirection(zombie);
+            // Let zombie handle its own behavior update
+            zombie.update(deltaTime);
             
-            if (direction.length() > 0.1) {
-                direction.normalize();
-                direction.scaleInPlace(zombie.speed);
-
-                // Apply terrain height and move
-                const nextPos = zombie.model.mesh.position.add(direction);
-                nextPos.y = this.getTerrainHeight(nextPos.x, nextPos.z);
-                
-                // Smooth height transition
-                const currentHeight = zombie.model.mesh.position.y;
-                nextPos.y = currentHeight + (nextPos.y - currentHeight) * 0.1;
-
-                // Update position and rotation
-                zombie.model.mesh.position = nextPos;
-                
-                // Shambling rotation - add wobble to the direction
-                const wobble = Math.sin(Date.now() * 0.003 + zombie.swayOffset) * 0.3;
-                const targetRotation = Math.atan2(direction.x, direction.z) + wobble;
-                
-                // Smooth rotation
-                const currentRotation = zombie.model.mesh.rotation.y;
-                zombie.model.mesh.rotation.y = currentRotation + 
-                    (targetRotation - currentRotation) * 0.1;
-            }
-
-            // Animate zombie with current state
-            zombie.model.animate(deltaTime, zombie.isLurging ? 2 : 1);
+            // Add group behavior influence
+            this._updateGroupBehavior(zombie, deltaTime);
+            
+            // Check for player detection
+            this._checkPlayerDetection(zombie);
         });
     }
-
-    calculateZombieDirection(zombie) {
-        const direction = new BABYLON.Vector3(0, 0, 0);
-
-        // Add camera-aware behavior
-        const toCamera = this.scene.activeCamera.position.subtract(zombie.model.mesh.position);
-        const distanceToCamera = toCamera.length();
-        
-        if (distanceToCamera < 40) { // Increased awareness range
-            // More aggressive pursuit of camera
-            direction.addInPlace(toCamera.normalize().scale(1.5));
-        } else {
-            // Normal wandering behavior
-            const toTarget = zombie.target.subtract(zombie.model.mesh.position);
-            direction.addInPlace(toTarget.normalize());
-        }
-
-        // Group behavior becomes more aggressive when near camera
+    
+    _updateGroupBehavior(zombie, deltaTime) {
+        // Find group mates
         const groupMates = this.zombies.filter(z => 
             z.groupId === zombie.groupId && z !== zombie
         );
         
-        if (groupMates.length > 0) {
-            const groupCenter = BABYLON.Vector3.Zero();
-            groupMates.forEach(mate => {
-                groupCenter.addInPlace(mate.model.mesh.position);
-            });
-            groupCenter.scaleInPlace(1 / groupMates.length);
-
-            const toGroup = groupCenter.subtract(zombie.model.mesh.position);
-            const groupDist = toGroup.length();
-
-            if (groupDist > this.groupCohesion) {
-                const groupWeight = distanceToCamera < 40 ? 0.8 : 0.5; // Tighter groups when pursuing
-                direction.addInPlace(toGroup.normalize().scale(groupWeight));
-            }
-        }
-
-        return direction;
-    }
-
-    updateZombieTarget(zombie) {
-        // Either pick a random position or follow a group mate
-        if (Math.random() < 0.3 && this.zombies.length > 1) {
-            // Follow random group mate
-            const groupMates = this.zombies.filter(z => 
-                z.groupId === zombie.groupId && z !== zombie
+        if (groupMates.length === 0) return;
+        
+        // Calculate group center
+        const groupCenter = new BABYLON.Vector3(0, 0, 0);
+        groupMates.forEach(mate => {
+            groupCenter.addInPlace(mate.model.mesh.position);
+        });
+        groupCenter.scaleInPlace(1 / groupMates.length);
+        
+        // Determine if zombie should move toward group
+        const toGroup = groupCenter.subtract(zombie.model.mesh.position);
+        const groupDist = toGroup.length();
+        
+        // Only apply cohesion if zombie is too far from group
+        if (groupDist > this.config.grouping.cohesionDistance) {
+            // Check if zombie is pursuing player
+            const isPursuing = zombie.state === 'pursuing';
+            const cohesionWeight = isPursuing ? 0.3 : 0.6; // Less cohesion when pursuing
+            
+            // Calculate a new target that includes group cohesion
+            const currentTarget = zombie.target.clone();
+            const groupTarget = groupCenter.clone();
+            
+            // Blend current target with group cohesion
+            const blendedTarget = currentTarget.scale(1 - cohesionWeight).add(
+                groupTarget.scale(cohesionWeight)
             );
-            if (groupMates.length > 0) {
-                const mate = groupMates[Math.floor(Math.random() * groupMates.length)];
-                zombie.target = mate.target.clone();
-                return;
+            
+            // Set new target
+            zombie.setTarget(blendedTarget);
+        }
+        
+        // State influence - zombies can influence each other
+        // If one zombie is pursuing, others nearby might join
+        if (zombie.state === 'idle') {
+            const pursuingNeighbor = groupMates.find(mate => 
+                mate.state === 'pursuing' && 
+                BABYLON.Vector3.Distance(mate.model.mesh.position, zombie.model.mesh.position) < 15
+            );
+            
+            if (pursuingNeighbor && Math.random() < 0.03 * deltaTime * 60) { // 3% chance per second
+                zombie.setState('pursuing');
             }
         }
-
-        // Random position within radius
-        zombie.target = this.getRandomPosition();
+    }
+    
+    _checkPlayerDetection(zombie) {
+        // Check if zombie should detect the player
+        if (zombie.state === 'idle') {
+            zombie.detectPlayer();
+        }
     }
 
-    getRandomPosition() {
+    _getRandomPosition() {
+        // Generate a random position within the wander radius
         const angle = Math.random() * Math.PI * 2;
-        const radius = Math.random() * this.wanderRadius;
+        const radius = Math.random() * this.config.wanderRadius;
         const x = Math.cos(angle) * radius;
         const z = Math.sin(angle) * radius;
-        const y = BowlCreator.getTerrainHeight(x, z) + 2; // Add offset to ensure above ground
+        const y = this._getTerrainHeight(x, z) + 2; // Add offset to ensure above ground
 
         return new BABYLON.Vector3(x, y, z);
     }
 
-    getTerrainHeight(x, z) {
+    _getTerrainHeight(x, z) {
+        // Use BowlCreator for terrain height if available
+        if (typeof BowlCreator.getTerrainHeight === 'function') {
+            return BowlCreator.getTerrainHeight(x, z);
+        }
+        
+        // Fallback to simple bowl shape
         const distFromCenter = Math.sqrt(x * x + z * z);
         const bowlDepth = 25;
         
         // Bowl shape with some variation
-        let height = -Math.pow(distFromCenter / this.wanderRadius, 1.2) * bowlDepth;
+        let height = -Math.pow(distFromCenter / this.config.wanderRadius, 1.2) * bowlDepth;
         height += Math.sin(x/20) * Math.cos(z/20) * 2;
         
-        return Math.max(this.minHeight, Math.min(this.maxHeight, height));
+        return Math.max(
+            this.config.terrainBounds.minHeight, 
+            Math.min(this.config.terrainBounds.maxHeight, height)
+        );
+    }
+    
+    getZombieCount() {
+        return this.zombies.length;
+    }
+    
+    addZombie(position) {
+        // Find a group with the fewest members
+        let targetGroupId = 0;
+        let minGroupSize = Infinity;
+        
+        // Count zombies in each group
+        const groupCounts = {};
+        this.zombies.forEach(zombie => {
+            if (!groupCounts[zombie.groupId]) {
+                groupCounts[zombie.groupId] = 0;
+            }
+            groupCounts[zombie.groupId]++;
+        });
+        
+        // Find smallest group
+        Object.entries(groupCounts).forEach(([groupId, count]) => {
+            if (count < minGroupSize) {
+                minGroupSize = count;
+                targetGroupId = parseInt(groupId);
+            }
+        });
+        
+        // If all groups are large, create a new group
+        if (minGroupSize >= this.config.grouping.groupMaxSize) {
+            targetGroupId = Object.keys(groupCounts).length;
+        }
+        
+        // Create new zombie
+        const zombie = new ZombieAgent(this.scene, {
+            position: position || this._getRandomPosition(),
+            initialState: 'idle',
+            groupId: targetGroupId,
+            minSpeed: this.config.speed.min,
+            maxSpeed: this.config.speed.max,
+            lurgeSpeedMultiplier: this.config.speed.lurgeMultiplier,
+            lurgeChance: this.config.lurge.chance,
+            lurgeDuration: this.config.lurge.duration
+        });
+        
+        this.zombies.push(zombie);
+        return zombie;
+    }
+    
+    removeZombie(index) {
+        if (index >= 0 && index < this.zombies.length) {
+            const zombie = this.zombies[index];
+            zombie.dispose();
+            this.zombies.splice(index, 1);
+            return true;
+        }
+        return false;
+    }
+    
+    dispose() {
+        // Clean up all zombies
+        this.zombies.forEach(zombie => {
+            zombie.dispose();
+        });
+        this.zombies = [];
+        
+        // Clear scene before render observable
+        this.scene.onBeforeRenderObservable.clear();
     }
 } 

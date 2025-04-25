@@ -324,22 +324,33 @@ export class SpawnSystem {
     }
 
     createZombieGroup(position, size) {
-        const group = [];
-        for (let i = 0; i < size; i++) {
-            const offset = new BABYLON.Vector3(
-                (Math.random() - 0.5) * 5,
-                0,
-                (Math.random() - 0.5) * 5
-            );
-            const zombiePosition = position.add(offset);
-            zombiePosition.y = BowlCreator.getTerrainHeight(zombiePosition.x, zombiePosition.z);
-            
-            const zombie = this.zombieBehaviour.createZombie(zombiePosition);
-            if (zombie) {
-                group.push(zombie);
+        try {
+            // Check position is valid
+            if (!position || !position.x) {
+                console.error("Invalid position for zombie group:", position);
+                return null;
             }
+            
+            // Get zombie behavior aggressiveness adjustment from level config
+            const levelConfig = this.scene.getLevelConfig ? this.scene.getLevelConfig() : null;
+            const aggressivenessMultiplier = levelConfig?.zombieAggressiveness || 1.0;
+            
+            // Create a group of zombies
+            const zombieOptions = {
+                lurgeChance: 0.02 * aggressivenessMultiplier,
+                minSpeed: 0.02 * aggressivenessMultiplier,
+                maxSpeed: 0.05 * aggressivenessMultiplier
+            };
+            
+            // Initialize zombies at position with group size
+            this.zombieBehaviour.initialize(size, { ...zombieOptions });
+            
+            // Return group for tracking
+            return this.zombieBehaviour.zombies;
+        } catch (error) {
+            console.error("Error creating zombie group:", error);
+            return null;
         }
-        return group;
     }
 
     createVillagerMesh(position) {

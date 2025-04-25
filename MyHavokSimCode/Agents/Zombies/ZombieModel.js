@@ -265,13 +265,40 @@ export class ZombieModel {
 
     dispose() {
         if (this.mesh) {
-            this.mesh.getChildMeshes().forEach(mesh => {
-                if (mesh.material) {
-                    mesh.material.dispose();
-                }
-                mesh.dispose();
-            });
             this.mesh.dispose();
         }
+        
+        // Clean up all child meshes
+        this.arms.left?.dispose();
+        this.arms.right?.dispose();
+        this.legs.left?.dispose();
+        this.legs.right?.dispose();
+        
+        // Clean up any blood stain meshes
+        this.bloodStains.forEach(stain => {
+            stain.dispose();
+        });
+    }
+    
+    static getTerrainHeight(x, z) {
+        // Import BowlCreator on demand
+        import('../../BowlCreator.js').then(module => {
+            if (typeof module.BowlCreator.getTerrainHeight === 'function') {
+                return module.BowlCreator.getTerrainHeight(x, z);
+            }
+        }).catch(error => {
+            console.error('Error importing BowlCreator:', error);
+        });
+        
+        // Simplified height calculation as fallback
+        const distFromCenter = Math.sqrt(x * x + z * z);
+        const radius = 100; // Default radius
+        const bowlDepth = 25; // Default depth
+        let height = -Math.pow(distFromCenter / radius, 1.2) * bowlDepth;
+        
+        // Add some variation
+        height += Math.sin(x/20) * Math.cos(z/20) * 2;
+        
+        return Math.max(-20, Math.min(0, height)); // Clamp between -20 and 0
     }
 }

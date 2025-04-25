@@ -1,0 +1,289 @@
+import { ZombieModel } from './ZombieModel.js';
+import { ZombieBehaviour } from './ZombieBehaviour.js';
+import { handleAgentError, measurePerformance, throttle } from '../../core/ErrorHandlers.js';
+
+export class ZombieAgent {
+    constructor(scene, options = {}) {
+        // Dependencies injected via composition
+        this.scene = scene;
+        this.model = new ZombieModel(scene);
+        
+        // State properties
+        this.position = options.position || new BABYLON.Vector3(0, 0, 0);
+        this.velocity = new BABYLON.Vector3(0, 0, 0);
+        this.target = this.position.clone();
+        this.state = options.initialState || 'idle'; // idle, pursuing, attacking
+        this.groupId = options.groupId || 0;
+        
+        // Configuration parameters
+        this.config = {
+            speed: {
+                min: options.minSpeed || 0.02,
+                max: options.maxSpeed || 0.05,
+                current: 0.03,
+                lurgeMultiplier: options.lurgeSpeedMultiplier || 4.0
+            },
+            lurge: {
+                isActive: false,
+                timer: 0,
+                duration: options.lurgeDuration || 1.0,
+                chance: options.lurgeChance || 0.02,
+                direction: null
+            },
+            sway: {
+                offset: Math.random() * Math.PI * 2,
+                amount: options.swayAmount || 0.3
+            }
+        };
+        
+        // Initialize agent
+        this.initialize();
+    }
+    
+    initialize() {
+        // Create 3D model
+        this.model.create(this.position);
+        
+        // Set initial speed
+        this.config.speed.current = this.config.speed.min + 
+            Math.random() * (this.config.speed.max - this.config.speed.min);
+            
+        // Set random sway phase to make movement unique
+        this.config.sway.offset = Math.random() * Math.PI * 2;
+    }
+    
+    @handleAgentError
+    @measurePerformance
+    update(deltaTime) {
+        // Update lurge state
+        if (this.config.lurge.isActive) {
+            this._updateLurge(deltaTime);
+        } else {
+            // Randomly trigger lurge
+            this._checkLurgeTrigger(deltaTime);
+        }
+        
+        // State-based behavior updates
+        switch (this.state) {
+            case 'idle':
+                this._updateIdleBehavior(deltaTime);
+                break;
+            case 'pursuing':
+                this._updatePursuingBehavior(deltaTime);
+                break;
+            case 'attacking':
+                this._updateAttackingBehavior(deltaTime);
+                break;
+        }
+        
+        // Always animate model
+        const animationSpeed = this.config.lurge.isActive ? 2 : 1;
+        this.model.animate(deltaTime, animationSpeed);
+    }
+    
+    setTarget(target) {
+        this.target = target.clone();
+    }
+    
+    setGroupId(groupId) {
+        this.groupId = groupId;
+    }
+    
+    setState(state) {
+        // Only change if it's a valid state
+        const validStates = ['idle', 'pursuing', 'attacking'];
+        if (validStates.includes(state)) {
+            this.state = state;
+        }
+    }
+    
+    // Private methods for behavior implementation
+    @handleAgentError
+    _updateLurge(deltaTime) {
+        this.config.lurge.timer -= deltaTime;
+        
+        if (this.config.lurge.timer <= 0) {
+            // End lurge state
+            this.config.lurge.isActive = false;
+            this.config.speed.current = this.config.speed.min + 
+                Math.random() * (this.config.speed.max - this.config.speed.min);
+        } else {
+            // Continue lurge movement
+            const direction = this.config.lurge.direction.scale(-1); // Move towards target
+            this.model.mesh.position.addInPlace(direction.scale(this.config.speed.current));
+            this.model.mesh.rotation.y = Math.atan2(direction.x, direction.z);
+        }
+    }
+    
+    @throttle(500) // Check at most every 500ms
+    _checkLurgeTrigger(deltaTime) {
+        // Check if we should start a lurge (more likely when near camera)
+        const distToCamera = BABYLON.Vector3.Distance(
+            this.model.mesh.position, 
+            this.scene.activeCamera.position
+        );
+        
+        const isNearCamera = distToCamera < 30;
+        const chanceMultiplier = isNearCamera ? 2 : 1;
+        
+        if (Math.random() < this.config.lurge.chance * chanceMultiplier * deltaTime * 60) { // Normalize by frame rate
+            this._startLurge();
+        }
+    }
+    
+    @handleAgentError
+    _startLurge() {
+        this.config.lurge.isActive = true;
+        this.config.lurge.timer = this.config.lurge.duration;
+        this.config.speed.current = this.config.speed.max * this.config.speed.lurgeMultiplier;
+        
+        // Lurge toward camera
+        this.config.lurge.direction = this.model.mesh.position.subtract(
+            this.scene.activeCamera.position
+        ).normalize();
+    }
+    
+    @handleAgentError
+    _updateIdleBehavior(deltaTime) {
+        // Simple wandering behavior
+        const distToTarget = BABYLON.Vector3.Distance(
+            this.model.mesh.position,
+            this.target
+        );
+        
+        // Pick new random target if we've reached the current one
+        if (distToTarget < 1) {
+            this._selectNewRandomTarget();
+        }
+        
+        // Move toward target with shambling motion
+        this._moveTowardTargetWithShamble(deltaTime);
+    }
+    
+    @handleAgentError
+    _updatePursuingBehavior(deltaTime) {
+        // Track player/target
+        const toCamera = this.scene.activeCamera.position.subtract(this.model.mesh.position);
+        const distanceToCamera = toCamera.length();
+        
+        if (distanceToCamera < 40) {
+            // Pursue camera
+            this.setTarget(this.scene.activeCamera.position);
+            
+            // If very close, switch to attacking
+            if (distanceToCamera < 3) {
+                this.setState('attacking');
+            }
+        } else {
+            // Lost sight, return to idle
+            this.setState('idle');
+        }
+        
+        // Move toward target with shambling motion
+        this._moveTowardTargetWithShamble(deltaTime);
+    }
+    
+    @handleAgentError
+    _updateAttackingBehavior(deltaTime) {
+        // Check if we're still in attack range
+        const toCamera = this.scene.activeCamera.position.subtract(this.model.mesh.position);
+        const distanceToCamera = toCamera.length();
+        
+        if (distanceToCamera > 3) {
+            // Target moved away, resume pursuit
+            this.setState('pursuing');
+        } else {
+            // Perform attack animation/behavior
+            // For now, just face the camera
+            const direction = toCamera.normalize();
+            this.model.mesh.rotation.y = Math.atan2(direction.x, direction.z);
+        }
+    }
+    
+    @handleAgentError
+    _selectNewRandomTarget() {
+        // Get random position within radius
+        const angle = Math.random() * Math.PI * 2;
+        const radius = Math.random() * 30; // Keep within reasonable wander distance
+        
+        const x = this.model.mesh.position.x + Math.cos(angle) * radius;
+        const z = this.model.mesh.position.z + Math.sin(angle) * radius;
+        const y = this._getTerrainHeight(x, z);
+        
+        this.setTarget(new BABYLON.Vector3(x, y, z));
+    }
+    
+    @handleAgentError
+    _moveTowardTargetWithShamble(deltaTime) {
+        if (this.config.lurge.isActive) return; // Skip if lurging
+        
+        const toTarget = this.target.subtract(this.model.mesh.position);
+        const distance = toTarget.length();
+        
+        if (distance > 0.1) {
+            // Get normalized direction
+            const direction = toTarget.normalize();
+            
+            // Apply shambling movement (wobble side to side)
+            const wobble = Math.sin(Date.now() * 0.003 + this.config.sway.offset) * this.config.sway.amount;
+            
+            // Calculate movement vector
+            direction.scaleInPlace(this.config.speed.current);
+            
+            // Move zombie
+            const nextPos = this.model.mesh.position.add(direction);
+            nextPos.y = this._getTerrainHeight(nextPos.x, nextPos.z);
+            
+            // Smooth height transition
+            const currentHeight = this.model.mesh.position.y;
+            nextPos.y = currentHeight + (nextPos.y - currentHeight) * 0.1;
+            
+            // Update position
+            this.model.mesh.position = nextPos;
+            
+            // Update rotation with wobble for shambling effect
+            const targetRotation = Math.atan2(direction.x, direction.z) + wobble;
+            const currentRotation = this.model.mesh.rotation.y;
+            
+            // Smooth rotation
+            this.model.mesh.rotation.y = currentRotation + 
+                (targetRotation - currentRotation) * 0.1;
+        }
+    }
+    
+    _getTerrainHeight(x, z) {
+        // Try using BowlCreator first
+        try {
+            const BowlCreator = require('../../BowlCreator.js');
+            if (typeof BowlCreator.getTerrainHeight === 'function') {
+                return BowlCreator.getTerrainHeight(x, z);
+            }
+        } catch (error) {
+            // BowlCreator not available, fallback to ZombieModel's static method
+        }
+        
+        // Use ZombieModel's static method
+        return ZombieModel.getTerrainHeight(x, z);
+    }
+    
+    @throttle(1000) // Check once per second at most
+    detectPlayer() {
+        const distToCamera = BABYLON.Vector3.Distance(
+            this.model.mesh.position, 
+            this.scene.activeCamera.position
+        );
+        
+        if (distToCamera < 40) {
+            this.setState('pursuing');
+            return true;
+        }
+        
+        return false;
+    }
+    
+    dispose() {
+        if (this.model) {
+            this.model.dispose();
+        }
+    }
+} 

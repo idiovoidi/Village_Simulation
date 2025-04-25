@@ -46,6 +46,35 @@ export class LevelConfig {
                 hasMoon: true
             }
         },
+        ZOMBIE_INVASION: {
+            name: "Zombie Invasion",
+            description: "A massive zombie horde invading the countryside",
+            config: {
+                bowlRadius: 120,
+                bowlDepth: 35,
+                villageRadius: 40, // Smaller village
+                houseCount: 8,
+                dogCount: 0,
+                birdCount: 0,
+                waterLevel: -10,
+                fishCount: 0,
+                zombieCount: 40, // Large zombie horde
+                hasVillage: true,
+                hasWater: true,
+                hasBirds: false,
+                hasFish: false,
+                hasZombies: true,
+                hasDogs: false,
+                hasClouds: false,
+                hasMoon: true,
+                zombieAggressiveness: 1.5, // Zombies are more aggressive
+                specialEffects: {
+                    fog: true,
+                    bloodParticles: true,
+                    redSky: true
+                }
+            }
+        },
         NATURE: {
             name: "Nature Reserve",
             description: "A peaceful natural environment with birds and fish",

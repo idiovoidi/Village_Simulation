@@ -34,26 +34,57 @@ export class PhysicsSystem {
       
       console.log("Initializing Havok Physics...");
       
-      // Initialize Havok physics
-      const havokInstance = await HavokPhysics();
-      const havokPlugin = new BABYLON.HavokPlugin(true, havokInstance);
+      // Initialize Havok physics with better error handling
+      try {
+        const havokInstance = await HavokPhysics();
+        
+        // Check if newer or older Havok API should be used
+        if (typeof BABYLON.HavokPlugin === 'function') {
+          // Newer API with HavokPlugin
+          const havokPlugin = new BABYLON.HavokPlugin(true, havokInstance);
+          
+          // Enable physics in the scene
+          this.scene.enablePhysics(
+            new BABYLON.Vector3(this.gravity.x, this.gravity.y, this.gravity.z), 
+            havokPlugin
+          );
+          
+          console.log("Using modern Havok Physics API (HavokPlugin)");
+        } else {
+          // Older API with PhysicsEngine
+          const physicsPlugin = new BABYLON.PhysicsEnginePlugin(havokInstance);
+          
+          // Enable physics in the scene
+          this.scene.enablePhysics(
+            new BABYLON.Vector3(this.gravity.x, this.gravity.y, this.gravity.z), 
+            physicsPlugin
+          );
+          
+          console.log("Using legacy Havok Physics API (PhysicsEnginePlugin)");
+        }
+      } catch (error) {
+        console.error("Failed to initialize Havok Physics:", error);
+        throw new PhysicsError(`Failed to initialize Havok Physics: ${error.message}`);
+      }
       
-      // Enable physics in the scene
-      this.scene.enablePhysics(
-        new BABYLON.Vector3(this.gravity.x, this.gravity.y, this.gravity.z), 
-        havokPlugin
-      );
-      
+      // Get the physics engine after it's been initialized
       this.physicsEngine = this.scene.getPhysicsEngine();
+      if (!this.physicsEngine) {
+        throw new PhysicsError("Failed to get physics engine after initialization");
+      }
       
       // Subscribe to collision events
-      this.scene.onBeforePhysicsObservable.add(() => {
-        this.beforePhysicsUpdate();
-      });
+      if (this.scene.onBeforePhysicsObservable) {
+        this.scene.onBeforePhysicsObservable.add(() => {
+          this.beforePhysicsUpdate();
+        });
+      }
       
-      this.scene.onAfterPhysicsObservable.add(() => {
-        this.afterPhysicsUpdate();
-      });
+      if (this.scene.onAfterPhysicsObservable) {
+        this.scene.onAfterPhysicsObservable.add(() => {
+          this.afterPhysicsUpdate();
+        });
+      }
       
       // Setup debug drawing if enabled
       if (this.debugDraw) {
@@ -111,10 +142,15 @@ export class PhysicsSystem {
       }
       
       if (this.bodies.has(entityId)) {
-        throw new PhysicsError(`Physics body already exists for entity ${entityId}`);
+        // If body already exists, properly remove it first before creating a new one
+        try {
+          this.removeBody(entityId);
+        } catch (error) {
+          console.warn(`Error removing existing body for entity ${entityId}:`, error);
+        }
       }
       
-      // Create physics impostor
+      // Create physics impostor or aggregate
       const position = transformComponent.position;
       const rotation = transformComponent.rotation;
       
@@ -171,57 +207,98 @@ export class PhysicsSystem {
         mesh.isVisible = this.debugDraw; // Only visible in debug mode
       }
       
-      // Create physics impostor
-      const impostorType = this.getImpostorType(physicsComponent.colliderType);
-      const impostor = new BABYLON.PhysicsImpostor(
-        mesh,
-        impostorType,
-        {
-          mass: physicsComponent.isStatic ? 0 : physicsComponent.mass,
-          restitution: physicsComponent.restitution,
-          friction: physicsComponent.friction
-        },
-        this.scene
-      );
+      // Check if we should use PhysicsAggregate (newer Havok API) or PhysicsImpostor (older API)
+      let physicsBody = null;
+      const physicsParams = {
+        mass: physicsComponent.isStatic ? 0 : physicsComponent.mass,
+        restitution: physicsComponent.restitution,
+        friction: physicsComponent.friction
+      };
       
-      // Set initial velocity if specified
+      // Try to use PhysicsAggregate if available (newer Havok API)
+      if (typeof BABYLON.PhysicsAggregate === 'function') {
+        try {
+          const shapeType = this.getPhysicsShapeType(physicsComponent.colliderType);
+          physicsBody = new BABYLON.PhysicsAggregate(
+            mesh,
+            shapeType,
+            physicsParams,
+            this.scene
+          );
+          
+          // Store physics body
+          this.bodies.set(entityId, {
+            mesh: mesh,
+            aggregate: physicsBody,
+            entityId: entityId
+          });
+          
+        } catch (error) {
+          console.warn(`Failed to create PhysicsAggregate, falling back to PhysicsImpostor: ${error.message}`);
+          // Fall back to PhysicsImpostor if PhysicsAggregate creation fails
+          physicsBody = null;
+        }
+      }
+      
+      // Use PhysicsImpostor as fallback (older API)
+      if (!physicsBody) {
+        const impostorType = this.getImpostorType(physicsComponent.colliderType);
+        const impostor = new BABYLON.PhysicsImpostor(
+          mesh,
+          impostorType,
+          physicsParams,
+          this.scene
+        );
+        
+        // Store physics body
+        this.bodies.set(entityId, {
+          mesh: mesh,
+          impostor: impostor,
+          entityId: entityId
+        });
+      }
+      
+      const body = this.bodies.get(entityId);
+      
+      // Set initial velocity if specified and body is dynamic
       if (physicsComponent.velocity && !physicsComponent.isStatic) {
-        impostor.setLinearVelocity(
-          new BABYLON.Vector3(
-            physicsComponent.velocity.x,
-            physicsComponent.velocity.y,
-            physicsComponent.velocity.z
-          )
+        const velocityVector = new BABYLON.Vector3(
+          physicsComponent.velocity.x,
+          physicsComponent.velocity.y,
+          physicsComponent.velocity.z
         );
+        
+        if (body.aggregate) {
+          body.aggregate.body.setLinearVelocity(velocityVector);
+        } else if (body.impostor) {
+          body.impostor.setLinearVelocity(velocityVector);
+        }
       }
       
-      // Set angular velocity if specified
+      // Set angular velocity if specified and body is dynamic
       if (physicsComponent.angularVelocity && !physicsComponent.isStatic) {
-        impostor.setAngularVelocity(
-          new BABYLON.Vector3(
-            physicsComponent.angularVelocity.x,
-            physicsComponent.angularVelocity.y,
-            physicsComponent.angularVelocity.z
-          )
+        const angularVelocityVector = new BABYLON.Vector3(
+          physicsComponent.angularVelocity.x,
+          physicsComponent.angularVelocity.y,
+          physicsComponent.angularVelocity.z
         );
+        
+        if (body.aggregate) {
+          body.aggregate.body.setAngularVelocity(angularVelocityVector);
+        } else if (body.impostor) {
+          body.impostor.setAngularVelocity(angularVelocityVector);
+        }
       }
-      
-      // Store physics body
-      this.bodies.set(entityId, {
-        mesh: mesh,
-        impostor: impostor,
-        entityId: entityId
-      });
       
       // Update physics component reference
-      physicsComponent.physicsBody = this.bodies.get(entityId);
+      physicsComponent.physicsBody = body;
       
       // Set up collision callback if the component has onCollision
       if (typeof physicsComponent.onCollision === 'function') {
         this.setCollisionCallback(entityId, physicsComponent.onCollision);
       }
       
-      return this.bodies.get(entityId);
+      return body;
     } catch (error) {
       if (error instanceof PhysicsError) {
         throw error;
@@ -229,6 +306,35 @@ export class PhysicsSystem {
         throw new PhysicsError(`Error in createBody: ${error.message}`);
       }
     }
+  }
+  
+  /**
+   * Get physics shape type for PhysicsAggregate (newer Havok API)
+   * @param {string} colliderType - Collider type
+   * @returns {number} Physics shape type
+   */
+  getPhysicsShapeType(colliderType) {
+    // Check if BABYLON.PhysicsShapeType is available
+    if (typeof BABYLON.PhysicsShapeType !== 'undefined') {
+      switch (colliderType) {
+        case 'box':
+          return BABYLON.PhysicsShapeType.BOX;
+        case 'sphere':
+          return BABYLON.PhysicsShapeType.SPHERE;
+        case 'cylinder':
+          return BABYLON.PhysicsShapeType.CYLINDER;
+        case 'capsule':
+          return BABYLON.PhysicsShapeType.CAPSULE;
+        case 'mesh':
+          return BABYLON.PhysicsShapeType.MESH;
+        case 'heightmap':
+          return BABYLON.PhysicsShapeType.HEIGHTFIELD;
+        default:
+          throw new PhysicsError(`Unsupported collider type: ${colliderType}`);
+      }
+    }
+    // Fallback if PhysicsShapeType is not available
+    return this.getImpostorType(colliderType);
   }
   
   /**
@@ -244,23 +350,48 @@ export class PhysicsSystem {
       // Remove collision callback
       this.collisionCallbacks.delete(entityId);
       
-      // Remove impostor
+      // Remove physics body - handle both older impostor and newer aggregate APIs
       if (body.impostor) {
-        // Properly dispose the impostor - this is different between physics engines
+        // Try to dispose properly
         try {
-          body.impostor.dispose();
-        } catch (e) {
-          console.warn(`Error disposing impostor for entity ${entityId}: ${e.message}`);
-          // If direct disposal fails, try to remove it from the scene
-          if (this.scene && this.scene.getPhysicsEngine()) {
-            // Some physics engines may use a different method to remove impostors
+          // For Havok Physics specifically, use proper disposal method
+          if (body.impostor.physicsBody) {
+            // Modern Havok approach
+            body.impostor.dispose();
+          } else if (this.scene && this.scene.getPhysicsEngine()) {
+            // Fallback for older versions - try different methods
             const physicsEngine = this.scene.getPhysicsEngine();
             
-            // Check if physics engine has the right method before calling it
-            if (typeof physicsEngine.unregisterImpostor === 'function') {
+            // Try multiple methods that might exist in different versions
+            if (typeof physicsEngine.removeImpostor === 'function') {
+              physicsEngine.removeImpostor(body.impostor);
+            } else if (typeof physicsEngine.unregisterImpostor === 'function') {
               physicsEngine.unregisterImpostor(body.impostor);
+            } else {
+              // Last resort - remove directly from impostors array if it exists
+              const impostors = physicsEngine.getImpostors?.() || [];
+              const index = impostors.indexOf(body.impostor);
+              if (index > -1) {
+                impostors.splice(index, 1);
+              }
+              
+              // Try to dispose manually
+              if (body.impostor.dispose) {
+                body.impostor.dispose();
+              }
             }
           }
+        } catch (e) {
+          console.warn(`Error disposing impostor for entity ${entityId}: ${e.message}`);
+        }
+      }
+      
+      // If we're using modern PhysicsAggregate instead of Impostor
+      if (body.aggregate) {
+        try {
+          body.aggregate.dispose();
+        } catch (e) {
+          console.warn(`Error disposing aggregate for entity ${entityId}: ${e.message}`);
         }
       }
       
@@ -293,31 +424,62 @@ export class PhysicsSystem {
       
       this.collisionCallbacks.set(entityId, callback);
       
-      // Set up Havok collision callback
       const body = this.bodies.get(entityId);
-      body.impostor.onCollideEvent = (collider, collidedWith) => {
-        // Find the entity ID for the collided body
-        let collidedEntityId = null;
-        for (const [id, body] of this.bodies.entries()) {
-          if (body.impostor === collidedWith) {
-            collidedEntityId = id;
-            break;
-          }
-        }
+      
+      if (body.aggregate) {
+        // For newer Havok PhysicsAggregate API
+        body.aggregate.body.setCollisionCallbackEnabled(true);
         
-        if (collidedEntityId !== null) {
-          // Call the callback
-          try {
-            callback(collidedEntityId, {
-              point: null, // Havok doesn't provide collision point directly
-              normal: null, // Havok doesn't provide collision normal directly
-              impulse: null // Havok doesn't provide impulse directly
-            });
-          } catch (error) {
-            console.error(`Error in collision callback for entity ${entityId}:`, error);
+        // Set up collision callback
+        body.aggregate.onCollideEvent = (collider, collidedWith) => {
+          // Find the entity ID for the collided body
+          let collidedEntityId = null;
+          for (const [id, otherBody] of this.bodies.entries()) {
+            if (otherBody.aggregate && otherBody.aggregate.body === collidedWith.body) {
+              collidedEntityId = id;
+              break;
+            }
           }
-        }
-      };
+          
+          if (collidedEntityId !== null) {
+            // Call the callback
+            try {
+              callback(collidedEntityId, {
+                point: null, // Havok doesn't provide collision point directly
+                normal: null, // Havok doesn't provide collision normal directly
+                impulse: null // Havok doesn't provide impulse directly
+              });
+            } catch (error) {
+              console.error(`Error in collision callback for entity ${entityId}:`, error);
+            }
+          }
+        };
+      } else if (body.impostor) {
+        // For older Havok PhysicsImpostor API
+        body.impostor.onCollideEvent = (collider, collidedWith) => {
+          // Find the entity ID for the collided body
+          let collidedEntityId = null;
+          for (const [id, otherBody] of this.bodies.entries()) {
+            if (otherBody.impostor === collidedWith) {
+              collidedEntityId = id;
+              break;
+            }
+          }
+          
+          if (collidedEntityId !== null) {
+            // Call the callback
+            try {
+              callback(collidedEntityId, {
+                point: null, // Havok doesn't provide collision point directly
+                normal: null, // Havok doesn't provide collision normal directly
+                impulse: null // Havok doesn't provide impulse directly
+              });
+            } catch (error) {
+              console.error(`Error in collision callback for entity ${entityId}:`, error);
+            }
+          }
+        };
+      }
     } catch (error) {
       if (error instanceof PhysicsError) {
         throw error;
@@ -340,18 +502,34 @@ export class PhysicsSystem {
       }
       
       const body = this.bodies.get(entityId);
-      
-      if (body.impostor.mass === 0) {
-        throw new PhysicsError(`Cannot apply force to static body for entity ${entityId}`);
-      }
-      
       const forceVector = new BABYLON.Vector3(force.x, force.y, force.z);
+      const pointVector = point ? new BABYLON.Vector3(point.x, point.y, point.z) : null;
       
-      if (point) {
-        const pointVector = new BABYLON.Vector3(point.x, point.y, point.z);
-        body.impostor.applyForce(forceVector, pointVector);
+      // Check if we're using PhysicsAggregate or PhysicsImpostor
+      if (body.aggregate) {
+        // For newer Havok PhysicsAggregate API
+        if (body.aggregate.body.getMass() === 0) {
+          throw new PhysicsError(`Cannot apply force to static body for entity ${entityId}`);
+        }
+        
+        if (pointVector) {
+          body.aggregate.body.applyForce(forceVector, pointVector);
+        } else {
+          body.aggregate.body.applyForce(forceVector, body.mesh.getAbsolutePosition());
+        }
+      } else if (body.impostor) {
+        // For older Havok PhysicsImpostor API
+        if (body.impostor.mass === 0) {
+          throw new PhysicsError(`Cannot apply force to static body for entity ${entityId}`);
+        }
+        
+        if (pointVector) {
+          body.impostor.applyForce(forceVector, pointVector);
+        } else {
+          body.impostor.applyForce(forceVector, body.mesh.getAbsolutePosition());
+        }
       } else {
-        body.impostor.applyForce(forceVector, body.mesh.getAbsolutePosition());
+        throw new PhysicsError(`No valid physics object for entity ${entityId}`);
       }
     } catch (error) {
       if (error instanceof PhysicsError) {
@@ -375,18 +553,34 @@ export class PhysicsSystem {
       }
       
       const body = this.bodies.get(entityId);
-      
-      if (body.impostor.mass === 0) {
-        throw new PhysicsError(`Cannot apply impulse to static body for entity ${entityId}`);
-      }
-      
       const impulseVector = new BABYLON.Vector3(impulse.x, impulse.y, impulse.z);
+      const pointVector = point ? new BABYLON.Vector3(point.x, point.y, point.z) : null;
       
-      if (point) {
-        const pointVector = new BABYLON.Vector3(point.x, point.y, point.z);
-        body.impostor.applyImpulse(impulseVector, pointVector);
+      // Check if we're using PhysicsAggregate or PhysicsImpostor
+      if (body.aggregate) {
+        // For newer Havok PhysicsAggregate API
+        if (body.aggregate.body.getMass() === 0) {
+          throw new PhysicsError(`Cannot apply impulse to static body for entity ${entityId}`);
+        }
+        
+        if (pointVector) {
+          body.aggregate.body.applyImpulse(impulseVector, pointVector);
+        } else {
+          body.aggregate.body.applyImpulse(impulseVector, body.mesh.getAbsolutePosition());
+        }
+      } else if (body.impostor) {
+        // For older Havok PhysicsImpostor API
+        if (body.impostor.mass === 0) {
+          throw new PhysicsError(`Cannot apply impulse to static body for entity ${entityId}`);
+        }
+        
+        if (pointVector) {
+          body.impostor.applyImpulse(impulseVector, pointVector);
+        } else {
+          body.impostor.applyImpulse(impulseVector, body.mesh.getAbsolutePosition());
+        }
       } else {
-        body.impostor.applyImpulse(impulseVector, body.mesh.getAbsolutePosition());
+        throw new PhysicsError(`No valid physics object for entity ${entityId}`);
       }
     } catch (error) {
       if (error instanceof PhysicsError) {
@@ -409,14 +603,26 @@ export class PhysicsSystem {
       }
       
       const body = this.bodies.get(entityId);
+      const velocityVector = new BABYLON.Vector3(velocity.x, velocity.y, velocity.z);
       
-      if (body.impostor.mass === 0) {
-        throw new PhysicsError(`Cannot set velocity for static body for entity ${entityId}`);
+      // Check if we're using PhysicsAggregate or PhysicsImpostor
+      if (body.aggregate) {
+        // For newer Havok PhysicsAggregate API
+        if (body.aggregate.body.getMass() === 0) {
+          throw new PhysicsError(`Cannot set velocity for static body for entity ${entityId}`);
+        }
+        
+        body.aggregate.body.setLinearVelocity(velocityVector);
+      } else if (body.impostor) {
+        // For older Havok PhysicsImpostor API
+        if (body.impostor.mass === 0) {
+          throw new PhysicsError(`Cannot set velocity for static body for entity ${entityId}`);
+        }
+        
+        body.impostor.setLinearVelocity(velocityVector);
+      } else {
+        throw new PhysicsError(`No valid physics object for entity ${entityId}`);
       }
-      
-      body.impostor.setLinearVelocity(
-        new BABYLON.Vector3(velocity.x, velocity.y, velocity.z)
-      );
     } catch (error) {
       if (error instanceof PhysicsError) {
         throw error;
@@ -438,7 +644,18 @@ export class PhysicsSystem {
       }
       
       const body = this.bodies.get(entityId);
-      const velocity = body.impostor.getLinearVelocity();
+      let velocity;
+      
+      // Check if we're using PhysicsAggregate or PhysicsImpostor
+      if (body.aggregate) {
+        // For newer Havok PhysicsAggregate API
+        velocity = body.aggregate.body.getLinearVelocity();
+      } else if (body.impostor) {
+        // For older Havok PhysicsImpostor API
+        velocity = body.impostor.getLinearVelocity();
+      } else {
+        throw new PhysicsError(`No valid physics object for entity ${entityId}`);
+      }
       
       return {
         x: velocity.x,
@@ -460,14 +677,39 @@ export class PhysicsSystem {
    */
   update(deltaTime) {
     try {
+      if (!this.isInitialized) {
+        return; // Skip if not initialized
+      }
+      
       const start = performance.now();
       
-      if (!this.isInitialized || !this.physicsEngine) return;
+      // Check if physicsEngine exists
+      if (!this.physicsEngine) {
+        console.warn("Physics engine not available, trying to re-acquire it");
+        
+        // Try to re-acquire the physics engine if not available
+        if (this.scene) {
+          this.physicsEngine = this.scene.getPhysicsEngine();
+          
+          if (!this.physicsEngine) {
+            console.warn("Physics engine still not available, skipping physics update");
+            return; // Still not available, skip update
+          }
+        } else {
+          console.warn("Scene not available, skipping physics update");
+          return; // No scene, skip update
+        }
+      }
+      
+      // Safety check for bodies map
+      if (!this.bodies || this.bodies.size === 0) {
+        return; // No bodies to update
+      }
       
       // Physics is handled by Babylon.js physics engine
       // We just need to sync our entity transforms with physics bodies
       
-      // Update transforms from physics
+      // Sync transforms to update entity positions from physics
       this.syncTransformsFromPhysics();
       
       // Update debug visualization if enabled
@@ -476,9 +718,11 @@ export class PhysicsSystem {
       }
       
       const duration = performance.now() - start;
-      console.debug(`update took ${duration.toFixed(2)}ms`);
+      if (duration > 16) { // Only log if taking significant time (>16ms = <60fps)
+        console.debug(`Physics update took ${duration.toFixed(2)}ms`);
+      }
     } catch (error) {
-      console.error(`Error in physics update: ${error.message}`);
+      console.error(`Error in physics update:`, error);
     }
   }
   
@@ -486,23 +730,55 @@ export class PhysicsSystem {
    * Update transforms from physics simulation
    */
   syncTransformsFromPhysics() {
-    for (const [entityId, body] of this.bodies.entries()) {
-      // Skip if body is static
-      if (body.impostor.mass === 0) continue;
+    try {
+      if (!this.core || !this.core.entityManager) return;
       
-      // Get transform component
-      const transformComponent = this.core.entityManager.getComponent(entityId, 'TransformComponent');
-      if (!transformComponent) continue;
-      
-      // Get position and rotation from physics body
-      const position = body.mesh.position;
-      const rotation = body.mesh.rotation;
-      
-      // Update transform component
-      transformComponent.updateTransform(
-        { x: position.x, y: position.y, z: position.z },
-        { x: rotation.x, y: rotation.y, z: rotation.z }
-      );
+      for (const [entityId, body] of this.bodies.entries()) {
+        if (!body || !body.mesh) continue;
+        
+        // Check if this is a dynamic (non-static) body
+        let isStatic = true;
+        
+        if (body.aggregate && body.aggregate.body) {
+          try {
+            // For PhysicsAggregate API
+            isStatic = body.aggregate.body.getMass() === 0;
+          } catch (e) {
+            console.warn(`Error checking aggregate mass for entity ${entityId}:`, e);
+            continue; // Skip this body if we can't determine its mass
+          }
+        } else if (body.impostor) {
+          try {
+            // For PhysicsImpostor API
+            isStatic = body.impostor.mass === 0;
+          } catch (e) {
+            console.warn(`Error checking impostor mass for entity ${entityId}:`, e);
+            continue; // Skip this body if we can't determine its mass
+          }
+        } else {
+          // Neither aggregate nor impostor exists or is valid
+          continue;
+        }
+        
+        // Skip if body is static
+        if (isStatic) continue;
+        
+        // Get transform component
+        const transformComponent = this.core.entityManager.getComponent(entityId, 'TransformComponent');
+        if (!transformComponent) continue;
+        
+        // Get position and rotation from physics body
+        const position = body.mesh.position;
+        const rotation = body.mesh.rotation;
+        
+        // Update transform component
+        transformComponent.updateTransform(
+          { x: position.x, y: position.y, z: position.z },
+          { x: rotation.x, y: rotation.y, z: rotation.z }
+        );
+      }
+    } catch (error) {
+      console.error(`Error in syncTransformsFromPhysics:`, error);
     }
   }
   
@@ -510,26 +786,58 @@ export class PhysicsSystem {
    * Update transforms from entity before physics step
    */
   syncTransformsToPhysics() {
-    for (const [entityId, body] of this.bodies.entries()) {
-      // Skip if body is static
-      if (body.impostor.mass === 0) continue;
+    try {
+      if (!this.core || !this.core.entityManager) return;
       
-      // Get transform component
-      const transformComponent = this.core.entityManager.getComponent(entityId, 'TransformComponent');
-      if (!transformComponent) continue;
-      
-      // Update physics body position and rotation
-      body.mesh.position = new BABYLON.Vector3(
-        transformComponent.position.x,
-        transformComponent.position.y,
-        transformComponent.position.z
-      );
-      
-      body.mesh.rotation = new BABYLON.Vector3(
-        transformComponent.rotation.x,
-        transformComponent.rotation.y,
-        transformComponent.rotation.z
-      );
+      for (const [entityId, body] of this.bodies.entries()) {
+        if (!body || !body.mesh) continue;
+        
+        // Check if this is a dynamic (non-static) body
+        let isStatic = true;
+        
+        if (body.aggregate && body.aggregate.body) {
+          try {
+            // For PhysicsAggregate API
+            isStatic = body.aggregate.body.getMass() === 0;
+          } catch (e) {
+            console.warn(`Error checking aggregate mass for entity ${entityId}:`, e);
+            continue; // Skip this body if we can't determine its mass
+          }
+        } else if (body.impostor) {
+          try {
+            // For PhysicsImpostor API
+            isStatic = body.impostor.mass === 0;
+          } catch (e) {
+            console.warn(`Error checking impostor mass for entity ${entityId}:`, e);
+            continue; // Skip this body if we can't determine its mass
+          }
+        } else {
+          // Neither aggregate nor impostor exists or is valid
+          continue;
+        }
+        
+        // Skip if body is static
+        if (isStatic) continue;
+        
+        // Get transform component
+        const transformComponent = this.core.entityManager.getComponent(entityId, 'TransformComponent');
+        if (!transformComponent) continue;
+        
+        // Update physics body position and rotation
+        body.mesh.position = new BABYLON.Vector3(
+          transformComponent.position.x,
+          transformComponent.position.y,
+          transformComponent.position.z
+        );
+        
+        body.mesh.rotation = new BABYLON.Vector3(
+          transformComponent.rotation.x,
+          transformComponent.rotation.y,
+          transformComponent.rotation.z
+        );
+      }
+    } catch (error) {
+      console.error(`Error in syncTransformsToPhysics:`, error);
     }
   }
   
@@ -537,33 +845,49 @@ export class PhysicsSystem {
    * Called before physics update
    */
   beforePhysicsUpdate() {
-    // Sync transforms before physics step
-    this.syncTransformsToPhysics();
+    try {
+      // Sync transforms before physics step
+      this.syncTransformsToPhysics();
+    } catch (error) {
+      console.error("Error in beforePhysicsUpdate:", error);
+    }
   }
   
   /**
    * Called after physics update
    */
   afterPhysicsUpdate() {
-    // Sync transforms after physics step
-    this.syncTransformsFromPhysics();
+    try {
+      // Sync transforms after physics step
+      this.syncTransformsFromPhysics();
+    } catch (error) {
+      console.error("Error in afterPhysicsUpdate:", error);
+    }
   }
   
   /**
    * Set up debug drawing
    */
   setupDebugDraw() {
-    // Make all physics meshes visible
-    for (const body of this.bodies.values()) {
-      if (body.mesh) {
-        body.mesh.isVisible = true;
+    try {
+      // Make all physics meshes visible
+      for (const body of this.bodies.values()) {
+        if (!body || !body.mesh) continue;
         
-        // Add wireframe material
-        const material = new BABYLON.StandardMaterial("physicsMaterial", this.scene);
-        material.wireframe = true;
-        material.emissiveColor = new BABYLON.Color3(0, 1, 0);
-        body.mesh.material = material;
+        try {
+          body.mesh.isVisible = true;
+          
+          // Add wireframe material
+          const material = new BABYLON.StandardMaterial("physicsMaterial", this.scene);
+          material.wireframe = true;
+          material.emissiveColor = new BABYLON.Color3(0, 1, 0);
+          body.mesh.material = material;
+        } catch (e) {
+          console.warn(`Error setting up debug draw for body:`, e);
+        }
       }
+    } catch (error) {
+      console.error("Error in setupDebugDraw:", error);
     }
   }
   
@@ -686,23 +1010,37 @@ export class PhysicsSystem {
    * @param {Object} data - Event data
    */
   onComponentAdded(data) {
-    const { entityId, componentType, component } = data;
-    
-    // If physics component added, create physics body
-    if (componentType === 'PhysicsComponent') {
-      // Need transform component as well
-      const transformComponent = this.core.entityManager.getComponent(entityId, 'TransformComponent');
-      if (transformComponent) {
-        this.createBody(entityId, component, transformComponent);
+    try {
+      if (!data || !data.entityId || !data.componentType) return;
+      
+      const { entityId, componentType, component } = data;
+      
+      // If physics component added, create physics body
+      if (componentType === 'PhysicsComponent') {
+        // Need transform component as well
+        try {
+          const transformComponent = this.core.entityManager.getComponent(entityId, 'TransformComponent');
+          if (transformComponent) {
+            this.createBody(entityId, component, transformComponent);
+          }
+        } catch (error) {
+          console.error(`Error creating physics body for entity ${entityId}:`, error);
+        }
       }
-    }
-    
-    // If transform component added and physics component exists, create physics body
-    if (componentType === 'TransformComponent') {
-      const physicsComponent = this.core.entityManager.getComponent(entityId, 'PhysicsComponent');
-      if (physicsComponent && !this.bodies.has(entityId)) {
-        this.createBody(entityId, physicsComponent, component);
+      
+      // If transform component added and physics component exists, create physics body
+      if (componentType === 'TransformComponent') {
+        try {
+          const physicsComponent = this.core.entityManager.getComponent(entityId, 'PhysicsComponent');
+          if (physicsComponent && !this.bodies.has(entityId)) {
+            this.createBody(entityId, physicsComponent, component);
+          }
+        } catch (error) {
+          console.error(`Error creating physics body for entity ${entityId}:`, error);
+        }
       }
+    } catch (error) {
+      console.error("Error in onComponentAdded:", error);
     }
   }
   
@@ -711,11 +1049,17 @@ export class PhysicsSystem {
    * @param {Object} data - Event data
    */
   onComponentRemoved(data) {
-    const { entityId, componentType } = data;
-    
-    // If physics component removed, remove physics body
-    if (componentType === 'PhysicsComponent') {
-      this.removeBody(entityId);
+    try {
+      if (!data || !data.entityId || !data.componentType) return;
+      
+      const { entityId, componentType } = data;
+      
+      // If physics component removed, remove physics body
+      if (componentType === 'PhysicsComponent') {
+        this.removeBody(entityId);
+      }
+    } catch (error) {
+      console.error("Error in onComponentRemoved:", error);
     }
   }
   

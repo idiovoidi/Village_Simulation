@@ -52,8 +52,6 @@ export class ZombieAgent {
         this.config.sway.offset = Math.random() * Math.PI * 2;
     }
     
-    @handleAgentError
-    @measurePerformance
     update(deltaTime) {
         // Update lurge state
         if (this.config.lurge.isActive) {
@@ -98,7 +96,6 @@ export class ZombieAgent {
     }
     
     // Private methods for behavior implementation
-    @handleAgentError
     _updateLurge(deltaTime) {
         this.config.lurge.timer -= deltaTime;
         
@@ -115,23 +112,27 @@ export class ZombieAgent {
         }
     }
     
-    @throttle(500) // Check at most every 500ms
     _checkLurgeTrigger(deltaTime) {
-        // Check if we should start a lurge (more likely when near camera)
-        const distToCamera = BABYLON.Vector3.Distance(
-            this.model.mesh.position, 
-            this.scene.activeCamera.position
-        );
-        
-        const isNearCamera = distToCamera < 30;
-        const chanceMultiplier = isNearCamera ? 2 : 1;
-        
-        if (Math.random() < this.config.lurge.chance * chanceMultiplier * deltaTime * 60) { // Normalize by frame rate
-            this._startLurge();
+        // Throttle check - only execute every 500ms at most
+        const now = Date.now();
+        if (!this._lastLurgeCheck || (now - this._lastLurgeCheck >= 500)) {
+            this._lastLurgeCheck = now;
+            
+            // Check if we should start a lurge (more likely when near camera)
+            const distToCamera = BABYLON.Vector3.Distance(
+                this.model.mesh.position, 
+                this.scene.activeCamera.position
+            );
+            
+            const isNearCamera = distToCamera < 30;
+            const chanceMultiplier = isNearCamera ? 2 : 1;
+            
+            if (Math.random() < this.config.lurge.chance * chanceMultiplier * deltaTime * 60) { // Normalize by frame rate
+                this._startLurge();
+            }
         }
     }
     
-    @handleAgentError
     _startLurge() {
         this.config.lurge.isActive = true;
         this.config.lurge.timer = this.config.lurge.duration;
@@ -143,7 +144,6 @@ export class ZombieAgent {
         ).normalize();
     }
     
-    @handleAgentError
     _updateIdleBehavior(deltaTime) {
         // Simple wandering behavior
         const distToTarget = BABYLON.Vector3.Distance(
@@ -160,7 +160,6 @@ export class ZombieAgent {
         this._moveTowardTargetWithShamble(deltaTime);
     }
     
-    @handleAgentError
     _updatePursuingBehavior(deltaTime) {
         // Track player/target
         const toCamera = this.scene.activeCamera.position.subtract(this.model.mesh.position);
@@ -183,7 +182,6 @@ export class ZombieAgent {
         this._moveTowardTargetWithShamble(deltaTime);
     }
     
-    @handleAgentError
     _updateAttackingBehavior(deltaTime) {
         // Check if we're still in attack range
         const toCamera = this.scene.activeCamera.position.subtract(this.model.mesh.position);
@@ -200,7 +198,6 @@ export class ZombieAgent {
         }
     }
     
-    @handleAgentError
     _selectNewRandomTarget() {
         // Get random position within radius
         const angle = Math.random() * Math.PI * 2;
@@ -213,7 +210,6 @@ export class ZombieAgent {
         this.setTarget(new BABYLON.Vector3(x, y, z));
     }
     
-    @handleAgentError
     _moveTowardTargetWithShamble(deltaTime) {
         if (this.config.lurge.isActive) return; // Skip if lurging
         
@@ -252,30 +248,31 @@ export class ZombieAgent {
     }
     
     _getTerrainHeight(x, z) {
-        // Try using BowlCreator first
-        try {
-            const BowlCreator = require('../../BowlCreator.js');
-            if (typeof BowlCreator.getTerrainHeight === 'function') {
-                return BowlCreator.getTerrainHeight(x, z);
-            }
-        } catch (error) {
-            // BowlCreator not available, fallback to ZombieModel's static method
+        // Try using provided BowlCreator if available in the global scope
+        if (typeof window.BowlCreator !== 'undefined' && 
+            typeof window.BowlCreator.getTerrainHeight === 'function') {
+            return window.BowlCreator.getTerrainHeight(x, z);
         }
         
-        // Use ZombieModel's static method
+        // Fallback to ZombieModel's static method
         return ZombieModel.getTerrainHeight(x, z);
     }
     
-    @throttle(1000) // Check once per second at most
     detectPlayer() {
-        const distToCamera = BABYLON.Vector3.Distance(
-            this.model.mesh.position, 
-            this.scene.activeCamera.position
-        );
-        
-        if (distToCamera < 40) {
-            this.setState('pursuing');
-            return true;
+        // Throttle detection - only check once per second at most
+        const now = Date.now();
+        if (!this._lastDetectionTime || (now - this._lastDetectionTime >= 1000)) {
+            this._lastDetectionTime = now;
+            
+            const distToCamera = BABYLON.Vector3.Distance(
+                this.model.mesh.position, 
+                this.scene.activeCamera.position
+            );
+            
+            if (distToCamera < 40) {
+                this.setState('pursuing');
+                return true;
+            }
         }
         
         return false;
@@ -286,4 +283,16 @@ export class ZombieAgent {
             this.model.dispose();
         }
     }
-} 
+}
+
+// Apply error handling decorators programmatically
+ZombieAgent.prototype.update = handleAgentError(
+    measurePerformance(ZombieAgent.prototype.update)
+);
+ZombieAgent.prototype._updateLurge = handleAgentError(ZombieAgent.prototype._updateLurge);
+ZombieAgent.prototype._startLurge = handleAgentError(ZombieAgent.prototype._startLurge);
+ZombieAgent.prototype._updateIdleBehavior = handleAgentError(ZombieAgent.prototype._updateIdleBehavior);
+ZombieAgent.prototype._updatePursuingBehavior = handleAgentError(ZombieAgent.prototype._updatePursuingBehavior);
+ZombieAgent.prototype._updateAttackingBehavior = handleAgentError(ZombieAgent.prototype._updateAttackingBehavior);
+ZombieAgent.prototype._selectNewRandomTarget = handleAgentError(ZombieAgent.prototype._selectNewRandomTarget);
+ZombieAgent.prototype._moveTowardTargetWithShamble = handleAgentError(ZombieAgent.prototype._moveTowardTargetWithShamble); 

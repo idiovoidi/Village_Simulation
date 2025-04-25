@@ -281,15 +281,6 @@ export class ZombieModel {
     }
     
     static getTerrainHeight(x, z) {
-        // Import BowlCreator on demand
-        import('../../BowlCreator.js').then(module => {
-            if (typeof module.BowlCreator.getTerrainHeight === 'function') {
-                return module.BowlCreator.getTerrainHeight(x, z);
-            }
-        }).catch(error => {
-            console.error('Error importing BowlCreator:', error);
-        });
-        
         // Simplified height calculation as fallback
         const distFromCenter = Math.sqrt(x * x + z * z);
         const radius = 100; // Default radius

@@ -14,33 +14,59 @@ export class BowlCreator {
     }
 
     initializeEventHandling() {
-        // Get the canvas element from the scene
-        const canvas = this.scene.getEngine().getRenderingCanvas();
-        
-        // Remove any existing wheel listeners
-        canvas.removeEventListener('wheel', this.handleWheel, { passive: true });
-        
-        // Add passive wheel event listener
-        this.handleWheel = (event) => {
-            // Handle zoom here if needed
-            if (this.scene.activeCamera) {
-                const camera = this.scene.activeCamera;
-                const delta = event.deltaY * 0.01;
-                if (camera.radius !== undefined) {
-                    camera.radius += delta; // For ArcRotateCamera
-                } else if (camera.position) {
-                    const direction = camera.getDirection(BABYLON.Vector3.Forward());
-                    camera.position.addInPlace(direction.scale(delta));
-                }
+        try {
+            // Safety check: Make sure scene and engine exist
+            if (!this.scene) {
+                console.warn("BowlCreator: Scene not initialized yet");
+                return;
             }
-        };
-        
-        canvas.addEventListener('wheel', this.handleWheel, { passive: true });
-        
-        // Cleanup on scene dispose
-        this.scene.onDisposeObservable.add(() => {
-            canvas.removeEventListener('wheel', this.handleWheel, { passive: true });
-        });
+            
+            // Get the canvas element from the scene - with safety check
+            const engine = this.scene.getEngine();
+            if (!engine) {
+                console.warn("BowlCreator: Engine not initialized yet");
+                return;
+            }
+            
+            const canvas = engine.getRenderingCanvas();
+            if (!canvas) {
+                console.warn("BowlCreator: Canvas not found");
+                return;
+            }
+            
+            // Remove any existing wheel listeners
+            if (this.handleWheel) {
+                canvas.removeEventListener('wheel', this.handleWheel, { passive: true });
+            }
+            
+            // Add passive wheel event listener
+            this.handleWheel = (event) => {
+                // Handle zoom here if needed
+                if (this.scene && this.scene.activeCamera) {
+                    const camera = this.scene.activeCamera;
+                    const delta = event.deltaY * 0.01;
+                    if (camera.radius !== undefined) {
+                        camera.radius += delta; // For ArcRotateCamera
+                    } else if (camera.position) {
+                        const direction = camera.getDirection(BABYLON.Vector3.Forward());
+                        camera.position.addInPlace(direction.scale(delta));
+                    }
+                }
+            };
+            
+            canvas.addEventListener('wheel', this.handleWheel, { passive: true });
+            
+            // Cleanup on scene dispose
+            if (this.scene.onDisposeObservable) {
+                this.scene.onDisposeObservable.add(() => {
+                    if (canvas && this.handleWheel) {
+                        canvas.removeEventListener('wheel', this.handleWheel, { passive: true });
+                    }
+                });
+            }
+        } catch (error) {
+            console.error("Error initializing BowlCreator event handling:", error);
+        }
     }
 
     // Add this static method to get terrain height at any point

@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Babylon.js Havok Physics Demo</title>
+    <title>3D Village Simulation - Babylon.js & Havok Physics</title>
     <style>
         html, body {
             width: 100%;
@@ -10,39 +10,177 @@
             margin: 0;
             padding: 0;
             overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
         }
         #renderCanvas {
             width: 100%;
             height: 100%;
             touch-action: none;
         }
+        #loadingScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        #errorScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(50, 0, 0, 0.9);
+            color: white;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        #errorMessage {
+            width: 80%;
+            max-width: 600px;
+            background-color: rgba(80, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            overflow-y: auto;
+            max-height: 70vh;
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
     </style>
-    <!-- Load the latest versions of the scripts -->
+    <!-- Load the latest versions of the scripts with specific versioning -->
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/havok/HavokPhysics_umd.js"></script>
     <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
 </head>
 <body>
     <canvas id="renderCanvas"></canvas>
+    
+    <div id="loadingScreen">
+        <div class="spinner"></div>
+        <h2>Loading Village Simulation...</h2>
+        <p>Initializing physics and environment...</p>
+    </div>
+    
+    <div id="errorScreen">
+        <h2>Error Initializing Simulation</h2>
+        <div id="errorMessage"></div>
+        <button onclick="location.reload()">Reload</button>
+    </div>
+    
     <script type="module">
         // Import our scene class
         import { LeoScene } from './MyHavokSimCode/Havokimport.js';
 
+        // Define global BowlCreator for height queries
+        window.BowlCreator = { 
+            getTerrainHeight: (x, z) => {
+                // Default implementation - will be overridden after initialization
+                return 0;
+            }
+        };
+        
         // Wait for the page to load
         window.addEventListener('DOMContentLoaded', async () => {
+            const loadingScreen = document.getElementById('loadingScreen');
+            const errorScreen = document.getElementById('errorScreen');
+            const errorMessage = document.getElementById('errorMessage');
+            
             try {
                 // Get the canvas element
                 const canvas = document.getElementById('renderCanvas');
                 
-                // Create our scene
-                const scene = new LeoScene(canvas);
+                // Show loading screen
+                loadingScreen.style.display = 'flex';
                 
-                // Handle window resize
-                window.addEventListener('resize', () => {
-                    scene.engine.resize();
-                });
+                // Make sure Babylon is loaded
+                if (typeof BABYLON === 'undefined') {
+                    throw new Error("Babylon.js not loaded. Check your internet connection and try again.");
+                }
+                
+                // Make sure Havok is loaded
+                if (typeof HavokPhysics === 'undefined') {
+                    throw new Error("Havok Physics not loaded. Check your internet connection and try again.");
+                }
+                
+                // Create our scene
+                let scene = null;
+                try {
+                    scene = new LeoScene(canvas);
+                    
+                    // Set a timeout to hide the loading screen even if scene.executeWhenReady doesn't fire
+                    const loadingTimeout = setTimeout(() => {
+                        loadingScreen.style.display = 'none';
+                    }, 10000); // 10 seconds timeout
+                    
+                    // Handle window resize
+                    window.addEventListener('resize', () => {
+                        if (scene && scene.engine) {
+                            scene.engine.resize();
+                        }
+                    });
+                    
+                    // Use a safer approach to hide loading screen when scene is ready
+                    if (scene && scene.scene && typeof scene.scene.executeWhenReady === 'function') {
+                        scene.scene.executeWhenReady(() => {
+                            clearTimeout(loadingTimeout);
+                            loadingScreen.style.display = 'none';
+                            console.log("Scene is ready");
+                        });
+                    } else {
+                        console.log("Scene or executeWhenReady not available, using timeout fallback");
+                        // The timeout set above will handle hiding the loading screen
+                    }
+                } catch (initError) {
+                    console.error("Error creating scene instance:", initError);
+                    throw initError;
+                }
             } catch (error) {
                 console.error("Error initializing scene:", error);
+                
+                // Show error screen with detailed information
+                loadingScreen.style.display = 'none';
+                errorScreen.style.display = 'flex';
+                errorMessage.innerHTML = `<p><strong>Error:</strong> ${error.message}</p>
+                                        <p><strong>Stack:</strong></p>
+                                        <pre>${error.stack || 'No stack trace available'}</pre>
+                                        <p>Please check the console for more details (F12).</p>`;
             }
         });
     </script>

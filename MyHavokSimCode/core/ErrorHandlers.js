@@ -1,22 +1,19 @@
 /**
  * Error handling decorators for agent behaviors
- * These decorators can be applied to methods to add standardized error handling
+ * These decorators use a function-application pattern instead of @decorator syntax
  */
 
 /**
- * Decorator for handling errors in agent behavior methods
- * @param {Object} target - The class prototype
- * @param {string} propertyKey - The method name
- * @param {PropertyDescriptor} descriptor - The method descriptor
+ * Function for handling errors in agent behavior methods
+ * @param {Function} originalMethod - The method to wrap with error handling
+ * @returns {Function} - Error-handling wrapped function
  */
-export function handleAgentError(target, propertyKey, descriptor) {
-    const originalMethod = descriptor.value;
-    
-    descriptor.value = function(...args) {
+export function handleAgentError(originalMethod) {
+    return function(...args) {
         try {
             return originalMethod.apply(this, args);
         } catch (error) {
-            console.error(`Error in agent behavior '${propertyKey}':`, error);
+            console.error(`Error in agent behavior '${originalMethod.name}':`, error);
             
             // Attempt to recover the agent by setting to idle state
             if (this.setState && typeof this.setState === 'function') {
@@ -27,20 +24,15 @@ export function handleAgentError(target, propertyKey, descriptor) {
             return null;
         }
     };
-    
-    return descriptor;
 }
 
 /**
- * Decorator for measuring performance of agent behavior methods
- * @param {Object} target - The class prototype
- * @param {string} propertyKey - The method name
- * @param {PropertyDescriptor} descriptor - The method descriptor
+ * Function for measuring performance of agent behavior methods
+ * @param {Function} originalMethod - The method to measure performance of
+ * @returns {Function} - Performance-measuring wrapped function
  */
-export function measurePerformance(target, propertyKey, descriptor) {
-    const originalMethod = descriptor.value;
-    
-    descriptor.value = function(...args) {
+export function measurePerformance(originalMethod) {
+    return function(...args) {
         const start = performance.now();
         const result = originalMethod.apply(this, args);
         const end = performance.now();
@@ -49,37 +41,39 @@ export function measurePerformance(target, propertyKey, descriptor) {
         
         // Only log if duration is above threshold (e.g., 16ms = ~60fps frame budget)
         if (duration > 16) {
-            console.warn(`Performance warning: ${target.constructor.name}.${propertyKey} took ${duration.toFixed(2)}ms`);
+            console.warn(`Performance warning: ${this.constructor.name}.${originalMethod.name} took ${duration.toFixed(2)}ms`);
         }
         
         return result;
     };
-    
-    return descriptor;
 }
 
 /**
- * Decorator for throttling method calls to improve performance
+ * Function for throttling method calls to improve performance
  * @param {number} interval - Minimum time between calls in milliseconds
+ * @param {Function} originalMethod - The method to throttle
+ * @returns {Function} - Throttled wrapped function
  */
-export function throttle(interval) {
-    return function(target, propertyKey, descriptor) {
-        const originalMethod = descriptor.value;
-        let lastExecutionTime = 0;
-        
-        descriptor.value = function(...args) {
-            const now = Date.now();
-            
-            if (now - lastExecutionTime >= interval) {
-                lastExecutionTime = now;
-                return originalMethod.apply(this, args);
-            }
-            
-            // Skip execution if called too frequently
-            return null;
+export function throttle(interval, originalMethod) {
+    if (typeof originalMethod !== 'function') {
+        // If called without a method (as a configuration function)
+        return function(method) {
+            return throttle(interval, method);
         };
+    }
+    
+    let lastExecutionTime = 0;
+    
+    return function(...args) {
+        const now = Date.now();
         
-        return descriptor;
+        if (now - lastExecutionTime >= interval) {
+            lastExecutionTime = now;
+            return originalMethod.apply(this, args);
+        }
+        
+        // Skip execution if called too frequently
+        return null;
     };
 }
 

@@ -129,11 +129,6 @@ export class LeoScene {
         this.scene
       );
 
-      // Initialize Havok physics first
-      const havokInstance = await HavokPhysics();
-      const havokPlugin = new BABYLON.HavokPlugin(true, havokInstance);
-      this.scene.enablePhysics(new BABYLON.Vector3(0, -9.81, 0), havokPlugin);
-
       // Initialize World Clock after scene is fully setup
       if (this.scene) {
         this.worldClock = new WorldClock(this.scene);
@@ -196,18 +191,66 @@ export class LeoScene {
       // Dispose of existing systems
       this.disposeCurrentSystems();
 
-      // Create new world clock for the new level
-      this.worldClock = new WorldClock(this.engine.scene);
+      // Ensure we have a valid scene and engine
+      if (!this.scene || !this.engine) {
+        throw new Error("Scene or engine not initialized");
+      }
 
-      // Create bowl first and wait for it to be ready
-      const bowlCreator = new BowlCreator(this.engine.scene);
-      await bowlCreator.createBowl(level.bowlRadius, level.bowlDepth);
+      // Initialize Havok physics if not already done
+      if (!this.scene.getPhysicsEngine()) {
+        try {
+          const havokInstance = await HavokPhysics();
+          console.log("Loaded Havok Physics module");
+          
+          // Check for both older and newer Havok APIs
+          if (typeof BABYLON.HavokPlugin === 'function') {
+            // Newer API (Babylon.js 5.0+)
+            console.log("Using modern Havok Physics API (HavokPlugin)");
+            const havokPlugin = new BABYLON.HavokPlugin(true, havokInstance);
+            this.scene.enablePhysics(new BABYLON.Vector3(0, -9.81, 0), havokPlugin);
+          } else if (typeof BABYLON.PhysicsEnginePlugin === 'function') {
+            // Older API
+            console.log("Using legacy Havok Physics API (PhysicsEnginePlugin)");
+            const physicsPlugin = new BABYLON.PhysicsEnginePlugin(havokInstance);
+            this.scene.enablePhysics(new BABYLON.Vector3(0, -9.81, 0), physicsPlugin);
+          } else {
+            throw new Error("No compatible Havok Physics API found in Babylon.js");
+          }
+          
+          // Make static method available globally
+          window.BowlCreator = { getTerrainHeight: BowlCreator.getTerrainHeight };
+          
+          console.log("Havok Physics initialized successfully");
+        } catch (error) {
+          console.error("Failed to initialize Havok Physics:", error);
+          throw error;
+        }
+      }
+
+      // Create new world clock for the new level
+      this.worldClock = new WorldClock(this.scene);
+
+      // Create bowl creator with proper scene reference
+      try {
+        const bowlCreator = new BowlCreator(this.scene);
+        await bowlCreator.createBowl(level.bowlRadius, level.bowlDepth);
+        console.log("Bowl created successfully");
+      } catch (error) {
+        console.error("Error creating bowl:", error);
+        throw error;
+      }
 
       // Create core systems that are always present
-      this.vortexBall = new VortexBall(this.engine.scene);
-      this.behavioralSim = new BehavioralSim(this.engine.scene);
+      try {
+        this.vortexBall = new VortexBall(this.scene);
+        this.behavioralSim = new BehavioralSim(this.scene);
+        console.log("Core systems initialized");
+      } catch (error) {
+        console.error("Error initializing core systems:", error);
+        throw error;
+      }
 
-      // Initialize configured systems
+      // Initialize configured systems with better error handling
       await this.initializeSystems(level);
 
       console.log("Level loaded successfully");
@@ -220,47 +263,81 @@ export class LeoScene {
   }
 
   async initializeSystems(level) {
+    const promises = [];
+    const systems = [];
+
+    console.log("Initializing systems for level:", level.name || "Unknown");
+
+    // Collect all systems that need to be initialized
     for (const [key, config] of Object.entries(SYSTEM_CONFIGS)) {
       if (level[config.condition]) {
+        console.log(`  - Initializing system group: ${key} (${config.condition})`);
+
         // Initialize main systems
         for (const system of config.systems) {
-          try {
-            const constructorArgs = system.constructorArgs ? 
-              system.constructorArgs(this.engine.scene) : 
-              [this.engine.scene];
+          promises.push((async () => {
+            try {
+              console.log(`    - Creating system: ${system.name}`);
+              
+              // Prepare constructor arguments
+              const constructorArgs = system.constructorArgs ? 
+                system.constructorArgs(this.scene) : 
+                [this.scene];
 
-            this[system.name] = new system.class(...constructorArgs);
-            
-            if (system.initialize) {
-              await system.initialize(this[system.name], level);
+              // Create system instance
+              this[system.name] = new system.class(...constructorArgs);
+              systems.push({ name: system.name, system: this[system.name], initialize: system.initialize });
+              
+            } catch (error) {
+              console.error(`Error creating ${system.name}:`, error);
             }
-          } catch (error) {
-            console.error(`Error initializing ${system.name}:`, error);
-          }
+          })());
         }
 
-        // Initialize dependent systems if they exist
+        // Add dependent systems if they exist
         if (config.dependencies) {
           for (const dep of config.dependencies) {
             if (level[dep.condition]) {
+              console.log(`  - Initializing dependent system group: ${dep.condition}`);
+              
               for (const system of dep.systems) {
-                try {
-                  const constructorArgs = system.constructorArgs ? 
-                    system.constructorArgs(this.engine.scene) : 
-                    [this.engine.scene];
+                promises.push((async () => {
+                  try {
+                    console.log(`    - Creating dependent system: ${system.name}`);
+                    
+                    // Prepare constructor arguments
+                    const constructorArgs = system.constructorArgs ? 
+                      system.constructorArgs(this.scene) : 
+                      [this.scene];
 
-                  this[system.name] = new system.class(...constructorArgs);
-                  
-                  if (system.initialize) {
-                    await system.initialize(this[system.name], level);
+                    // Create system instance
+                    this[system.name] = new system.class(...constructorArgs);
+                    systems.push({ name: system.name, system: this[system.name], initialize: system.initialize });
+                    
+                  } catch (error) {
+                    console.error(`Error creating dependent system ${system.name}:`, error);
                   }
-                } catch (error) {
-                  console.error(`Error initializing dependent system ${system.name}:`, error);
-                }
+                })());
               }
             }
           }
         }
+      }
+    }
+
+    // Wait for all system creation to complete
+    await Promise.all(promises);
+
+    // Now initialize all created systems sequentially
+    for (const { name, system, initialize } of systems) {
+      try {
+        console.log(`Initializing system: ${name}`);
+        if (initialize) {
+          await initialize(system, level);
+        }
+        console.log(`System ${name} initialized successfully`);
+      } catch (error) {
+        console.error(`Error initializing ${name}:`, error);
       }
     }
   }

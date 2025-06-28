@@ -198,13 +198,32 @@ export class VillagerBehaviour {
             availableHome.assigned = true;
             console.log(`Villager ${villager.id} assigned to home ${availableHome.id}`);
         } else {
-            console.warn(`No available home for villager ${villager.id}`);
-            // Create a fallback "home" location
-            villager.home = {
-                id: `temp_home_${villager.id}`,
+            // Dynamically create a new home POI at the villager's current position
+            const newHome = {
+                id: `house_dynamic_${this.homeLocations.length}`,
                 position: villager.mesh.position.clone(),
-                radius: 3
+                radius: 3,
+                capacity: 1,
+                assigned: true
             };
+            this.homeLocations.push(newHome);
+
+            // Optionally visualize the new home marker if debug markers are enabled
+            if (this.scene) {
+                const marker = BABYLON.MeshBuilder.CreateCylinder(
+                    `marker_${newHome.id}`,
+                    { height: 0.5, diameter: 2 * newHome.radius },
+                    this.scene
+                );
+                marker.position = newHome.position.clone();
+                marker.position.y -= 0.2;
+                const markerMaterial = new BABYLON.StandardMaterial(`material_${newHome.id}`, this.scene);
+                markerMaterial.diffuseColor = new BABYLON.Color3(0.2, 0.6, 0.9);
+                markerMaterial.alpha = 0.3;
+                marker.material = markerMaterial;
+            }
+
+            villager.home = newHome;
         }
         
         // Add movement update observer
@@ -214,6 +233,19 @@ export class VillagerBehaviour {
         
         // Schedule first action
         this.decideNextAction(villager);
+        
+        // Attach animation groups using VillagerModel if not present
+        if (!villager.mesh.animationGroups) {
+            // Ensure parts exist and call applyAnimations
+            if (villager.parts && Object.keys(villager.parts).length > 0) {
+                this.villagerModel.applyAnimations(villager.mesh, {
+                    leftArm: villager.parts.leftArm,
+                    rightArm: villager.parts.rightArm,
+                    leftLeg: villager.parts.leftLeg,
+                    rightLeg: villager.parts.rightLeg
+                });
+            }
+        }
         
         return villager;
     }

@@ -45,7 +45,7 @@ const SYSTEM_CONFIGS = {
             name: 'fishSystem', 
             class: FishBehaviour,
             initialize: (instance, level) => instance.initialize(level.fishCount),
-            constructorArgs: (scene) => [scene, this.waterSim.waterMesh]
+            constructorArgs: (scene, ctx) => [scene, ctx.waterSim?.waterMesh]
           }
         ]
       }
@@ -283,7 +283,7 @@ export class LeoScene {
               
               // Prepare constructor arguments
               const constructorArgs = system.constructorArgs ? 
-                system.constructorArgs(this.scene) : 
+                system.constructorArgs(this.scene, this) : 
                 [this.scene];
 
               // Create system instance
@@ -309,7 +309,7 @@ export class LeoScene {
                     
                     // Prepare constructor arguments
                     const constructorArgs = system.constructorArgs ? 
-                      system.constructorArgs(this.scene) : 
+                      system.constructorArgs(this.scene, this) : 
                       [this.scene];
 
                     // Create system instance

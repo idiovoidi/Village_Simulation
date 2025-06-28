@@ -16,28 +16,28 @@ export class CloudSystem {
 
     createClouds() {
         for (let i = 0; i < this.cloudCount; i++) {
-            const cloud = this.createCloudMesh();
+            const cloudMesh = this.createCloudMesh();
             
             // Random starting position
-            cloud.position = this.getRandomPosition();
+            cloudMesh.position = this.getRandomPosition();
             
             // Random scale for variety
             const scale = 0.8 + Math.random() * 0.4;
-            cloud.scaling = new BABYLON.Vector3(scale, scale * 0.6, scale);
+            cloudMesh.scaling = new BABYLON.Vector3(scale, scale * 0.6, scale);
             
             // Random rotation
-            cloud.rotation.y = Math.random() * Math.PI * 2;
+            cloudMesh.rotation.y = Math.random() * Math.PI * 2;
 
             // Add movement properties
             this.clouds.push({
-                mesh: cloud,
+                mesh: cloudMesh,
                 speed: 0.02 + Math.random() * 0.02,
                 direction: new BABYLON.Vector3(
                     Math.random() - 0.5,
                     0,
                     Math.random() - 0.5
                 ).normalize(),
-                materials: [] // Store materials for time of day updates
+                materials: cloudMesh.materials // Store materials for time of day updates
             });
         }
     }
@@ -46,7 +46,7 @@ export class CloudSystem {
         // Create cloud from multiple spheres
         const cloud = new BABYLON.TransformNode("cloud", this.scene);
         const segments = 3 + Math.floor(Math.random() * 3);
-        const cloudData = { mesh: cloud, materials: [] };
+        const materials = [];
         
         for (let i = 0; i < segments; i++) {
             const sphere = BABYLON.MeshBuilder.CreateSphere(`cloudPart${i}`, {
@@ -75,10 +75,11 @@ export class CloudSystem {
             sphere.material = cloudMaterial;
             
             // Store material reference
-            cloudData.materials.push(cloudMaterial);
+            materials.push(cloudMaterial);
         }
 
-        return cloudData;
+        cloud.materials = materials;
+        return cloud;
     }
 
     getRandomPosition() {

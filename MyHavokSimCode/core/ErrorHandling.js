@@ -252,20 +252,16 @@ export function retry(maxRetries = 3, delayMs = 100) {
     
     descriptor.value = async function(...args) {
       let lastError;
-      
-      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      for (let i = 0; i < maxRetries; i++) {
         try {
           return await originalMethod.apply(this, args);
         } catch (error) {
           lastError = error;
-          
-          if (attempt < maxRetries) {
-            console.warn(`Retry ${attempt + 1}/${maxRetries} for ${methodName} after error:`, error);
+          if (i < maxRetries - 1) {
             await new Promise(resolve => setTimeout(resolve, delayMs));
           }
         }
       }
-      
       throw lastError;
     };
     
@@ -274,7 +270,31 @@ export function retry(maxRetries = 3, delayMs = 100) {
 }
 
 /**
- * Decorator that measures and logs method execution time
+ * Decorator that throttles method calls to improve performance
+ * @param {number} interval - Minimum time between calls in milliseconds
+ */
+export function throttle(interval) {
+  return function(targetClass, methodName, descriptor) {
+    const originalMethod = descriptor.value;
+    let lastExecutionTime = 0;
+
+    descriptor.value = function(...args) {
+      const now = Date.now();
+
+      if (now - lastExecutionTime >= interval) {
+        lastExecutionTime = now;
+        return originalMethod.apply(this, args);
+      }
+      
+      return null;
+    };
+
+    return descriptor;
+  };
+}
+
+/**
+ * Decorator that measures method performance
  * @param {Function} targetClass - The class containing the method
  * @param {string} methodName - The method name
  * @param {PropertyDescriptor} descriptor - The method descriptor

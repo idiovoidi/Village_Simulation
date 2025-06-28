@@ -2,7 +2,6 @@ import { VortexBall } from './VortexBall.js';
 import { BowlCreator } from './BowlCreator.js';
 import { BehavioralSim } from './BehavioralSim.js';
 import { WaterSimulation } from './WaterSimulation.js';
-import { BoatAgent } from './Agents/Boats/Boats/BoatAgent.js';
 import { RoadSystem } from './RoadSystem.js';
 import { HouseSystem } from './HouseSystem.js';
 import { FishBehaviour } from './Agents/Fish/FishBehaviour.js';
@@ -15,6 +14,9 @@ import { LevelConfig } from './LevelSystem/LevelConfig.js';
 import { LevelSelector } from './LevelSystem/LevelSelector.js';
 import { WorldClock } from './UI/WorldClock.js';
 import { VillageEngine } from './NewVillageEngine.js';
+import { VillagerBehaviour } from './Agents/Villagers/VillagerBehaviour.js';
+import { BoatAgent } from './Agents/Boats/BoatAgent.js';
+import { BoatAgentBehaviour } from './Agents/Boats/BoatAgentBehaviour.js';
 
 // Define system configurations
 const SYSTEM_CONFIGS = {

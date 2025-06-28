@@ -6,6 +6,7 @@ export class ZombieBehaviour {
         // Inject dependencies
         this.scene = scene;
         this.zombies = [];
+        this.villagerSystem = null; // Will be set by the main scene
         
         // Configuration parameters with defaults
         this.config = {
@@ -144,6 +145,17 @@ export class ZombieBehaviour {
             zombie.setTarget(blendedTarget);
         }
         
+        // Add separation behavior to prevent clumping
+        const separationDistance = 3; // Minimum distance between zombies
+        groupMates.forEach(mate => {
+            const distToMate = BABYLON.Vector3.Distance(zombie.model.mesh.position, mate.model.mesh.position);
+            if (distToMate < separationDistance) {
+                const awayFromMate = zombie.model.mesh.position.subtract(mate.model.mesh.position).normalize();
+                const newPos = zombie.model.mesh.position.add(awayFromMate.scale(0.1));
+                zombie.model.mesh.position = newPos;
+            }
+        });
+
         // State influence - zombies can influence each other
         // If one zombie is pursuing, others nearby might join
         if (zombie.state === 'idle') {
@@ -156,12 +168,40 @@ export class ZombieBehaviour {
                 zombie.setState('pursuing');
             }
         }
+
+        // If pursuing, check for nearby villagers to attack
+        if (zombie.state === 'pursuing' && this.villagerSystem) {
+            const nearbyVillagers = this.villagerSystem.villagers.filter(villager =>
+                BABYLON.Vector3.Distance(zombie.model.mesh.position, villager.mesh.position) < 3
+            );
+
+            if (nearbyVillagers.length > 0) {
+                // Attack the first villager in range
+                this.villagerSystem.killVillager(nearbyVillagers[0]);
+                zombie.setState('idle'); // Go idle after an attack
+            }
+        }
     }
     
     _checkPlayerDetection(zombie) {
         // Check if zombie should detect the player
         if (zombie.state === 'idle') {
-            zombie.detectPlayer();
+            const playerPos = this.scene.activeCamera.position;
+            const distToPlayer = BABYLON.Vector3.Distance(zombie.model.mesh.position, playerPos);
+
+            if (distToPlayer < this.config.detection.playerAwarenessRadius) {
+                // Become suspicious and investigate the player's position
+                zombie.setTarget(playerPos);
+                zombie.setState('suspicious');
+            }
+        } else if (zombie.state === 'suspicious') {
+            const playerPos = this.scene.activeCamera.position;
+            const distToPlayer = BABYLON.Vector3.Distance(zombie.model.mesh.position, playerPos);
+
+            // If player is still close after investigating, become aggressive
+            if (distToPlayer < this.config.detection.aggressiveRadius) {
+                zombie.setState('pursuing');
+            }
         }
     }
 

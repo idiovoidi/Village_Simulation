@@ -25,7 +25,8 @@ const SYSTEM_CONFIGS = {
     systems: [
       { name: 'roadSystem', class: RoadSystem },
       { name: 'villageSystem', class: VillageSystem },
-      { name: 'houseSystem', class: HouseSystem }
+      { name: 'houseSystem', class: HouseSystem },
+      { name: 'villagerSystem', class: VillagerBehaviour }
     ]
   },
   water: {
@@ -341,6 +342,12 @@ export class LeoScene {
       } catch (error) {
         console.error(`Error initializing ${name}:`, error);
       }
+    }
+
+    // After all systems are initialized, link them
+    if (this.villagerSystem && this.zombieSystem) {
+        this.villagerSystem.zombieSystem = this.zombieSystem;
+        this.zombieSystem.villagerSystem = this.villagerSystem;
     }
   }
 

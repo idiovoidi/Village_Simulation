@@ -3,6 +3,7 @@ import { WorldClock } from '../../UI/WorldClock.js';
 import { DayNightCycle } from '../../Environment/DayNightCycle.js';
 import { BasicAgent } from '../BasicAgent.js';
 import { VillagerModel } from './VillagerModel.js';
+import { BloodDecalManager } from '../../Effects/BloodDecalManager.js';
 
 // Error handling decorator
 function ErrorDecorator(target, propertyKey, descriptor) {
@@ -40,6 +41,7 @@ export class VillagerBehaviour {
         this.villagers = [];
         this.basicAgent = new BasicAgent(scene);
         this.villagerModel = new VillagerModel(scene);
+        this.bloodDecalManager = new BloodDecalManager(scene);
         
         // Initialize time-related systems
         this.worldClock = new WorldClock(this.scene);
@@ -645,6 +647,23 @@ export class VillagerBehaviour {
             villager.mesh.animationGroups[animationName] && 
             !villager.mesh.animationGroups[animationName].isPlaying) {
             this.villagerModel.playAnimation(villager, animationName);
+        }
+    }
+
+    killVillager(villager) {
+        // Create blood decal at the villager's position
+        this.bloodDecalManager.createBloodDecal(villager.mesh.position);
+
+        // Remove the villager
+        const index = this.villagers.findIndex(v => v.id === villager.id);
+        if (index !== -1) {
+            this.villagers.splice(index, 1);
+        }
+        villager.mesh.dispose();
+
+        // Spawn a new zombie in its place
+        if (this.zombieSystem) {
+            this.zombieSystem.addZombie(villager.mesh.position);
         }
     }
 

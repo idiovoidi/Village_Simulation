@@ -12,7 +12,7 @@ export class ZombieAgent {
         this.position = options.position || new BABYLON.Vector3(0, 0, 0);
         this.velocity = new BABYLON.Vector3(0, 0, 0);
         this.target = this.position.clone();
-        this.state = options.initialState || 'idle'; // idle, pursuing, attacking
+        this.state = options.initialState || 'idle'; // idle, pursuing, attacking, suspicious
         this.groupId = options.groupId || 0;
         
         // Configuration parameters
@@ -72,6 +72,9 @@ export class ZombieAgent {
             case 'attacking':
                 this._updateAttackingBehavior(deltaTime);
                 break;
+            case 'suspicious':
+                this._updateSuspiciousBehavior(deltaTime);
+                break;
         }
         
         // Always animate model
@@ -89,7 +92,7 @@ export class ZombieAgent {
     
     setState(state) {
         // Only change if it's a valid state
-        const validStates = ['idle', 'pursuing', 'attacking'];
+        const validStates = ['idle', 'pursuing', 'attacking', 'suspicious'];
         if (validStates.includes(state)) {
             this.state = state;
         }
@@ -198,6 +201,29 @@ export class ZombieAgent {
         }
     }
     
+    _updateSuspiciousBehavior(deltaTime) {
+        // Move toward target, then switch to idle if nothing happens
+        const distToTarget = BABYLON.Vector3.Distance(
+            this.model.mesh.position,
+            this.target
+        );
+
+        if (distToTarget < 1) {
+            // Reached suspicious location, wait a moment then return to idle
+            if (!this._suspiciousTimer) {
+                this._suspiciousTimer = 2; // 2 seconds
+            }
+            this._suspiciousTimer -= deltaTime;
+            if (this._suspiciousTimer <= 0) {
+                this._suspiciousTimer = null;
+                this.setState('idle');
+            }
+        } else {
+            // Move toward target
+            this._moveTowardTargetWithShamble(deltaTime);
+        }
+    }
+    
     _selectNewRandomTarget() {
         // Get random position within radius
         const angle = Math.random() * Math.PI * 2;
@@ -213,6 +239,10 @@ export class ZombieAgent {
     _moveTowardTargetWithShamble(deltaTime) {
         if (this.config.lurge.isActive) return; // Skip if lurging
         
+        if (this._isPathBlocked()) {
+            this._findAlternatePath();
+        }
+
         const toTarget = this.target.subtract(this.model.mesh.position);
         const distance = toTarget.length();
         
@@ -245,6 +275,29 @@ export class ZombieAgent {
             this.model.mesh.rotation.y = currentRotation + 
                 (targetRotation - currentRotation) * 0.1;
         }
+    }
+    
+    _isPathBlocked() {
+        const origin = this.model.mesh.position.add(new BABYLON.Vector3(0, 0.5, 0)); // Start ray slightly above ground
+        const direction = this.model.mesh.getDirection(BABYLON.Axis.Z);
+        const ray = new BABYLON.Ray(origin, direction, 5); // 5 units ahead
+
+        const hit = this.scene.pickWithRay(ray, (mesh) => {
+            return mesh.isPickable && mesh !== this.model.mesh && !mesh.name.startsWith("zombie");
+        });
+
+        return hit.hit;
+    }
+
+    _findAlternatePath() {
+        // Simple avoidance: turn randomly left or right
+        const angle = (Math.random() < 0.5 ? -1 : 1) * (Math.PI / 4); // 45 degrees
+        const currentDirection = this.model.mesh.getDirection(BABYLON.Axis.Z);
+        const rotationQuaternion = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.Y, angle);
+        const newDirection = currentDirection.rotateByQuaternionToRef(rotationQuaternion, new BABYLON.Vector3());
+        
+        const newTarget = this.model.mesh.position.add(newDirection.scale(10));
+        this.setTarget(newTarget);
     }
     
     _getTerrainHeight(x, z) {
@@ -294,5 +347,6 @@ ZombieAgent.prototype._startLurge = handleAgentError(ZombieAgent.prototype._star
 ZombieAgent.prototype._updateIdleBehavior = handleAgentError(ZombieAgent.prototype._updateIdleBehavior);
 ZombieAgent.prototype._updatePursuingBehavior = handleAgentError(ZombieAgent.prototype._updatePursuingBehavior);
 ZombieAgent.prototype._updateAttackingBehavior = handleAgentError(ZombieAgent.prototype._updateAttackingBehavior);
+ZombieAgent.prototype._updateSuspiciousBehavior = handleAgentError(ZombieAgent.prototype._updateSuspiciousBehavior);
 ZombieAgent.prototype._selectNewRandomTarget = handleAgentError(ZombieAgent.prototype._selectNewRandomTarget);
 ZombieAgent.prototype._moveTowardTargetWithShamble = handleAgentError(ZombieAgent.prototype._moveTowardTargetWithShamble); 

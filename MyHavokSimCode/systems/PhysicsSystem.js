@@ -739,10 +739,27 @@ export class PhysicsSystem {
         // Check if this is a dynamic (non-static) body
         let isStatic = true;
         
-        if (body.aggregate && body.aggregate.body) {
+        if (body.aggregate) {
           try {
-            // For PhysicsAggregate API
-            isStatic = body.aggregate.body.getMass() === 0;
+            // For PhysicsAggregate API (Havok / Ammo)
+            let mass = 0;
+            const physBody = body.aggregate.body;
+            if (physBody) {
+              if (typeof physBody.getMassProperties === 'function') {
+                // HavokPhysics and newer Ammo back-ends
+                const massProps = physBody.getMassProperties();
+                if (massProps && typeof massProps.mass === 'number') {
+                  mass = massProps.mass;
+                }
+              } else if (typeof physBody.getMass === 'function') {
+                // Older Ammo back-end
+                mass = physBody.getMass();
+              } else if (typeof physBody.mass === 'number') {
+                // Fallback property
+                mass = physBody.mass;
+              }
+            }
+            isStatic = mass === 0;
           } catch (e) {
             console.warn(`Error checking aggregate mass for entity ${entityId}:`, e);
             continue; // Skip this body if we can't determine its mass
@@ -795,10 +812,24 @@ export class PhysicsSystem {
         // Check if this is a dynamic (non-static) body
         let isStatic = true;
         
-        if (body.aggregate && body.aggregate.body) {
+        if (body.aggregate) {
           try {
-            // For PhysicsAggregate API
-            isStatic = body.aggregate.body.getMass() === 0;
+            // For PhysicsAggregate API (Havok / Ammo)
+            let mass = 0;
+            const physBody = body.aggregate.body;
+            if (physBody) {
+              if (typeof physBody.getMassProperties === 'function') {
+                const massProps = physBody.getMassProperties();
+                if (massProps && typeof massProps.mass === 'number') {
+                  mass = massProps.mass;
+                }
+              } else if (typeof physBody.getMass === 'function') {
+                mass = physBody.getMass();
+              } else if (typeof physBody.mass === 'number') {
+                mass = physBody.mass;
+              }
+            }
+            isStatic = mass === 0;
           } catch (e) {
             console.warn(`Error checking aggregate mass for entity ${entityId}:`, e);
             continue; // Skip this body if we can't determine its mass

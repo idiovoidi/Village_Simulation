@@ -56,23 +56,69 @@ export class DayNightCycle {
     }
 
     createLights() {
-        // Main directional light (sun)
+        // Main directional light (sun) - reduced intensity to prevent overblown lighting
         this.sunLight = new BABYLON.DirectionalLight("sunLight", new BABYLON.Vector3(0, -1, 0), this.scene);
-        this.sunLight.intensity = 5;
+        this.sunLight.intensity = 2.5; // Reduced from 5 to 2.5
         this.sunLight.shadowEnabled = true;
         this.sunLight.shadowMinZ = 1;
         this.sunLight.shadowMaxZ = 1000;
+        // Reduce specular reflections to prevent intense reflections
+        this.sunLight.specular = new BABYLON.Color3(0.3, 0.3, 0.3); // Reduced specular
 
-        // Ambient light for night
+        // Ambient light for night - increased slightly to compensate for reduced sun intensity
         this.ambientLight = new BABYLON.HemisphericLight("ambientLight", new BABYLON.Vector3(0, 1, 0), this.scene);
-        this.ambientLight.intensity = 0.1;
+        this.ambientLight.intensity = 0.2; // Increased from 0.1 to 0.2
         this.ambientLight.groundColor = new BABYLON.Color3(0.05, 0.05, 0.15); // Bluer ground color for night
-        this.ambientLight.specular = new BABYLON.Color3(0.1, 0.1, 0.1);
+        this.ambientLight.specular = new BABYLON.Color3(0.05, 0.05, 0.05); // Reduced specular
 
-        // Add volumetric light
+        // Add volumetric light with reduced intensity
         this.volumetricLight = new BABYLON.VolumetricLightScatteringPostProcess(
             'volumetric', 1.0, this.scene.activeCamera, null, 100, BABYLON.Texture.BILINEAR_SAMPLINGMODE, this.scene.getEngine(), false
         );
+        
+        // Reduce overall scene reflectivity to prevent overblown reflections
+        this.adjustSceneMaterials();
+    }
+    
+    /**
+     * Adjust scene materials to reduce overblown reflections
+     */
+    adjustSceneMaterials() {
+        // Wait for scene to be ready, then adjust materials
+        this.scene.onReadyObservable.addOnce(() => {
+            this.scene.meshes.forEach(mesh => {
+                if (mesh.material) {
+                    // Reduce specular power and intensity for all materials
+                    if (mesh.material.specularPower !== undefined) {
+                        mesh.material.specularPower = Math.max(mesh.material.specularPower * 0.5, 16);
+                    }
+                    if (mesh.material.specularColor) {
+                        mesh.material.specularColor = mesh.material.specularColor.scale(0.4);
+                    }
+                    
+                    // Special handling for water/fountain materials
+                    if (mesh.name && (mesh.name.toLowerCase().includes('water') || 
+                                     mesh.name.toLowerCase().includes('fountain') ||
+                                     mesh.name.toLowerCase().includes('pool'))) {
+                        if (mesh.material.specularColor) {
+                            mesh.material.specularColor = mesh.material.specularColor.scale(0.3);
+                        }
+                        if (mesh.material.specularPower !== undefined) {
+                            mesh.material.specularPower = Math.min(mesh.material.specularPower, 32);
+                        }
+                    }
+                    
+                    // Special handling for metallic/reflective surfaces
+                    if (mesh.name && (mesh.name.toLowerCase().includes('metal') || 
+                                     mesh.name.toLowerCase().includes('chrome') ||
+                                     mesh.name.toLowerCase().includes('mirror'))) {
+                        if (mesh.material.specularColor) {
+                            mesh.material.specularColor = mesh.material.specularColor.scale(0.6);
+                        }
+                    }
+                }
+            });
+        });
     }
 
     createSkybox() {
@@ -236,9 +282,10 @@ export class DayNightCycle {
         const normalizedHeight = (sunHeight - this.ORBIT_HEIGHT_MIN) / 
                                (this.ORBIT_HEIGHT_MAX - this.ORBIT_HEIGHT_MIN);
         
-        // Update sun light intensity with smoother transition
-        const baseSunIntensity = Math.max(0, normalizedHeight) * 2;
-        this.sunLight.intensity = baseSunIntensity;
+        // Update sun light intensity with smoother transition and reduced maximum
+        const baseSunIntensity = Math.max(0, normalizedHeight) * 1.5; // Reduced from 2 to 1.5
+        const multiplier = this.sunIntensityMultiplier || 1.0;
+        this.sunLight.intensity = baseSunIntensity * multiplier;
 
         // Update sun color based on height
         const sunsetProgress = Math.max(0, Math.min(1, 1 - Math.abs(normalizedHeight)));
@@ -266,11 +313,11 @@ export class DayNightCycle {
                 }
             });
         } else {
-            // Day settings
-            this.ambientLight.intensity = twilightZone ? 0.3 : 0.2;
-            this.ambientLight.diffuse = new BABYLON.Color3(0.7, 0.7, 1.0);
+            // Day settings - increased ambient light to compensate for reduced sun intensity
+            this.ambientLight.intensity = twilightZone ? 0.4 : 0.3; // Increased from 0.3/0.2 to 0.4/0.3
+            this.ambientLight.diffuse = new BABYLON.Color3(0.6, 0.6, 0.9); // Slightly cooler tone
             this.moonGlow.intensity = 0;
-            this.sunGlow.intensity = 0.7;
+            this.sunGlow.intensity = 0.5; // Reduced from 0.7 to 0.5
             
             // Hide stars during day
             this.stars.forEach(star => {
@@ -340,12 +387,15 @@ export class DayNightCycle {
             this.scene.fogColor = new BABYLON.Color3(0.7, 0.8, 1.0);
         }
 
-        // Update volumetric light
+        // Update volumetric light with reduced intensity to prevent overblown effects
         if (this.volumetricLight) {
-            this.volumetricLight.exposure = isNight ? 0.1 : 0.8;
-            this.volumetricLight.decay = isNight ? 0.9 : 0.95;
-            this.volumetricLight.weight = isSunrise || isSunset ? 0.5 : 0.3;
+            this.volumetricLight.exposure = isNight ? 0.1 : 0.5; // Reduced from 0.8 to 0.5
+            this.volumetricLight.decay = isNight ? 0.9 : 0.96; // Slightly increased decay
+            this.volumetricLight.weight = isSunrise || isSunset ? 0.3 : 0.2; // Reduced weight
         }
+        
+        // Adjust scene exposure to prevent overblown lighting
+        this.adjustSceneExposure(normalizedHeight);
 
         // Update star visibility and twinkling
         const starVisibility = Math.max(0, Math.min(1, (100 - sunHeight) / 200));
@@ -357,6 +407,58 @@ export class DayNightCycle {
                 star.material.emissiveColor = star.material.diffuseColor.scale(0.8 + twinkle * 0.2);
             }
         });
+    }
+    
+    /**
+     * Adjust scene exposure to prevent overblown lighting
+     * @param {number} normalizedHeight - Normalized sun height (0-1)
+     */
+    adjustSceneExposure(normalizedHeight) {
+        // Create or update image processing if it doesn't exist
+        if (!this.scene.imageProcessingConfiguration) {
+            this.scene.imageProcessingConfiguration = new BABYLON.ImageProcessingConfiguration();
+        }
+        
+        const imageProcessing = this.scene.imageProcessingConfiguration;
+        
+        // Adjust exposure based on sun height to prevent overblown lighting
+        const maxExposure = 1.0;
+        const minExposure = 0.3;
+        
+        // During peak sun hours, reduce exposure more
+        const exposureReduction = Math.max(0, normalizedHeight - 0.3) * 0.5;
+        imageProcessing.exposure = maxExposure - exposureReduction;
+        
+        // Adjust contrast to maintain visual quality
+        imageProcessing.contrast = 1.1 + (exposureReduction * 0.2);
+        
+        // Enable tone mapping to handle high dynamic range
+        imageProcessing.toneMappingEnabled = true;
+        imageProcessing.toneMappingType = BABYLON.ImageProcessingConfiguration.TONEMAPPING_ACES;
+    }
+    
+    /**
+     * Manually adjust lighting intensity (for debugging/fine-tuning)
+     * @param {number} intensity - Sun light intensity multiplier (0-2)
+     */
+    setSunIntensity(intensity) {
+        this.sunIntensityMultiplier = Math.max(0, Math.min(2, intensity));
+        console.log(`Sun intensity multiplier set to: ${this.sunIntensityMultiplier}`);
+    }
+    
+    /**
+     * Get current lighting information for debugging
+     * @returns {Object} Current lighting stats
+     */
+    getLightingInfo() {
+        return {
+            gameTime: this.gameTime,
+            currentHour: this.getCurrentHour(),
+            sunHeight: this.sun.position.y,
+            sunIntensity: this.sunLight.intensity,
+            ambientIntensity: this.ambientLight.intensity,
+            exposure: this.scene.imageProcessingConfiguration?.exposure || 1.0
+        };
     }
 
     dispose() {

@@ -5,6 +5,7 @@ export class ZombieModel {
         this.arms = { left: null, right: null };
         this.legs = { left: null, right: null };
         this.bloodStains = [];
+        this.animationGroups = {};
     }
 
     create(position) {
@@ -47,43 +48,92 @@ export class ZombieModel {
         this.legs.left = this.createLeg("left", -0.3);
         this.legs.right = this.createLeg("right", 0.3);
 
-        // Create zombie material
-        const zombieMaterial = new BABYLON.StandardMaterial("zombieMat", this.scene);
-        zombieMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.6, 0.4);
-        zombieMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
-        zombieMaterial.emissiveColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+        // Create animations now that arms/legs are created
+        this.createAnimations(head);
 
-        // Create face material
-        const faceMaterial = new BABYLON.StandardMaterial("faceMat", this.scene);
-        faceMaterial.diffuseColor = new BABYLON.Color3(0.6, 0.5, 0.5);
-        faceMaterial.emissiveColor = new BABYLON.Color3(0.1, 0, 0);
+        // Create zombie material for skin
+        const zombieSkinMaterial = new BABYLON.StandardMaterial("zombieSkinMat", this.scene);
+        zombieSkinMaterial.diffuseColor = new BABYLON.Color3(0.5, 0.6, 0.4); // Sickly green-gray
+        zombieSkinMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
 
-        // Add blood drips
-        const bloodDripMaterial = new BABYLON.StandardMaterial("bloodDripMat", this.scene);
-        bloodDripMaterial.diffuseColor = new BABYLON.Color3(0.7, 0, 0);
-        bloodDripMaterial.alpha = 0.9;
-        bloodDripMaterial.emissiveColor = new BABYLON.Color3(0.2, 0, 0);
+        // Create tattered clothing material
+        const clothingMaterial = new BABYLON.StandardMaterial("zombieClothingMat", this.scene);
+        clothingMaterial.diffuseColor = new BABYLON.Color3(0.3, 0.2, 0.1); // Drab brown
 
-        // Create blood drips
-        for (let i = 0; i < 3; i++) {
-            const drip = BABYLON.MeshBuilder.CreateBox("bloodDrip", {
-                height: 0.1 + Math.random() * 0.3,
-                width: 0.05,
-                depth: 0.05
+        // Apply clothing material to torso
+        torso.material = clothingMaterial;
+
+        // Add tattered patches to torso
+        for (let i = 0; i < 5; i++) {
+            const patch = BABYLON.MeshBuilder.CreateBox("patch", {
+                height: 0.4,
+                width: 0.4,
+                depth: 0.1
             }, this.scene);
-            drip.parent = head;
-            drip.position.y = -0.2 - i * 0.2;
-            drip.position.z = 0.4;
-            drip.material = bloodDripMaterial;
-            this.bloodStains.push(drip);
+            patch.parent = torso;
+            patch.position = new BABYLON.Vector3(
+                (Math.random() - 0.5) * 1,
+                (Math.random() - 0.5) * 1.5,
+                0.5
+            );
+            patch.rotation.y = Math.random() * Math.PI;
+            patch.material = clothingMaterial;
         }
 
+        // Create glowing eyes material
+        const eyeMaterial = new BABYLON.StandardMaterial("zombieEyeMat", this.scene);
+        eyeMaterial.emissiveColor = new BABYLON.Color3(0.8, 0.1, 0.1); // Faint red glow
+
+        // Create eyes
+        const leftEye = BABYLON.MeshBuilder.CreateSphere("leftEye", { diameter: 0.1 }, this.scene);
+        leftEye.parent = head;
+        leftEye.position = new BABYLON.Vector3(-0.2, 0.1, 0.35);
+        leftEye.material = eyeMaterial;
+
+        const rightEye = BABYLON.MeshBuilder.CreateSphere("rightEye", { diameter: 0.1 }, this.scene);
+        rightEye.parent = head;
+        rightEye.position = new BABYLON.Vector3(0.2, 0.1, 0.35);
+        rightEye.material = eyeMaterial;
+        
         // Apply materials
-        torso.material = zombieMaterial;
-        head.material = faceMaterial;
-        neck.material = zombieMaterial;
+        head.material = zombieSkinMaterial;
+        neck.material = zombieSkinMaterial;
+        this.arms.left.getChildMeshes().forEach(m => m.material = zombieSkinMaterial);
+        this.arms.right.getChildMeshes().forEach(m => m.material = zombieSkinMaterial);
+        this.legs.left.getChildMeshes().forEach(m => m.material = zombieSkinMaterial);
+        this.legs.right.getChildMeshes().forEach(m => m.material = zombieSkinMaterial);
+
+        // Apply animations
+        this.mesh.animationGroups = this.animationGroups;
 
         return this.mesh;
+    }
+
+    createAnimations(head) {
+        // Attack animation (right arm swipe)
+        const attackAnimation = new BABYLON.Animation("attackAnimation", "rotation.x", 30, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+        const attackKeys = [];
+        attackKeys.push({ frame: 0, value: 0 });
+        attackKeys.push({ frame: 10, value: -Math.PI / 2 });
+        attackKeys.push({ frame: 20, value: 0 });
+        attackAnimation.setKeys(attackKeys);
+
+        const attackGroup = new BABYLON.AnimationGroup("attack");
+        attackGroup.addTargetedAnimation(attackAnimation, this.arms.right);
+        this.animationGroups.attack = attackGroup;
+
+        // Suspicious animation (head turning)
+        const suspiciousAnimation = new BABYLON.Animation("suspiciousAnimation", "rotation.y", 30, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
+        const suspiciousKeys = [];
+        suspiciousKeys.push({ frame: 0, value: 0 });
+        suspiciousKeys.push({ frame: 20, value: -Math.PI / 8 });
+        suspiciousKeys.push({ frame: 60, value: Math.PI / 8 });
+        suspiciousKeys.push({ frame: 100, value: 0 });
+        suspiciousAnimation.setKeys(suspiciousKeys);
+
+        const suspiciousGroup = new BABYLON.AnimationGroup("suspicious");
+        suspiciousGroup.addTargetedAnimation(suspiciousAnimation, head);
+        this.animationGroups.suspicious = suspiciousGroup;
     }
 
     createArm(side, offset) {
@@ -126,16 +176,7 @@ export class ZombieModel {
         hand.position.y = -1.6;
         hand.scaling = new BABYLON.Vector3(1, 0.7, 0.5);
 
-        // Apply zombie material
-        const zombieMaterial = new BABYLON.StandardMaterial(`${side}ArmMat`, this.scene);
-        zombieMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.6, 0.4);
-        zombieMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
-
-        upperArm.material = zombieMaterial;
-        elbow.material = zombieMaterial;
-        forearm.material = zombieMaterial;
-        hand.material = zombieMaterial;
-
+        // No need to set material here, it's handled in create()
         return armContainer;
     }
 
@@ -180,67 +221,43 @@ export class ZombieModel {
         foot.position.y = -2;
         foot.position.z = 0.1;
 
-        // Apply zombie material
-        const zombieMaterial = new BABYLON.StandardMaterial(`${side}LegMat`, this.scene);
-        zombieMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.6, 0.4);
-        zombieMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
-
-        upperLeg.material = zombieMaterial;
-        knee.material = zombieMaterial;
-        lowerLeg.material = zombieMaterial;
-        foot.material = zombieMaterial;
-
+        // No need to set material here, it's handled in create()
         return legContainer;
     }
 
-    animate(deltaTime, speed) {
+    animate(deltaTime, speed, state = 'idle') {
         if (!this.mesh) return;
 
-        // Slower base shambling, more dramatic lurge
         const angle = deltaTime * (speed > 1 ? 6 : 2);
-        
+
+        // Stop all animations before playing a new one
+        for (const group of Object.values(this.animationGroups)) {
+            group.stop();
+        }
+
+        switch (state) {
+            case 'attacking':
+                this.animationGroups.attack.play(false);
+                break;
+            case 'suspicious':
+                this.animationGroups.suspicious.play(true);
+                break;
+            case 'pursuing':
+            case 'idle':
+            default:
+                // Slower base shambling, more dramatic lurge
+                this.arms.left.rotation.x = Math.sin(angle) * 0.5;
+                this.arms.right.rotation.x = -Math.sin(angle) * 0.5;
+                this.legs.left.rotation.x = -Math.sin(angle) * 0.5;
+                this.legs.right.rotation.x = Math.sin(angle) * 0.5;
+                break;
+        }
+
         // More pronounced forward lean during lurge
         this.mesh.rotation.x = speed > 1 ? 0.4 : 0.2;
         
-        // Arms behavior
-        if (this.arms.left && this.arms.right) {
-            if (speed > 1) {
-                // Aggressive lurging pose
-                this.arms.left.rotation.x = 1.2;
-                this.arms.right.rotation.x = 1.2;
-                this.arms.left.rotation.z = -1.0;
-                this.arms.right.rotation.z = 1.0;
-                
-                // Violent arm swaying during lurge
-                const lurgeArmSway = Math.sin(angle * 2) * 0.6;
-                this.arms.left.rotation.x += lurgeArmSway;
-                this.arms.right.rotation.x -= lurgeArmSway;
-            } else {
-                // Normal shambling pose
-                this.arms.left.rotation.x = 0.8;
-                this.arms.right.rotation.x = 0.8;
-                this.arms.left.rotation.z = -0.8;
-                this.arms.right.rotation.z = 0.8;
-                
-                const armSway = Math.sin(angle) * 0.2;
-                this.arms.left.rotation.x += armSway;
-                this.arms.right.rotation.x -= armSway;
-            }
-        }
-
-        // More dramatic leg movement during lurge
-        if (this.legs.left && this.legs.right) {
-            const legAngle = speed > 1 ? 
-                Math.sin(angle) * 0.7 : // Bigger steps when lurging
-                Math.sin(angle) * 0.3;  // Normal shuffling
-            
-            this.legs.left.rotation.x = -legAngle;
-            this.legs.right.rotation.x = legAngle;
-        }
-
         // More intense body sway during lurge
-        const bodySway = Math.sin(angle * 0.5) * (speed > 1 ? 0.2 : 0.1);
-        this.mesh.rotation.z = bodySway;
+        this.mesh.rotation.y += Math.sin(angle * 0.5) * 0.01 * speed;
 
         // More dramatic head movement during lurge
         const head = this.mesh.getChildMeshes().find(mesh => mesh.name === "zombieHead");

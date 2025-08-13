@@ -79,7 +79,7 @@ export class ZombieAgent {
         
         // Always animate model
         const animationSpeed = this.config.lurge.isActive ? 2 : 1;
-        this.model.animate(deltaTime, animationSpeed);
+        this.model.animate(deltaTime, animationSpeed, this.state);
     }
     
     setTarget(target) {
@@ -278,6 +278,16 @@ export class ZombieAgent {
     }
     
     _isPathBlocked() {
+        // Only check for obstacles if close to the target, to avoid unnecessary raycasts
+        if (BABYLON.Vector3.Distance(this.model.mesh.position, this.target) > 5) {
+            return false;
+        }
+
+        // Throttle raycasting to once every 10 frames
+        if (this.scene.getFrameId() % 10 !== 0) {
+            return this._lastRaycastResult || false;
+        }
+
         const origin = this.model.mesh.position.add(new BABYLON.Vector3(0, 0.5, 0)); // Start ray slightly above ground
         const direction = this.model.mesh.getDirection(BABYLON.Axis.Z);
         const ray = new BABYLON.Ray(origin, direction, 5); // 5 units ahead
@@ -286,6 +296,7 @@ export class ZombieAgent {
             return mesh.isPickable && mesh !== this.model.mesh && !mesh.name.startsWith("zombie");
         });
 
+        this._lastRaycastResult = hit.hit;
         return hit.hit;
     }
 

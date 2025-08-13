@@ -4,6 +4,12 @@ import { DayNightCycle } from '../../Environment/DayNightCycle.js';
 import { BasicAgent } from '../BasicAgent.js';
 import { VillagerModel } from './VillagerModel.js';
 import { BloodDecalManager } from '../../Effects/BloodDecalManager.js';
+import { VillagerSurvivalInstinct } from './VillagerSurvivalInstinct.js';
+import { VillagerSocialNetwork } from './VillagerSocialNetwork.js';
+import { VillagerShelterSystem } from './VillagerShelterSystem.js';
+import { EnhancedStateMachine } from '../../core/EnhancedStateMachine.js';
+import { AgentCommunicationSystem } from '../../core/AgentCommunicationSystem.js';
+import { EnvironmentalAwareness } from '../../core/EnvironmentalAwareness.js';
 
 // Error handling decorator
 function ErrorDecorator(target, propertyKey, descriptor) {
@@ -47,7 +53,21 @@ export class VillagerBehaviour {
         this.worldClock = new WorldClock(this.scene);
         this.dayNightCycle = new DayNightCycle(this.scene);
         
-        // Define states based on our design document
+        // Initialize enhanced systems
+        this.communicationSystem = new AgentCommunicationSystem(scene);
+        this.environmentalAwareness = new EnvironmentalAwareness(scene);
+        
+        // Performance optimization settings
+        this.performanceSettings = {
+            enhancedSystemsEnabled: true,
+            maxEnhancedVillagers: 20, // Limit enhanced behavior to first 20 villagers
+            updateThrottleMs: 100, // Update enhanced systems every 100ms instead of every frame
+            staggeredUpdates: true, // Spread updates across frames
+            lastSystemUpdate: 0,
+            villagerUpdateIndex: 0 // For staggered updates
+        };
+        
+        // Define enhanced states based on our design document
         this.STATES = {
             IDLE: 'idle',
             WANDERING: 'wandering',
@@ -55,7 +75,12 @@ export class VillagerBehaviour {
             PERFORMING_TASK: 'performing_task',
             SOCIALIZING: 'socializing',
             INSIDE_HOME: 'inside_home',
-            FLEEING: 'fleeing'
+            FLEEING: 'fleeing',
+            SEEKING_SHELTER: 'seeking_shelter',
+            IN_SHELTER: 'in_shelter',
+            ALERT: 'alert',
+            PANICKING: 'panicking',
+            COORDINATING_ESCAPE: 'coordinating_escape'
         };
         
         // Points of interest registry
@@ -63,7 +88,7 @@ export class VillagerBehaviour {
         this.workLocations = [];
         this.homeLocations = [];
         
-        // Animation mappings
+        // Enhanced animation mappings
         this.stateToAnimation = {
             [this.STATES.IDLE]: 'idle',
             [this.STATES.WANDERING]: 'walk',
@@ -71,7 +96,12 @@ export class VillagerBehaviour {
             [this.STATES.PERFORMING_TASK]: 'work',
             [this.STATES.SOCIALIZING]: 'idle', // Default idle, will switch to 'greet' when near others
             [this.STATES.INSIDE_HOME]: null, // No animation when inside (hidden)
-            [this.STATES.FLEEING]: 'walk' // Use walk animation at faster speed for fleeing
+            [this.STATES.FLEEING]: 'walk', // Use walk animation at faster speed for fleeing
+            [this.STATES.SEEKING_SHELTER]: 'walk',
+            [this.STATES.IN_SHELTER]: 'idle',
+            [this.STATES.ALERT]: 'idle',
+            [this.STATES.PANICKING]: 'walk',
+            [this.STATES.COORDINATING_ESCAPE]: 'idle'
         };
         
         // Helper function to replace missing BABYLON.Scalar.WrapAngle
@@ -83,11 +113,47 @@ export class VillagerBehaviour {
             return angle;
         };
         
+        // Initialize enhanced systems
+        this.initializeEnhancedSystems();
+        
+        // Performance monitoring
+        this.lastPerformanceCheck = 0;
+        this.performanceCheckInterval = 2000; // Check every 2 seconds
+        
         // Initialize update loop
         this.scene.onBeforeRenderObservable.add(() => {
             const deltaTime = this.scene.getEngine().getDeltaTime() * 0.001;
             this.updateVillagers(deltaTime);
+            
+            // Periodically adjust performance settings
+            const now = performance.now();
+            if (now - this.lastPerformanceCheck > this.performanceCheckInterval) {
+                this.adjustPerformanceSettings();
+                this.lastPerformanceCheck = now;
+            }
         });
+    }
+    
+    /**
+     * Initialize enhanced systems for villager behavior
+     */
+    initializeEnhancedSystems() {
+        try {
+            // Initialize communication system
+            if (this.communicationSystem && typeof this.communicationSystem.initialize === 'function') {
+                this.communicationSystem.initialize();
+            }
+            
+            // Initialize environmental awareness
+            if (this.environmentalAwareness && typeof this.environmentalAwareness.initialize === 'function') {
+                this.environmentalAwareness.initialize();
+            }
+            
+            console.log('Enhanced villager systems initialized');
+        } catch (error) {
+            console.error('Error initializing enhanced systems:', error);
+            // Continue with basic functionality
+        }
     }
 
     initialize(count = 10) {
@@ -193,6 +259,9 @@ export class VillagerBehaviour {
         villager.taskTimer = 0;
         villager.socialTimer = 0;
         
+        // Initialize enhanced components
+        this.initializeVillagerComponents(villager);
+        
         // Find an available home
         const availableHome = this.homeLocations.find(home => !home.assigned);
         if (availableHome) {
@@ -250,6 +319,207 @@ export class VillagerBehaviour {
         }
         
         return villager;
+    }
+    
+    /**
+     * Dynamically adjust performance settings based on frame rate
+     */
+    adjustPerformanceSettings() {
+        const engine = this.scene.getEngine();
+        const fps = engine.getFps();
+        
+        // Adjust settings based on performance
+        if (fps < 20) {
+            // Very poor performance - disable enhanced systems temporarily
+            this.performanceSettings.enhancedSystemsEnabled = false;
+            console.warn('VillagerBehaviour: Enhanced systems disabled due to poor performance');
+        } else if (fps < 30) {
+            // Poor performance - reduce enhanced villagers and increase throttling
+            this.performanceSettings.enhancedSystemsEnabled = true;
+            this.performanceSettings.maxEnhancedVillagers = Math.max(3, Math.floor(this.villagers.length * 0.15));
+            this.performanceSettings.updateThrottleMs = 300;
+            this.performanceSettings.staggeredUpdates = true;
+        } else if (fps < 45) {
+            // Moderate performance - moderate settings
+            this.performanceSettings.enhancedSystemsEnabled = true;
+            this.performanceSettings.maxEnhancedVillagers = Math.max(8, Math.floor(this.villagers.length * 0.4));
+            this.performanceSettings.updateThrottleMs = 200;
+            this.performanceSettings.staggeredUpdates = true;
+        } else {
+            // Good performance - allow more enhanced villagers
+            this.performanceSettings.enhancedSystemsEnabled = true;
+            this.performanceSettings.maxEnhancedVillagers = Math.min(15, this.villagers.length);
+            this.performanceSettings.updateThrottleMs = 100;
+            this.performanceSettings.staggeredUpdates = false;
+        }
+    }
+    
+    /**
+     * Manually set performance mode
+     * @param {string} mode - 'high', 'medium', 'low', or 'basic'
+     */
+    setPerformanceMode(mode) {
+        switch (mode) {
+            case 'high':
+                this.performanceSettings.enhancedSystemsEnabled = true;
+                this.performanceSettings.maxEnhancedVillagers = Math.min(20, this.villagers.length);
+                this.performanceSettings.updateThrottleMs = 50;
+                this.performanceSettings.staggeredUpdates = false;
+                break;
+            case 'medium':
+                this.performanceSettings.enhancedSystemsEnabled = true;
+                this.performanceSettings.maxEnhancedVillagers = Math.min(10, this.villagers.length);
+                this.performanceSettings.updateThrottleMs = 100;
+                this.performanceSettings.staggeredUpdates = true;
+                break;
+            case 'low':
+                this.performanceSettings.enhancedSystemsEnabled = true;
+                this.performanceSettings.maxEnhancedVillagers = Math.min(5, this.villagers.length);
+                this.performanceSettings.updateThrottleMs = 200;
+                this.performanceSettings.staggeredUpdates = true;
+                break;
+            case 'basic':
+                this.performanceSettings.enhancedSystemsEnabled = false;
+                break;
+            default:
+                console.warn('Invalid performance mode. Use: high, medium, low, or basic');
+        }
+        console.log(`VillagerBehaviour performance mode set to: ${mode}`);
+    }
+    
+    /**
+     * Get current performance statistics
+     * @returns {Object} Performance stats
+     */
+    getPerformanceStats() {
+        const engine = this.scene.getEngine();
+        return {
+            fps: engine.getFps(),
+            enhancedSystemsEnabled: this.performanceSettings.enhancedSystemsEnabled,
+            maxEnhancedVillagers: this.performanceSettings.maxEnhancedVillagers,
+            totalVillagers: this.villagers.length,
+            updateThrottleMs: this.performanceSettings.updateThrottleMs,
+            staggeredUpdates: this.performanceSettings.staggeredUpdates
+        };
+    }
+    
+    /**
+     * Initialize enhanced components for a villager (lazy loading for performance)
+     * @param {Object} villager - Villager to initialize
+     */
+    initializeVillagerComponents(villager) {
+        try {
+            // Only initialize enhanced components for villagers that will use them
+            const villagerIndex = this.villagers.length;
+            const shouldInitializeEnhanced = villagerIndex < this.performanceSettings.maxEnhancedVillagers;
+            
+            if (shouldInitializeEnhanced) {
+                // Initialize enhanced state machine
+                const stateDefinitions = this.createVillagerStateDefinitions();
+                villager.stateMachine = new EnhancedStateMachine(villager, stateDefinitions);
+                
+                // Initialize survival instinct system with reduced settings for performance
+                villager.survivalInstinct = new VillagerSurvivalInstinct(villager, {
+                    threatDetectionRadius: 100, // Reduced from 150
+                    fleeSpeed: 1.3, // Reduced from 1.5
+                    staminaMax: 80, // Reduced from 100
+                    groupCoordinationRadius: 80 // Reduced from 100
+                });
+                
+                // Initialize social network system with reduced settings
+                villager.socialNetwork = new VillagerSocialNetwork(villager, {
+                    maxRelationships: 8, // Reduced from 12
+                    socialRange: 15, // Reduced from 20
+                    leadershipThreshold: 0.7,
+                    socialUpdateInterval: 2000 // Increased from 1000ms
+                });
+                
+                // Initialize shelter system with reduced settings
+                villager.shelterSystem = new VillagerShelterSystem(villager, {
+                    shelterSearchRadius: 40, // Reduced from 50
+                    maxShelterDistance: 80, // Reduced from 100
+                    cooperationThreshold: 0.6,
+                    shelterEvaluationInterval: 3000 // Increased from 2000ms
+                });
+                
+                // Initialize all systems with cross-references
+                const systems = {
+                    communication: this.communicationSystem,
+                    environmental: this.environmentalAwareness,
+                    socialNetwork: villager.socialNetwork,
+                    shelterSystem: villager.shelterSystem
+                };
+                
+                // Initialize systems with error handling
+                if (villager.survivalInstinct && typeof villager.survivalInstinct.initialize === 'function') {
+                    villager.survivalInstinct.initialize(systems);
+                }
+                
+                if (villager.socialNetwork && typeof villager.socialNetwork.initialize === 'function') {
+                    villager.socialNetwork.initialize(systems);
+                }
+                
+                if (villager.shelterSystem && typeof villager.shelterSystem.initialize === 'function') {
+                    villager.shelterSystem.initialize(systems);
+                }
+                
+                // Set up state machine with enhanced states
+                if (villager.stateMachine && typeof villager.stateMachine.initialize === 'function') {
+                    villager.stateMachine.initialize();
+                }
+                
+                console.log(`Enhanced components initialized for villager ${villager.id}`);
+            } else {
+                console.log(`Basic components only for villager ${villager.id} (performance optimization)`);
+            }
+        } catch (error) {
+            console.error(`Error initializing enhanced components for villager ${villager.id}:`, error);
+            // Continue with basic villager functionality
+        }
+    }
+    
+    /**
+     * Create state definitions for enhanced villager state machine
+     * @returns {Object} - State definitions
+     */
+    createVillagerStateDefinitions() {
+        return {
+            [this.STATES.IDLE]: {
+                enter: (villager) => this.enterIdleState(villager),
+                update: (villager, deltaTime) => this.updateIdleState(villager, deltaTime),
+                exit: (villager) => this.exitIdleState(villager)
+            },
+            [this.STATES.WANDERING]: {
+                enter: (villager) => this.enterWanderingState(villager),
+                update: (villager, deltaTime) => this.updateWanderingState(villager, deltaTime),
+                exit: (villager) => this.exitWanderingState(villager)
+            },
+            [this.STATES.FLEEING]: {
+                enter: (villager) => this.enterFleeingState(villager),
+                update: (villager, deltaTime) => this.updateFleeingState(villager, deltaTime),
+                exit: (villager) => this.exitFleeingState(villager)
+            },
+            [this.STATES.SEEKING_SHELTER]: {
+                enter: (villager) => this.enterSeekingShelterState(villager),
+                update: (villager, deltaTime) => this.updateSeekingShelterState(villager, deltaTime),
+                exit: (villager) => this.exitSeekingShelterState(villager)
+            },
+            [this.STATES.IN_SHELTER]: {
+                enter: (villager) => this.enterInShelterState(villager),
+                update: (villager, deltaTime) => this.updateInShelterState(villager, deltaTime),
+                exit: (villager) => this.exitInShelterState(villager)
+            },
+            [this.STATES.ALERT]: {
+                enter: (villager) => this.enterAlertState(villager),
+                update: (villager, deltaTime) => this.updateAlertState(villager, deltaTime),
+                exit: (villager) => this.exitAlertState(villager)
+            },
+            [this.STATES.SOCIALIZING]: {
+                enter: (villager) => this.enterSocializingState(villager),
+                update: (villager, deltaTime) => this.updateSocializingState(villager, deltaTime),
+                exit: (villager) => this.exitSocializingState(villager)
+            }
+        };
     }
 
     addMovementObserver(villager) {
@@ -462,13 +732,180 @@ export class VillagerBehaviour {
     }
 
     updateVillagers(deltaTime) {
-        // Update UI with current time from DayNightCycle
-        this.worldClock.updateTime(this.dayNightCycle.getGameTime());
+        try {
+            // Update UI with current time from DayNightCycle
+            this.worldClock.updateTime(this.dayNightCycle.getGameTime());
+            
+            const now = performance.now();
+            
+            // Throttle enhanced systems updates
+            if (this.performanceSettings.enhancedSystemsEnabled && 
+                now - this.performanceSettings.lastSystemUpdate > this.performanceSettings.updateThrottleMs) {
+                
+                // Update enhanced systems less frequently
+                if (this.communicationSystem && typeof this.communicationSystem.update === 'function') {
+                    this.communicationSystem.update(deltaTime);
+                }
+                
+                if (this.environmentalAwareness && typeof this.environmentalAwareness.update === 'function') {
+                    this.environmentalAwareness.update(deltaTime);
+                }
+                
+                this.performanceSettings.lastSystemUpdate = now;
+            }
 
-        // Update villagers
-        this.villagers.forEach(villager => {
+            // Update villagers with performance optimizations
+            if (!this.performanceSettings.enhancedSystemsEnabled) {
+                // Use basic updates only when enhanced systems are disabled
+                this.villagers.forEach(villager => {
+                    this.updateVillagerState(villager, deltaTime);
+                });
+            } else if (this.performanceSettings.staggeredUpdates) {
+                this.updateVillagersStaggered(deltaTime);
+            } else {
+                this.villagers.forEach((villager, index) => {
+                    if (index < this.performanceSettings.maxEnhancedVillagers) {
+                        this.updateEnhancedVillager(villager, deltaTime);
+                    } else {
+                        // Use basic update for performance
+                        this.updateVillagerState(villager, deltaTime);
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error in updateVillagers:', error);
+        }
+    }
+    
+    /**
+     * Update villagers in a staggered manner to spread load across frames
+     * @param {number} deltaTime - Time since last update
+     */
+    updateVillagersStaggered(deltaTime) {
+        const villagersPerFrame = Math.max(1, Math.ceil(this.villagers.length / 5)); // Spread across 5 frames
+        const startIndex = this.performanceSettings.villagerUpdateIndex;
+        const endIndex = Math.min(startIndex + villagersPerFrame, this.villagers.length);
+        
+        for (let i = startIndex; i < endIndex; i++) {
+            const villager = this.villagers[i];
+            if (i < this.performanceSettings.maxEnhancedVillagers) {
+                this.updateEnhancedVillager(villager, deltaTime);
+            } else {
+                // Use basic update for performance
+                this.updateVillagerState(villager, deltaTime);
+            }
+        }
+        
+        // Update index for next frame
+        this.performanceSettings.villagerUpdateIndex = endIndex >= this.villagers.length ? 0 : endIndex;
+    }
+    
+    /**
+     * Update villager with enhanced systems (performance optimized)
+     * @param {Object} villager - Villager to update
+     * @param {number} deltaTime - Time since last update
+     */
+    updateEnhancedVillager(villager, deltaTime) {
+        if (!villager.mesh || !villager.physics) return;
+        
+        try {
+            // Initialize performance tracking if not exists
+            if (!villager.performanceData) {
+                villager.performanceData = {
+                    lastEnhancedUpdate: 0,
+                    updateInterval: 200, // Update enhanced systems every 200ms
+                    skipFrames: 0
+                };
+            }
+            
+            const now = performance.now();
+            const shouldUpdateEnhanced = now - villager.performanceData.lastEnhancedUpdate > villager.performanceData.updateInterval;
+            
+            if (shouldUpdateEnhanced) {
+                // Update enhanced components less frequently
+                if (villager.survivalInstinct && typeof villager.survivalInstinct.update === 'function') {
+                    villager.survivalInstinct.update(deltaTime);
+                }
+                
+                if (villager.socialNetwork && typeof villager.socialNetwork.update === 'function') {
+                    villager.socialNetwork.update(deltaTime);
+                }
+                
+                if (villager.shelterSystem && typeof villager.shelterSystem.update === 'function') {
+                    villager.shelterSystem.update(deltaTime);
+                }
+                
+                // Check for state transitions based on survival instinct
+                this.checkSurvivalStateTransitions(villager);
+                
+                villager.performanceData.lastEnhancedUpdate = now;
+            }
+            
+            // Always update state machine and animation (lightweight)
+            if (villager.stateMachine && typeof villager.stateMachine.update === 'function') {
+                villager.stateMachine.update(deltaTime);
+            } else {
+                // Fallback to original behavior if state machine not available
+                this.updateVillagerState(villager, deltaTime);
+            }
+            
+            // Update animation based on current state
+            this.updateAnimation(villager);
+            
+        } catch (error) {
+            console.error(`Error updating enhanced villager ${villager.id}:`, error);
+            // Fallback to basic update
             this.updateVillagerState(villager, deltaTime);
-        });
+        }
+    }
+    
+    /**
+     * Check for state transitions based on survival instinct
+     * @param {Object} villager - Villager to check
+     */
+    checkSurvivalStateTransitions(villager) {
+        if (!villager.survivalInstinct || !villager.survivalInstinct.survivalState) return;
+        
+        const survivalState = villager.survivalInstinct.survivalState;
+        const threatLevel = survivalState.threatLevel || 0;
+        const panicLevel = survivalState.panicLevel || 0;
+        const stamina = survivalState.stamina || 100;
+        
+        // Transition to appropriate state based on survival instinct
+        if (stamina <= 10) {
+            // Exhausted - seek shelter
+            if (villager.state !== this.STATES.SEEKING_SHELTER && villager.state !== this.STATES.IN_SHELTER) {
+                this.changeVillagerState(villager, this.STATES.SEEKING_SHELTER);
+            }
+        } else if (panicLevel > 0.7 || threatLevel > 0.6) {
+            // High panic or threat - flee
+            if (villager.state !== this.STATES.FLEEING && villager.state !== this.STATES.SEEKING_SHELTER) {
+                this.changeVillagerState(villager, this.STATES.FLEEING);
+            }
+        } else if (threatLevel > 0.3 || panicLevel > 0.4) {
+            // Moderate threat - alert
+            if (villager.state !== this.STATES.ALERT && threatLevel > 0.3) {
+                this.changeVillagerState(villager, this.STATES.ALERT);
+            }
+        } else if (threatLevel < 0.1 && panicLevel < 0.2) {
+            // Calm - return to normal activities
+            if (villager.state === this.STATES.FLEEING || villager.state === this.STATES.ALERT) {
+                this.decideNextAction(villager);
+            }
+        }
+    }
+    
+    /**
+     * Change villager state using enhanced state machine
+     * @param {Object} villager - Villager to change state
+     * @param {string} newState - New state to transition to
+     */
+    changeVillagerState(villager, newState) {
+        if (villager.stateMachine) {
+            villager.stateMachine.changeState(newState);
+        } else {
+            villager.state = newState;
+        }
     }
 
     updateVillagerState(villager, deltaTime) {
@@ -667,6 +1104,337 @@ export class VillagerBehaviour {
         }
     }
 
+    // Enhanced State Handlers
+    
+    /**
+     * Enter idle state
+     * @param {Object} villager - Villager entering state
+     */
+    enterIdleState(villager) {
+        villager.destination = null;
+        if (villager.physics) {
+            villager.physics.body.setLinearVelocity(BABYLON.Vector3.Zero());
+        }
+    }
+    
+    /**
+     * Update idle state
+     * @param {Object} villager - Villager in state
+     * @param {number} deltaTime - Time delta
+     */
+    updateIdleState(villager, deltaTime) {
+        // Check if we should transition to another state
+        setTimeout(() => this.decideNextAction(villager), 1000 + Math.random() * 2000);
+    }
+    
+    /**
+     * Exit idle state
+     * @param {Object} villager - Villager exiting state
+     */
+    exitIdleState(villager) {
+        // No specific cleanup needed
+    }
+    
+    /**
+     * Enter fleeing state
+     * @param {Object} villager - Villager entering state
+     */
+    enterFleeingState(villager) {
+        console.log(`Villager ${villager.id} entering fleeing state`);
+        
+        // Increase speed for fleeing
+        villager.speed = 0.08;
+        
+        // Use survival instinct to determine flee direction
+        if (villager.survivalInstinct && villager.survivalInstinct.survivalState.currentThreat) {
+            // Calculate flee direction away from threat
+            const threatPos = villager.survivalInstinct.survivalState.currentThreat.mesh.position;
+            const villagerPos = villager.mesh.position;
+            
+            const fleeDirection = villagerPos.subtract(threatPos).normalize();
+            const fleeDistance = 50;
+            
+            villager.destination = new BABYLON.Vector3(
+                villager.mesh.position.x + fleeDirection.x * fleeDistance,
+                villager.mesh.position.y,
+                villager.mesh.position.z + fleeDirection.z * fleeDistance
+            );
+            
+            // Adjust destination to terrain height
+            const groundHeight = BowlCreator.getTerrainHeight(villager.destination.x, villager.destination.z);
+            if (groundHeight !== null) {
+                villager.destination.y = groundHeight + 0.9;
+            }
+        } else {
+            // Fallback: flee in random direction
+            const angle = Math.random() * Math.PI * 2;
+            const fleeDistance = 30;
+            villager.destination = new BABYLON.Vector3(
+                villager.mesh.position.x + Math.cos(angle) * fleeDistance,
+                villager.mesh.position.y,
+                villager.mesh.position.z + Math.sin(angle) * fleeDistance
+            );
+            
+            const groundHeight = BowlCreator.getTerrainHeight(villager.destination.x, villager.destination.z);
+            if (groundHeight !== null) {
+                villager.destination.y = groundHeight + 0.9;
+            }
+        }
+        
+        // Share threat information with nearby villagers
+        if (villager.socialNetwork && this.communicationSystem) {
+            this.communicationSystem.sendMessage(
+                villager,
+                'social_interaction',
+                {
+                    type: 'panic_alert',
+                    threatLevel: villager.survivalInstinct?.survivalState?.threatLevel || 0.8,
+                    position: villager.mesh.position
+                },
+                { range: 20 }
+            );
+        }
+    }
+    
+    /**
+     * Update fleeing state
+     * @param {Object} villager - Villager in state
+     * @param {number} deltaTime - Time delta
+     */
+    updateFleeingState(villager, deltaTime) {
+        // Use enhanced movement with survival instinct
+        this.updateVillagerMovement(villager, deltaTime);
+        
+        // Check if we should seek shelter instead
+        if (villager.survivalInstinct && villager.survivalInstinct.survivalState.stamina <= 10) {
+            this.changeVillagerState(villager, this.STATES.SEEKING_SHELTER);
+        }
+        
+        // Check if threat has passed
+        if (villager.survivalInstinct && villager.survivalInstinct.survivalState.threatLevel < 0.2) {
+            this.decideNextAction(villager);
+        }
+    }
+    
+    /**
+     * Exit fleeing state
+     * @param {Object} villager - Villager exiting state
+     */
+    exitFleeingState(villager) {
+        // Reset speed to normal
+        villager.speed = 0.05;
+        console.log(`Villager ${villager.id} exiting fleeing state`);
+    }
+    
+    /**
+     * Enter seeking shelter state
+     * @param {Object} villager - Villager entering state
+     */
+    enterSeekingShelterState(villager) {
+        console.log(`Villager ${villager.id} seeking shelter`);
+        
+        if (villager.shelterSystem) {
+            const bestShelter = villager.shelterSystem.findBestAvailableShelter();
+            if (bestShelter) {
+                villager.destination = bestShelter.position.clone();
+                villager.targetShelter = bestShelter;
+            } else {
+                // No shelter available, continue fleeing
+                this.changeVillagerState(villager, this.STATES.FLEEING);
+            }
+        }
+    }
+    
+    /**
+     * Update seeking shelter state
+     * @param {Object} villager - Villager in state
+     * @param {number} deltaTime - Time delta
+     */
+    updateSeekingShelterState(villager, deltaTime) {
+        this.updateVillagerMovement(villager, deltaTime);
+        
+        // Check if we've reached the shelter
+        if (villager.destination && villager.mesh) {
+            const distance = BABYLON.Vector3.Distance(villager.mesh.position, villager.destination);
+            if (distance < 2.0) {
+                this.changeVillagerState(villager, this.STATES.IN_SHELTER);
+            }
+        }
+    }
+    
+    /**
+     * Exit seeking shelter state
+     * @param {Object} villager - Villager exiting state
+     */
+    exitSeekingShelterState(villager) {
+        // Clear shelter target
+        villager.targetShelter = null;
+    }
+    
+    /**
+     * Enter in shelter state
+     * @param {Object} villager - Villager entering state
+     */
+    enterInShelterState(villager) {
+        console.log(`Villager ${villager.id} entered shelter`);
+        
+        if (villager.shelterSystem && villager.targetShelter) {
+            villager.shelterSystem.enterShelter(villager.targetShelter);
+        }
+        
+        // Stop movement
+        villager.destination = null;
+        if (villager.physics) {
+            villager.physics.body.setLinearVelocity(BABYLON.Vector3.Zero());
+        }
+    }
+    
+    /**
+     * Update in shelter state
+     * @param {Object} villager - Villager in state
+     * @param {number} deltaTime - Time delta
+     */
+    updateInShelterState(villager, deltaTime) {
+        // Check if it's safe to leave shelter
+        if (villager.survivalInstinct && villager.survivalInstinct.survivalState.threatLevel < 0.1) {
+            // Wait a bit longer to be sure
+            setTimeout(() => {
+                if (villager.survivalInstinct.survivalState.threatLevel < 0.1) {
+                    this.decideNextAction(villager);
+                }
+            }, 5000);
+        }
+    }
+    
+    /**
+     * Exit in shelter state
+     * @param {Object} villager - Villager exiting state
+     */
+    exitInShelterState(villager) {
+        console.log(`Villager ${villager.id} leaving shelter`);
+        
+        if (villager.shelterSystem) {
+            villager.shelterSystem.exitShelter();
+        }
+    }
+    
+    /**
+     * Enter alert state
+     * @param {Object} villager - Villager entering state
+     */
+    enterAlertState(villager) {
+        console.log(`Villager ${villager.id} entering alert state`);
+        
+        // Reduce movement speed to be more cautious
+        villager.speed = 0.03;
+        
+        // Share alert information with social network
+        if (villager.socialNetwork && this.communicationSystem) {
+            this.communicationSystem.sendMessage(
+                villager,
+                'social_interaction',
+                {
+                    type: 'alert_warning',
+                    threatLevel: villager.survivalInstinct?.survivalState?.threatLevel || 0.4,
+                    position: villager.mesh.position
+                },
+                { range: 15 }
+            );
+        }
+    }
+    
+    /**
+     * Update alert state
+     * @param {Object} villager - Villager in state
+     * @param {number} deltaTime - Time delta
+     */
+    updateAlertState(villager, deltaTime) {
+        // Continue current activity but with heightened awareness
+        this.updateVillagerMovement(villager, deltaTime);
+        
+        // Check if threat level increases (transition to fleeing)
+        if (villager.survivalInstinct && villager.survivalInstinct.survivalState.threatLevel > 0.6) {
+            this.changeVillagerState(villager, this.STATES.FLEEING);
+        }
+    }
+    
+    /**
+     * Exit alert state
+     * @param {Object} villager - Villager exiting state
+     */
+    exitAlertState(villager) {
+        // Reset speed to normal
+        villager.speed = 0.05;
+    }
+    
+    /**
+     * Enter socializing state with enhanced social network
+     * @param {Object} villager - Villager entering state
+     */
+    enterSocializingState(villager) {
+        // Find nearby villagers to socialize with
+        const nearbyVillagers = this.villagers.filter(other => 
+            other.id !== villager.id && 
+            other.mesh && 
+            BABYLON.Vector3.Distance(villager.mesh.position, other.mesh.position) < 10
+        );
+        
+        // Initiate social interaction with a random nearby villager
+        if (nearbyVillagers.length > 0 && villager.socialNetwork) {
+            const targetVillager = nearbyVillagers[Math.floor(Math.random() * nearbyVillagers.length)];
+            villager.socialNetwork.initiateSocialInteraction(targetVillager);
+        }
+    }
+    
+    /**
+     * Update socializing state with enhanced social network
+     * @param {Object} villager - Villager in state
+     * @param {number} deltaTime - Time delta
+     */
+    updateSocializingState(villager, deltaTime) {
+        // Original socializing behavior as fallback
+        this.updateSocializing(villager, deltaTime);
+        
+        // The social network system handles its own updates in updateEnhancedVillager
+    }
+    
+    /**
+     * Exit socializing state
+     * @param {Object} villager - Villager exiting state
+     */
+    exitSocializingState(villager) {
+        // No specific cleanup needed
+    }
+    
+    /**
+     * Enter wandering state
+     * @param {Object} villager - Villager entering state
+     */
+    enterWanderingState(villager) {
+        // Set random destination for wandering
+        this.startWandering(villager);
+    }
+    
+    /**
+     * Update wandering state
+     * @param {Object} villager - Villager in state
+     * @param {number} deltaTime - Time delta
+     */
+    updateWanderingState(villager, deltaTime) {
+        this.updateVillagerMovement(villager, deltaTime);
+    }
+    
+    /**
+     * Exit wandering state
+     * @param {Object} villager - Villager exiting state
+     */
+    exitWanderingState(villager) {
+        // No specific cleanup needed
+    }
+    
+    /**
+     * Enhanced villager disposal with cleanup of new systems
+     */
     dispose() {
         if (this.worldClock) {
             this.worldClock.dispose();
@@ -676,9 +1444,31 @@ export class VillagerBehaviour {
             this.dayNightCycle.dispose();
         }
         
+        if (this.communicationSystem) {
+            this.communicationSystem.dispose();
+        }
+        
+        if (this.environmentalAwareness) {
+            this.environmentalAwareness.dispose();
+        }
+        
         this.villagers.forEach(villager => {
             if (villager.updateObserver) {
                 this.scene.onBeforeRenderObservable.remove(villager.updateObserver);
+            }
+            
+            // Dispose enhanced components
+            if (villager.survivalInstinct) {
+                villager.survivalInstinct.dispose();
+            }
+            if (villager.socialNetwork) {
+                villager.socialNetwork.dispose();
+            }
+            if (villager.shelterSystem) {
+                villager.shelterSystem.dispose();
+            }
+            if (villager.stateMachine) {
+                villager.stateMachine.dispose();
             }
         });
         

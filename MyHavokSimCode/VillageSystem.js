@@ -4,6 +4,7 @@ import { VillageDecorations } from './Village/VillageDecorations.js';
 import { MarketSystem } from './Village/MarketSystem.js';
 import { HouseModel } from './3D_Models/Houses/HouseModel.js';
 import { CityLayoutManager } from './CityLayoutManager.js';
+import { RoadNetworkSystem } from './RoadNetworkSystem.js';
 
 export class VillageSystem {
     constructor(scene) {
@@ -18,6 +19,9 @@ export class VillageSystem {
         
         // Initialize city layout manager for proper urban planning
         this.cityLayout = new CityLayoutManager(scene);
+        
+        // Initialize road network system
+        this.roadNetwork = new RoadNetworkSystem(scene);
         
         this.init();
     }
@@ -35,7 +39,10 @@ export class VillageSystem {
     
     createStructuredCity() {
         // Create houses with proper spacing and urban planning
-        this.createHousesWithLayout();
+        const housePositions = this.createHousesWithLayout();
+        
+        // Create road network connecting all houses and important locations
+        this.createRoadNetwork(housePositions);
         
         // Create gardens in designated areas (not randomly)
         this.createStructuredGardens();
@@ -79,6 +86,32 @@ export class VillageSystem {
         });
         
         console.log(`Placed ${housePositions.length} houses with proper urban planning`);
+        return housePositions; // Return positions for road network generation
+    }
+    
+    /**
+     * Create road network connecting houses and important locations
+     * @param {Array} housePositions - Array of house position data
+     */
+    createRoadNetwork(housePositions) {
+        // Get commercial areas from market system
+        const commercialAreas = [];
+        if (this.marketSystem && this.marketSystem.marketCenter) {
+            commercialAreas.push({
+                center: this.marketSystem.marketCenter,
+                radius: 12,
+                type: 'market'
+            });
+        }
+        
+        // Generate the road network
+        this.roadNetwork.generateRoadNetwork(
+            housePositions,
+            this.centerOffset, // Plaza center
+            commercialAreas
+        );
+        
+        console.log('Road network created:', this.roadNetwork.getDebugInfo());
     }
     
     createStructuredGardens() {
@@ -176,6 +209,7 @@ export class VillageSystem {
         this.marketSystem.dispose();
         this.houseModel.dispose();
         this.cityLayout.dispose();
+        this.roadNetwork.dispose();
         this.houses = [];
     }
     
@@ -184,6 +218,9 @@ export class VillageSystem {
      * @returns {Object} Debug information
      */
     getLayoutDebugInfo() {
-        return this.cityLayout.getDebugInfo();
+        return {
+            cityLayout: this.cityLayout.getDebugInfo(),
+            roadNetwork: this.roadNetwork.getDebugInfo()
+        };
     }
 } 

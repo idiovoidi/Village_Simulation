@@ -3,6 +3,7 @@ import { AssetManager } from '../assets/AssetManager.js';
 import { VillageDecorations } from './Village/VillageDecorations.js';
 import { MarketSystem } from './Village/MarketSystem.js';
 import { HouseModel } from './3D_Models/Houses/HouseModel.js';
+import { CityLayoutManager } from './CityLayoutManager.js';
 
 export class VillageSystem {
     constructor(scene) {
@@ -14,17 +15,39 @@ export class VillageSystem {
         this.decorations = new VillageDecorations(scene);
         this.marketSystem = new MarketSystem(scene);
         this.houseModel = new HouseModel(scene);
+        
+        // Initialize city layout manager for proper urban planning
+        this.cityLayout = new CityLayoutManager(scene);
+        
         this.init();
     }
 
     init() {
-        // Set village center for decorations first
+        // Set village center for decorations first (plaza and fountain)
         this.decorations.setVillageCenter(this.centerOffset);
         
-        // Create other village elements
+        // Reserve plaza area in city layout
+        this.cityLayout.reservePosition(this.centerOffset, 16, 'plaza');
+        
+        // Create city elements using proper urban planning
+        this.createStructuredCity();
+    }
+    
+    createStructuredCity() {
+        // Create houses with proper spacing and urban planning
+        this.createHousesWithLayout();
+        
+        // Create gardens in designated areas (not randomly)
+        this.createStructuredGardens();
+        
+        // Create market district in designated commercial zone
         this.createMarketDistrict();
-        this.createHouses();
-        this.addOuterDecorations();
+        
+        // Add trees and vegetation with natural distribution
+        this.addStructuredVegetation();
+        
+        // Add decorative elements in appropriate locations
+        this.addStructuredDecorations();
     }
 
     createMarketDistrict() {
@@ -36,74 +59,131 @@ export class VillageSystem {
         this.marketSystem.createMarketDistrict(marketCenter);
     }
 
-    createHouses() {
-        for (let i = 0; i < this.houseCount; i++) {
-            const angle = (i / this.houseCount) * Math.PI * 2;
-            const radius = this.villageRadius * (0.5 + Math.random() * 0.5); // Vary distance from center
-            const rotationOffset = (Math.random() * 0.4 - 0.2); // Random rotation
-
-            const x = Math.cos(angle) * radius + this.centerOffset.x;
-            const z = Math.sin(angle) * radius + this.centerOffset.z;
-            const y = BowlCreator.getTerrainHeight(x, z);
-
+    createHousesWithLayout() {
+        // Use city layout manager to place houses properly
+        const housePositions = this.cityLayout.placeHouses((position, rotation) => {
             // Create house with random variant
             const variants = ['basic', 'small', 'large'];
             const variant = variants[Math.floor(Math.random() * variants.length)];
             
-            const position = new BABYLON.Vector3(x, y + 0.2, z);
-            const rotation = angle + Math.PI + rotationOffset; // Face towards center
-            const house = this.houseModel.createHouse(position, rotation, variant);
+            const adjustedPosition = position.clone();
+            adjustedPosition.y += 0.2; // Slight elevation above ground
             
+            const house = this.houseModel.createHouse(adjustedPosition, rotation, variant);
             this.houses.push(house);
-            this.addHouseDecorations(house, variant);
-        }
+            
+            // Add appropriate decorations around the house
+            this.addStructuredHouseDecorations(house, variant, position);
+            
+            return house;
+        });
+        
+        console.log(`Placed ${housePositions.length} houses with proper urban planning`);
+    }
+    
+    createStructuredGardens() {
+        // Use city layout manager to place gardens in designated areas
+        const gardenPositions = this.cityLayout.placeGardens((position) => {
+            return this.decorations.createStructuredGarden(position);
+        });
+        
+        console.log(`Created ${gardenPositions.length} structured gardens`);
     }
 
-    addHouseDecorations(house, variant) {
-        // Add some random decorations around the house
-        const decorationCount = Math.floor(Math.random() * 3) + 1;
+    addStructuredHouseDecorations(house, variant, housePosition) {
+        // Add decorations with proper spacing and collision detection
+        const decorationCount = Math.floor(Math.random() * 2) + 1;
         const houseWidth = variant === 'large' ? 7 : variant === 'small' ? 3.5 : 5;
+        const minDistance = houseWidth / 2 + 1; // Minimum distance from house center
+        const maxDistance = houseWidth / 2 + 3; // Maximum distance from house center
         
         for (let i = 0; i < decorationCount; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const distance = houseWidth + Math.random() * 2;
+            let attempts = 0;
+            let placed = false;
             
-            const x = Math.cos(angle) * distance;
-            const z = Math.sin(angle) * distance;
-            
-            // Create either a bush or a barrel
-            if (Math.random() > 0.5) {
-                this.decorations.createBush(house, x, z);
-            } else {
-                this.decorations.createBarrel(house, x, z);
+            while (attempts < 10 && !placed) {
+                const angle = Math.random() * Math.PI * 2;
+                const distance = minDistance + Math.random() * (maxDistance - minDistance);
+                
+                const decorationX = housePosition.x + Math.cos(angle) * distance;
+                const decorationZ = housePosition.z + Math.sin(angle) * distance;
+                const decorationY = BowlCreator.getTerrainHeight(decorationX, decorationZ);
+                const decorationPos = new BABYLON.Vector3(decorationX, decorationY, decorationZ);
+                
+                // Check if position is available (not too close to other objects)
+                if (this.cityLayout.isPositionAvailable(decorationPos, 0.5, 'decoration')) {
+                    const relativeX = decorationX - housePosition.x;
+                    const relativeZ = decorationZ - housePosition.z;
+                    
+                    // Create either a bush or a barrel with proper spacing
+                    if (Math.random() > 0.5) {
+                        this.decorations.createBush(house, relativeX, relativeZ);
+                    } else {
+                        this.decorations.createBarrel(house, relativeX, relativeZ);
+                    }
+                    
+                    // Reserve the position
+                    this.cityLayout.reservePosition(decorationPos, 0.5, 'decoration');
+                    placed = true;
+                }
+                attempts++;
             }
         }
     }
 
-    addOuterDecorations() {
-        // Add trees and rocks around the village
-        const decorationCount = 30;
+    addStructuredVegetation() {
+        // Use city layout manager to place trees with proper distribution
+        const treePositions = this.cityLayout.placeTrees((position) => {
+            return this.decorations.createTree(position.x, position.y, position.z);
+        });
         
-        for (let i = 0; i < decorationCount; i++) {
+        console.log(`Placed ${treePositions.length} trees with natural distribution`);
+    }
+    
+    addStructuredDecorations() {
+        // Add rocks and other decorations in appropriate locations
+        const decorationCount = 15; // Reduced from 30 to prevent overcrowding
+        let placedDecorations = 0;
+        
+        for (let i = 0; i < decorationCount * 2 && placedDecorations < decorationCount; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const radius = this.villageRadius * (1.2 + Math.random() * 0.3); // Outside village
+            const radius = this.villageRadius * (1.1 + Math.random() * 0.4); // Outside main village area
             
             const x = Math.cos(angle) * radius + this.centerOffset.x;
             const z = Math.sin(angle) * radius + this.centerOffset.z;
             const y = BowlCreator.getTerrainHeight(x, z);
+            const position = new BABYLON.Vector3(x, y, z);
 
-            if (Math.random() > 0.7) {
-                this.decorations.createRock(x, y, z);
-            } else {
-                this.decorations.createTree(x, y, z);
+            // Check if position is available
+            if (this.cityLayout.isPositionAvailable(position, 1, 'decoration')) {
+                if (Math.random() > 0.7) {
+                    this.decorations.createRock(x, y, z);
+                } else {
+                    this.decorations.createTree(x, y, z);
+                }
+                
+                // Reserve the position
+                this.cityLayout.reservePosition(position, 1, 'decoration');
+                placedDecorations++;
             }
         }
+        
+        console.log(`Placed ${placedDecorations} decorative elements`);
     }
 
     dispose() {
         this.decorations.dispose();
         this.marketSystem.dispose();
         this.houseModel.dispose();
+        this.cityLayout.dispose();
         this.houses = [];
+    }
+    
+    /**
+     * Get debug information about the city layout
+     * @returns {Object} Debug information
+     */
+    getLayoutDebugInfo() {
+        return this.cityLayout.getDebugInfo();
     }
 } 

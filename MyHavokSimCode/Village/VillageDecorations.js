@@ -324,6 +324,287 @@ export class VillageDecorations {
 
         this.decorations.push(border, soil);
     }
+    
+    /**
+     * Create a structured garden at a specific position (not relative to plaza)
+     * @param {BABYLON.Vector3} position - Absolute position for the garden
+     * @returns {Array} - Array of created garden elements
+     */
+    createStructuredGarden(position) {
+        const gardenElements = [];
+        const adjustedPosition = position.clone();
+        adjustedPosition.y = BowlCreator.getTerrainHeight(position.x, position.z) + 0.1;
+        
+        // Determine garden type based on location
+        const distanceFromCenter = BABYLON.Vector3.Distance(position, this.villageCenter || new BABYLON.Vector3(0, 0, 0));
+        let gardenType = 'pocket_garden';
+        
+        if (distanceFromCenter < 30) {
+            gardenType = 'entrance_garden';
+        } else if (distanceFromCenter > 50) {
+            gardenType = 'community_garden';
+        }
+        
+        // Create garden based on type
+        switch (gardenType) {
+            case 'entrance_garden':
+                gardenElements.push(...this.createEntranceGarden(adjustedPosition));
+                break;
+            case 'community_garden':
+                gardenElements.push(...this.createCommunityGarden(adjustedPosition));
+                break;
+            default:
+                gardenElements.push(...this.createPocketGarden(adjustedPosition));
+                break;
+        }
+        
+        return gardenElements;
+    }
+    
+    /**
+     * Create an entrance garden (formal, decorative)
+     * @param {BABYLON.Vector3} position - Garden position
+     * @returns {Array} - Array of created elements
+     */
+    createEntranceGarden(position) {
+        const elements = [];
+        
+        // Create formal flower bed arrangement
+        const bedPositions = [
+            { x: 0, z: 0 },
+            { x: 2, z: 2 },
+            { x: -2, z: 2 },
+            { x: 2, z: -2 },
+            { x: -2, z: -2 }
+        ];
+        
+        bedPositions.forEach(offset => {
+            const bedPos = position.clone();
+            bedPos.x += offset.x;
+            bedPos.z += offset.z;
+            bedPos.y = BowlCreator.getTerrainHeight(bedPos.x, bedPos.z) + 0.1;
+            
+            elements.push(...this.createFormalFlowerBed(bedPos));
+        });
+        
+        // Add decorative hedges
+        elements.push(...this.createHedgeRow(position, 4));
+        
+        this.decorations.push(...elements);
+        return elements;
+    }
+    
+    /**
+     * Create a community garden (larger, more natural)
+     * @param {BABYLON.Vector3} position - Garden position
+     * @returns {Array} - Array of created elements
+     */
+    createCommunityGarden(position) {
+        const elements = [];
+        
+        // Create multiple flower beds in natural arrangement
+        const bedCount = 6;
+        for (let i = 0; i < bedCount; i++) {
+            const angle = (i / bedCount) * Math.PI * 2;
+            const radius = 2 + Math.random() * 2;
+            
+            const bedPos = position.clone();
+            bedPos.x += Math.cos(angle) * radius;
+            bedPos.z += Math.sin(angle) * radius;
+            bedPos.y = BowlCreator.getTerrainHeight(bedPos.x, bedPos.z) + 0.1;
+            
+            elements.push(...this.createNaturalFlowerBed(bedPos));
+        }
+        
+        // Add some bushes for structure
+        for (let i = 0; i < 3; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const radius = 3 + Math.random();
+            
+            const bushPos = position.clone();
+            bushPos.x += Math.cos(angle) * radius;
+            bushPos.z += Math.sin(angle) * radius;
+            bushPos.y = BowlCreator.getTerrainHeight(bushPos.x, bushPos.z);
+            
+            elements.push(this.createLargeBush(bushPos));
+        }
+        
+        this.decorations.push(...elements);
+        return elements;
+    }
+    
+    /**
+     * Create a pocket garden (small, simple)
+     * @param {BABYLON.Vector3} position - Garden position
+     * @returns {Array} - Array of created elements
+     */
+    createPocketGarden(position) {
+        const elements = [];
+        
+        // Single flower bed with surrounding plants
+        elements.push(...this.createNaturalFlowerBed(position));
+        
+        // Add a few small bushes around it
+        const bushCount = 2;
+        for (let i = 0; i < bushCount; i++) {
+            const angle = (i / bushCount) * Math.PI * 2;
+            const radius = 1.5;
+            
+            const bushPos = position.clone();
+            bushPos.x += Math.cos(angle) * radius;
+            bushPos.z += Math.sin(angle) * radius;
+            bushPos.y = BowlCreator.getTerrainHeight(bushPos.x, bushPos.z);
+            
+            elements.push(this.createSmallBush(bushPos));
+        }
+        
+        this.decorations.push(...elements);
+        return elements;
+    }
+    
+    /**
+     * Create a formal flower bed
+     * @param {BABYLON.Vector3} position - Bed position
+     * @returns {Array} - Array of created elements
+     */
+    createFormalFlowerBed(position) {
+        const elements = [];
+        
+        // Create rectangular bed
+        const bed = BABYLON.MeshBuilder.CreateBox("formalBed", {
+            width: 1.5,
+            height: 0.2,
+            depth: 1.5
+        }, this.scene);
+        bed.position = position;
+        
+        // Create soil material
+        const soilMaterial = new BABYLON.StandardMaterial("formalSoil", this.scene);
+        soilMaterial.diffuseColor = new BABYLON.Color3(0.3, 0.2, 0.1);
+        bed.material = soilMaterial;
+        
+        // Add flowers in grid pattern
+        for (let x = -0.5; x <= 0.5; x += 0.5) {
+            for (let z = -0.5; z <= 0.5; z += 0.5) {
+                if (x !== 0 || z !== 0) { // Skip center
+                    this.createFlower(position.x + x, position.y + 0.2, position.z + z);
+                }
+            }
+        }
+        
+        elements.push(bed);
+        return elements;
+    }
+    
+    /**
+     * Create a natural flower bed
+     * @param {BABYLON.Vector3} position - Bed position
+     * @returns {Array} - Array of created elements
+     */
+    createNaturalFlowerBed(position) {
+        const elements = [];
+        
+        // Create circular bed
+        const bed = BABYLON.MeshBuilder.CreateDisc("naturalBed", {
+            radius: 1,
+            tessellation: 16
+        }, this.scene);
+        bed.position = position;
+        bed.rotation.x = Math.PI / 2;
+        
+        // Create soil material
+        const soilMaterial = new BABYLON.StandardMaterial("naturalSoil", this.scene);
+        soilMaterial.diffuseColor = new BABYLON.Color3(0.25, 0.15, 0.05);
+        bed.material = soilMaterial;
+        
+        // Add flowers in natural arrangement
+        const flowerCount = 5 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < flowerCount; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const radius = Math.random() * 0.7;
+            
+            const flowerX = position.x + Math.cos(angle) * radius;
+            const flowerZ = position.z + Math.sin(angle) * radius;
+            this.createFlower(flowerX, position.y + 0.1, flowerZ);
+        }
+        
+        elements.push(bed);
+        return elements;
+    }
+    
+    /**
+     * Create a hedge row
+     * @param {BABYLON.Vector3} position - Starting position
+     * @param {number} length - Length of hedge
+     * @returns {Array} - Array of hedge elements
+     */
+    createHedgeRow(position, length) {
+        const elements = [];
+        const segmentCount = Math.floor(length / 0.5);
+        
+        for (let i = 0; i < segmentCount; i++) {
+            const hedge = BABYLON.MeshBuilder.CreateBox("hedge", {
+                width: 0.5,
+                height: 1,
+                depth: 0.3
+            }, this.scene);
+            
+            hedge.position = position.clone();
+            hedge.position.x += (i - segmentCount / 2) * 0.5;
+            hedge.position.y += 0.5;
+            
+            const hedgeMaterial = new BABYLON.StandardMaterial("hedge", this.scene);
+            hedgeMaterial.diffuseColor = new BABYLON.Color3(0.1, 0.3, 0.1);
+            hedge.material = hedgeMaterial;
+            
+            elements.push(hedge);
+        }
+        
+        return elements;
+    }
+    
+    /**
+     * Create a large bush
+     * @param {BABYLON.Vector3} position - Bush position
+     * @returns {Object} - Created bush
+     */
+    createLargeBush(position) {
+        const bush = BABYLON.MeshBuilder.CreateSphere("largeBush", {
+            diameter: 2 + Math.random() * 0.5,
+            segments: 8
+        }, this.scene);
+        
+        bush.position = position.clone();
+        bush.position.y += 1;
+        bush.scaling.y = 0.8;
+        
+        const bushMat = new BABYLON.StandardMaterial("largeBushMat", this.scene);
+        bushMat.diffuseColor = new BABYLON.Color3(0.15, 0.4, 0.15);
+        bush.material = bushMat;
+        
+        return bush;
+    }
+    
+    /**
+     * Create a small bush
+     * @param {BABYLON.Vector3} position - Bush position
+     * @returns {Object} - Created bush
+     */
+    createSmallBush(position) {
+        const bush = BABYLON.MeshBuilder.CreateSphere("smallBush", {
+            diameter: 0.8 + Math.random() * 0.3,
+            segments: 8
+        }, this.scene);
+        
+        bush.position = position.clone();
+        bush.position.y += 0.4;
+        
+        const bushMat = new BABYLON.StandardMaterial("smallBushMat", this.scene);
+        bushMat.diffuseColor = new BABYLON.Color3(0.2, 0.45, 0.2);
+        bush.material = bushMat;
+        
+        return bush;
+    }
 
     createFlower(x, y, z) {
         // Create stem

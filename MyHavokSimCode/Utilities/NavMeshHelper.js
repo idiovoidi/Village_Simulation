@@ -1,4 +1,5 @@
-import * as BABYLON from '@babylonjs/core';
+// Using global BABYLON object from CDN instead of ES6 imports
+// import * as BABYLON from '@babylonjs/core';
 
 /**
  * NavMeshHelper - Utility class for navigation mesh operations

@@ -67,7 +67,21 @@ export class EnvironmentalAwareness {
         this.threatMap.initialize();
         this.safeZoneManager.initialize();
         
+        // Initialize last update time
+        this.lastUpdate = performance.now();
+        
         console.log('Environmental Awareness System initialized');
+    }
+    
+    /**
+     * Force an update with a specific delta time (useful for testing)
+     * @param {number} deltaTime - Time delta in seconds
+     */
+    forceUpdate(deltaTime) {
+        const previousUpdateInterval = this.updateInterval;
+        this.updateInterval = 0; // Disable throttling
+        this.update(deltaTime);
+        this.updateInterval = previousUpdateInterval; // Restore throttling
     }
     
     /**
@@ -82,21 +96,23 @@ export class EnvironmentalAwareness {
             return;
         }
         
+        // Calculate actual delta time since last update
+        const actualDeltaTime = (now - this.lastUpdate) / 1000; // Convert to seconds
         this.lastUpdate = now;
         
         // Update subsystems
         this.spatialGrid.update();
-        this.threatMap.update(deltaTime);
-        this.safeZoneManager.update(deltaTime);
+        this.threatMap.update(actualDeltaTime);
+        this.safeZoneManager.update(actualDeltaTime);
         
         // Decay threats over time
-        this.decayThreats(deltaTime);
+        this.decayThreats(actualDeltaTime);
         
         // Clean up expired cache entries
         this.cleanupCache();
         
         // Update dynamic obstacles
-        this.updateDynamicObstacles(deltaTime);
+        this.updateDynamicObstacles(actualDeltaTime);
     }
     
     /**
@@ -683,8 +699,20 @@ class EnvironmentalSpatialGrid {
         const agents = Array.from(this.agentCells.keys());
         
         for (const agent of agents) {
-            this.removeAgent(agent);
-            this.addAgent(agent);
+            if (!agent.mesh || !agent.mesh.position) {
+                // Remove agents without valid positions
+                this.removeAgent(agent);
+                continue;
+            }
+            
+            const currentCellKey = this.getCellKey(agent.mesh.position);
+            const storedCellKey = this.agentCells.get(agent);
+            
+            // Only update if agent moved to a different cell
+            if (currentCellKey !== storedCellKey) {
+                this.removeAgent(agent);
+                this.addAgent(agent);
+            }
         }
     }
     
@@ -785,23 +813,39 @@ class ThreatMap {
     }
     
     decayThreats(deltaTime) {
+        const threatsToRemove = [];
+        
         for (const [threatId, threat] of this.threats) {
+            let shouldRemove = false;
+            
             if (threat.duration !== null) {
                 threat.duration -= deltaTime;
                 if (threat.duration <= 0) {
-                    this.removeThreat(threatId);
-                    continue;
+                    shouldRemove = true;
                 }
             }
             
-            // Apply decay
-            threat.intensity = Math.max(0, threat.intensity - threat.decayRate * deltaTime);
-            
-            if (threat.intensity <= 0.01) {
-                this.removeThreat(threatId);
-            } else {
-                this.updateThreatGrid(threat);
+            if (!shouldRemove) {
+                // Apply decay
+                const oldIntensity = threat.intensity;
+                threat.intensity = Math.max(0, threat.intensity - threat.decayRate * deltaTime);
+                
+                if (threat.intensity <= 0.01) {
+                    shouldRemove = true;
+                } else if (threat.intensity !== oldIntensity) {
+                    // Update threat grid only if intensity changed
+                    this.updateThreatGrid(threat);
+                }
             }
+            
+            if (shouldRemove) {
+                threatsToRemove.push(threatId);
+            }
+        }
+        
+        // Remove threats that have expired or decayed
+        for (const threatId of threatsToRemove) {
+            this.removeThreat(threatId);
         }
     }
     

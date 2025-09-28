@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compatibility Test Suite</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .test-controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+        
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .status-panel {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .test-progress {
+            margin-bottom: 20px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background-color: #007bff;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        
+        .test-results {
+            margin-top: 20px;
+        }
+        
+        .test-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 8px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #dee2e6;
+        }
+        
+        .test-item.passed {
+            border-left-color: #28a745;
+            background-color: #d4edda;
+        }
+        
+        .test-item.failed {
+            border-left-color: #dc3545;
+            background-color: #f8d7da;
+        }
+        
+        .test-item.running {
+            border-left-color: #ffc107;
+            background-color: #fff3cd;
+        }
+        
+        .test-name {
+            font-weight: 500;
+        }
+        
+        .test-status {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+        
+        .status-passed {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .status-failed {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .status-running {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        
+        .status-pending {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .performance-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .metric-card {
+            background-color: white;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .metric-label {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+        
+        .log-output {
+            background-color: #212529;
+            color: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .summary-stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Compatibility Test Suite</h1>
+        
+        <div class="test-controls">
+            <button id="runTestsBtn" class="btn-primary">Run All Tests</button>
+            <button id="clearResultsBtn" class="btn-secondary">Clear Results</button>
+            <button id="downloadReportBtn" class="btn-success hidden">Download Report</button>
+            <button id="toggleLogBtn" class="btn-secondary">Show Log</button>
+        </div>
+        
+        <div class="status-panel">
+            <div class="summary-stats">
+                <div class="stat-item">
+                    <div id="totalTests" class="stat-value">0</div>
+                    <div class="stat-label">Total Tests</div>
+                </div>
+                <div class="stat-item">
+                    <div id="passedTests" class="stat-value">0</div>
+                    <div class="stat-label">Passed</div>
+                </div>
+                <div class="stat-item">
+                    <div id="failedTests" class="stat-value">0</div>
+                    <div class="stat-label">Failed</div>
+                </div>
+                <div class="stat-item">
+                    <div id="successRate" class="stat-value">0%</div>
+                    <div class="stat-label">Success Rate</div>
+                </div>
+            </div>
+            
+            <div class="test-progress">
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="test-results">
+            <h3>Test Results</h3>
+            <div id="testList"></div>
+        </div>
+        
+        <div id="performanceMetrics" class="performance-metrics hidden"></div>
+        
+        <div id="logOutput" class="log-output hidden"></div>
+    </div>
+
+    <!-- Babylon.js CDN -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+    <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+
+    <script type="module">
+        import { CompatibilityTestFramework } from './MyHavokSimCode/core/CompatibilityTestFramework.js';
+        import { TestRunner } from './MyHavokSimCode/core/TestRunner.js';
+
+        class TestUI {
+            constructor() {
+                this.testRunner = new TestRunner();
+                this.currentResults = null;
+                this.testItems = new Map();
+                this.logMessages = [];
+                
+                this.initializeUI();
+                this.setupEventListeners();
+                this.interceptConsole();
+            }
+
+            initializeUI() {
+                this.elements = {
+                    runTestsBtn: document.getElementById('runTestsBtn'),
+                    clearResultsBtn: document.getElementById('clearResultsBtn'),
+                    downloadReportBtn: document.getElementById('downloadReportBtn'),
+                    toggleLogBtn: document.getElementById('toggleLogBtn'),
+                    totalTests: document.getElementById('totalTests'),
+                    passedTests: document.getElementById('passedTests'),
+                    failedTests: document.getElementById('failedTests'),
+                    successRate: document.getElementById('successRate'),
+                    progressFill: document.getElementById('progressFill'),
+                    testList: document.getElementById('testList'),
+                    performanceMetrics: document.getElementById('performanceMetrics'),
+                    logOutput: document.getElementById('logOutput')
+                };
+            }
+
+            setupEventListeners() {
+                this.elements.runTestsBtn.addEventListener('click', () => this.runTests());
+                this.elements.clearResultsBtn.addEventListener('click', () => this.clearResults());
+                this.elements.downloadReportBtn.addEventListener('click', () => this.downloadReport());
+                this.elements.toggleLogBtn.addEventListener('click', () => this.toggleLog());
+            }
+
+            interceptConsole() {
+                const originalLog = console.log;
+                const originalError = console.error;
+                const originalWarn = console.warn;
+
+                console.log = (...args) => {
+                    this.addLogMessage('info', args.join(' '));
+                    originalLog.apply(console, args);
+                };
+
+                console.error = (...args) => {
+                    this.addLogMessage('error', args.join(' '));
+                    originalError.apply(console, args);
+                };
+
+                console.warn = (...args) => {
+                    this.addLogMessage('warn', args.join(' '));
+                    originalWarn.apply(console, args);
+                };
+            }
+
+            addLogMessage(level, message) {
+                const timestamp = new Date().toLocaleTimeString();
+                this.logMessages.push({ timestamp, level, message });
+                this.updateLogOutput();
+            }
+
+            updateLogOutput() {
+                const logHtml = this.logMessages.map(log => {
+                    const color = {
+                        info: '#f8f9fa',
+                        warn: '#ffc107',
+                        error: '#dc3545'
+                    }[log.level] || '#f8f9fa';
+                    
+                    return `<div style="color: ${color}">[${log.timestamp}] ${log.message}</div>`;
+                }).join('');
+                
+                this.elements.logOutput.innerHTML = logHtml;
+                this.elements.logOutput.scrollTop = this.elements.logOutput.scrollHeight;
+            }
+
+            async runTests() {
+                this.elements.runTestsBtn.disabled = true;
+                this.elements.runTestsBtn.textContent = 'Running Tests...';
+                this.clearResults();
+
+                try {
+                    // Initialize test list
+                    this.initializeTestList();
+                    
+                    // Run tests with progress tracking
+                    const results = await this.testRunner.runTests({
+                        saveResults: true,
+                        generateReport: false, // We'll handle report generation in UI
+                        compareWithBaseline: true,
+                        verbose: true
+                    });
+
+                    this.currentResults = results;
+                    this.updateResults(results);
+                    this.showPerformanceMetrics(results);
+                    this.elements.downloadReportBtn.classList.remove('hidden');
+
+                } catch (error) {
+                    console.error('Test execution failed:', error);
+                    alert('Test execution failed: ' + error.message);
+                } finally {
+                    this.elements.runTestsBtn.disabled = false;
+                    this.elements.runTestsBtn.textContent = 'Run All Tests';
+                }
+            }
+
+            initializeTestList() {
+                const testNames = [
+                    'Scene Loading',
+                    'Basic Functionality', 
+                    'Agent Behaviors',
+                    'Performance Baseline',
+                    'Memory Usage',
+                    'Rendering Pipeline'
+                ];
+
+                this.elements.testList.innerHTML = '';
+                this.testItems.clear();
+
+                testNames.forEach(name => {
+                    const testItem = this.createTestItem(name, 'pending');
+                    this.elements.testList.appendChild(testItem);
+                    this.testItems.set(name, testItem);
+                });
+
+                this.updateStats(0, 0, testNames.length);
+            }
+
+            createTestItem(name, status) {
+                const item = document.createElement('div');
+                item.className = `test-item ${status}`;
+                
+                item.innerHTML = `
+                    <span class="test-name">${name}</span>
+                    <span class="test-status status-${status}">${status.toUpperCase()}</span>
+                `;
+                
+                return item;
+            }
+
+            updateTestItem(name, status, duration = null, error = null) {
+                const item = this.testItems.get(name);
+                if (!item) return;
+
+                item.className = `test-item ${status}`;
+                const statusSpan = item.querySelector('.test-status');
+                statusSpan.className = `test-status status-${status}`;
+                
+                let statusText = status.toUpperCase();
+                if (duration && status === 'passed') {
+                    statusText += ` (${duration}ms)`;
+                }
+                
+                statusSpan.textContent = statusText;
+                
+                if (error) {
+                    statusSpan.title = error;
+                }
+            }
+
+            updateResults(results) {
+                results.details.forEach(test => {
+                    const status = test.status === 'PASSED' ? 'passed' : 'failed';
+                    this.updateTestItem(test.name, status, test.duration, test.error);
+                });
+
+                this.updateStats(results.passed, results.failed, results.total);
+                this.updateProgress(100);
+            }
+
+            updateStats(passed, failed, total) {
+                this.elements.totalTests.textContent = total;
+                this.elements.passedTests.textContent = passed;
+                this.elements.failedTests.textContent = failed;
+                
+                const successRate = total > 0 ? ((passed / total) * 100).toFixed(1) : 0;
+                this.elements.successRate.textContent = successRate + '%';
+                
+                // Update colors based on results
+                this.elements.passedTests.style.color = passed > 0 ? '#28a745' : '#6c757d';
+                this.elements.failedTests.style.color = failed > 0 ? '#dc3545' : '#6c757d';
+                this.elements.successRate.style.color = successRate >= 80 ? '#28a745' : 
+                                                       successRate >= 60 ? '#ffc107' : '#dc3545';
+            }
+
+            updateProgress(percentage) {
+                this.elements.progressFill.style.width = percentage + '%';
+            }
+
+            showPerformanceMetrics(results) {
+                if (!results.performanceBaseline) return;
+
+                const metrics = results.performanceBaseline;
+                const metricsHtml = `
+                    <div class="metric-card">
+                        <div class="metric-value">${metrics.frameRate.toFixed(1)}</div>
+                        <div class="metric-label">FPS</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">${metrics.renderTime.toFixed(2)}</div>
+                        <div class="metric-label">Render Time (ms)</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">${(metrics.memoryUsage / (1024 * 1024)).toFixed(1)}</div>
+                        <div class="metric-label">Memory (MB)</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">${metrics.meshCount}</div>
+                        <div class="metric-label">Meshes</div>
+                    </div>
+                `;
+
+                this.elements.performanceMetrics.innerHTML = metricsHtml;
+                this.elements.performanceMetrics.classList.remove('hidden');
+            }
+
+            clearResults() {
+                this.elements.testList.innerHTML = '';
+                this.elements.performanceMetrics.classList.add('hidden');
+                this.elements.downloadReportBtn.classList.add('hidden');
+                this.logMessages = [];
+                this.updateLogOutput();
+                this.updateStats(0, 0, 0);
+                this.updateProgress(0);
+                this.currentResults = null;
+            }
+
+            downloadReport() {
+                if (!this.currentResults) return;
+
+                const report = this.testRunner.createReportContent(this.currentResults);
+                const blob = new Blob([report], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `compatibility-test-report-${this.currentResults.timestamp}.md`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            toggleLog() {
+                const isHidden = this.elements.logOutput.classList.contains('hidden');
+                this.elements.logOutput.classList.toggle('hidden');
+                this.elements.toggleLogBtn.textContent = isHidden ? 'Hide Log' : 'Show Log';
+            }
+        }
+
+        // Initialize the test UI when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new TestUI();
+        });
+    </script>
+</body>
+</html>

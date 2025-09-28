@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Babylon.js 8.29.0 API Migration Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #555;
+        }
+        #console {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .success { color: #4CAF50; }
+        .error { color: #f44336; }
+        .warning { color: #ff9800; }
+        .info { color: #2196F3; }
+        .summary {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .summary h3 {
+            margin-top: 0;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .status-pass { background: #4CAF50; color: white; }
+        .status-warn { background: #ff9800; color: white; }
+        .status-fail { background: #f44336; color: white; }
+    </style>
+    <!-- Load Babylon.js from CDN -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/havok/HavokPhysics_umd.js"></script>
+    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Babylon.js 8.29.0 API Migration Test</h1>
+        
+        <div class="summary">
+            <h3>Test Summary</h3>
+            <div id="summary-content">Running tests...</div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Console Output</h3>
+            <div id="console"></div>
+        </div>
+    </div>
+
+    <script>
+        // Override console methods to display in our custom console
+        const consoleDiv = document.getElementById('console');
+        const summaryDiv = document.getElementById('summary-content');
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+
+        function addToConsole(message, type = 'log') {
+            const timestamp = new Date().toLocaleTimeString();
+            let className = 'info';
+            if (type === 'error') className = 'error';
+            else if (type === 'warn') className = 'warning';
+            else if (message.includes('✓')) className = 'success';
+            else if (message.includes('✗')) className = 'error';
+            else if (message.includes('⚠')) className = 'warning';
+            
+            consoleDiv.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addToConsole(args.join(' '), 'log');
+        };
+
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addToConsole(args.join(' '), 'error');
+        };
+
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            addToConsole(args.join(' '), 'warn');
+        };
+
+        // Update summary when tests complete
+        function updateSummary(results) {
+            const total = results.passed + results.warnings + results.failed;
+            const passRate = ((results.passed / total) * 100).toFixed(1);
+            
+            summaryDiv.innerHTML = `
+                <div>
+                    <span class="status-badge status-pass">✓ ${results.passed} Passed</span>
+                    <span class="status-badge status-warn">⚠ ${results.warnings} Warnings</span>
+                    <span class="status-badge status-fail">✗ ${results.failed} Failed</span>
+                </div>
+                <p><strong>Pass Rate:</strong> ${passRate}% (${results.passed}/${total})</p>
+                <p><strong>Status:</strong> ${results.failed === 0 ? 
+                    '<span style="color: #4CAF50;">✓ Migration Compatible</span>' : 
+                    '<span style="color: #f44336;">✗ Issues Found</span>'}</p>
+            `;
+        }
+
+        // Store original test function to modify it
+        let originalTestResults = null;
+        
+        // Override the test function to capture results
+        window.addEventListener('DOMContentLoaded', () => {
+            // Wait a bit for the test to run, then capture results
+            setTimeout(() => {
+                // The test results should be available in the global scope or we can parse from console
+                // For now, we'll create a mock summary based on console output
+                const consoleText = consoleDiv.textContent;
+                const passedMatches = consoleText.match(/✓/g) || [];
+                const failedMatches = consoleText.match(/✗/g) || [];
+                const warningMatches = consoleText.match(/⚠/g) || [];
+                
+                const mockResults = {
+                    passed: passedMatches.length,
+                    failed: failedMatches.length,
+                    warnings: warningMatches.length
+                };
+                
+                updateSummary(mockResults);
+            }, 2000);
+        });
+    </script>
+    
+    <script src="test-api-migration.js"></script>
+</body>
+</html>

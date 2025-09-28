@@ -20,6 +20,8 @@ desktop.ini
 node_modules/
 jspm_packages/
 bower_components/
+node_modules
+node_modules/*
 
 # Build artifacts
 dist/

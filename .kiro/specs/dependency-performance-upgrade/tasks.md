@@ -70,7 +70,7 @@
   - Write unit tests for performance metric accuracy
   - _Requirements: 2.1, 2.2_
 
-- [ ] 3.2 Implement CPUProfiler and AgentPerformanceTracker
+- [x] 3.2 Implement CPUProfiler and AgentPerformanceTracker
 
   - Create CPUProfiler class for render and update time measurement
   - Implement AgentPerformanceTracker for individual agent performance monitoring
@@ -79,7 +79,8 @@
 
   - _Requirements: 2.1, 2.2, 2.4_
 
-- [ ] 3.3 Create performance data storage and management
+- [x] 3.3 Create performance data storage and management
+
 
   - Implement PerformanceDataStore for storing historical metrics
   - Create data aggregation utilities for performance analysis
@@ -87,14 +88,17 @@
   - Write tests for data storage and retrieval operations
   - _Requirements: 2.2, 2.4, 2.5_
 
-- [ ] 4. Build real-time performance dashboard
+- [-] 4. Build real-time performance dashboard
+
 
   - Create visual performance monitoring interface
   - Implement real-time metric displays
   - Add performance alerts and notifications
   - _Requirements: 2.3, 2.5_
 
-- [ ] 4.1 Create PerformanceDashboard UI component
+- [x] 4.1 Create PerformanceDashboard UI component
+
+
 
   - Implement PerformanceDashboard class with HTML/CSS interface
   - Create real-time metric display widgets for FPS, memory, and CPU
@@ -102,7 +106,8 @@
   - Write UI tests for dashboard responsiveness and accuracy
   - _Requirements: 2.3, 2.5_
 
-- [ ] 4.2 Implement AlertSystem for performance monitoring
+- [-] 4.2 Implement AlertSystem for performance monitoring
+
 
   - Create AlertSystem class for threshold-based performance warnings
   - Implement configurable alert thresholds for different metrics

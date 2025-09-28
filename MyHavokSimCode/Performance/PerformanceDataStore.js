@@ -541,9 +541,15 @@ export class PerformanceDataStore {
         const cutoffTime = now - this.retentionPeriod;
         this.metrics = this.metrics.filter(metric => metric.stored > cutoffTime);
         
-        // Compress old data if needed
+        // Compress old data if needed or enforce max storage size
         if (this.metrics.length > this.compressionThreshold) {
             this.compressOldData();
+        }
+        
+        // Enforce maximum storage size
+        if (this.metrics.length > this.maxStorageSize) {
+            const excessCount = this.metrics.length - this.maxStorageSize;
+            this.metrics.splice(0, excessCount);
         }
         
         // Clear old cache entries

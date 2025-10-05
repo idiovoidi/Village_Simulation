@@ -1,22 +1,43 @@
 {
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Configuration file for the cleanup orchestrator. Controls thresholds, safety checks, execution behavior, and file exclusions.",
+  
   "thresholds": {
+    "$comment": "Coverage thresholds for categorizing files. Files are categorized based on their coverage percentage.",
     "unused": 0,
+    "$unused_description": "Files with 0% coverage are considered completely unused (highest priority for removal)",
     "lowUsage": 30,
-    "moderate": 60
+    "$lowUsage_description": "Files with <30% coverage are considered low usage (candidates for refactoring or partial cleanup)",
+    "moderate": 60,
+    "$moderate_description": "Files with 30-60% coverage are considered moderate usage (may need review)"
   },
+  
   "safety": {
+    "$comment": "Safety verification rules to prevent accidental removal of important code",
     "requireZeroReferences": true,
+    "$requireZeroReferences_description": "If true, only remove files with no import/require references in the codebase",
     "checkDynamicUsage": true,
+    "$checkDynamicUsage_description": "If true, check for dynamic imports (import(), require with variables) before removal",
     "checkPublicAPI": true,
-    "minDaysSinceModified": 90
+    "$checkPublicAPI_description": "If true, check if file is part of public API (has exports, in package.json) before removal",
+    "minDaysSinceModified": 90,
+    "$minDaysSinceModified_description": "Minimum days since last git commit before considering file for removal (prevents removing recently modified code)"
   },
+  
   "execution": {
+    "$comment": "Execution behavior settings that control how the cleanup process runs",
     "dryRun": false,
+    "$dryRun_description": "If true, preview changes without actually deleting files (safe mode for testing)",
     "stopOnTestFailure": true,
+    "$stopOnTestFailure_description": "If true, stop the cleanup process if tests fail after a removal (recommended for safety)",
     "maxItemsPerRun": 50,
-    "createBackupBranch": true
+    "$maxItemsPerRun_description": "Maximum number of items to process in a single cleanup run (prevents overly aggressive cleanup)",
+    "createBackupBranch": true,
+    "$createBackupBranch_description": "If true, create a git branch before making any changes (allows easy rollback)"
   },
+  
   "exclusions": {
+    "$comment": "Files and patterns to exclude from cleanup analysis and removal",
     "paths": [
       "MyHavokSimCode/core/**",
       "server.js",
@@ -24,9 +45,11 @@
       "coverage/**",
       ".git/**"
     ],
+    "$paths_description": "Specific paths to exclude (supports glob patterns with ** for recursive matching)",
     "patterns": [
       "**/index.js",
       "**/*Config.js"
-    ]
+    ],
+    "$patterns_description": "File name patterns to exclude (e.g., all index.js files, all config files)"
   }
 }

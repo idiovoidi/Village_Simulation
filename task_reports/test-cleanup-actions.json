@@ -1,0 +1,65 @@
+{
+  "timestamp": "2025-10-05T12:07:58.228Z",
+  "summary": {
+    "total": 5,
+    "byType": {
+      "file_removal": 2,
+      "function_removal": 1,
+      "file_kept": 1,
+      "file_review": 1
+    },
+    "byResult": {
+      "success": 2,
+      "failed": 1,
+      "kept": 1,
+      "review": 1
+    }
+  },
+  "actions": [
+    {
+      "timestamp": "2025-10-05T12:07:58.226Z",
+      "type": "file_removal",
+      "item": "test/file1.js",
+      "result": "success",
+      "reason": "File has 0% coverage",
+      "testResult": null,
+      "details": null
+    },
+    {
+      "timestamp": "2025-10-05T12:07:58.226Z",
+      "type": "file_removal",
+      "item": "test/file2.js",
+      "result": "failed",
+      "reason": "Tests failed after removal",
+      "testResult": null,
+      "details": null
+    },
+    {
+      "timestamp": "2025-10-05T12:07:58.227Z",
+      "type": "function_removal",
+      "item": "test/file3.js::unusedFunction",
+      "result": "success",
+      "reason": "Function never called",
+      "testResult": null,
+      "details": null
+    },
+    {
+      "timestamp": "2025-10-05T12:07:58.227Z",
+      "type": "file_kept",
+      "item": "test/file4.js",
+      "result": "kept",
+      "reason": "Part of public API",
+      "testResult": null,
+      "details": null
+    },
+    {
+      "timestamp": "2025-10-05T12:07:58.227Z",
+      "type": "file_review",
+      "item": "test/file5.js",
+      "result": "review",
+      "reason": "Has dynamic imports",
+      "testResult": null,
+      "details": null
+    }
+  ]
+}

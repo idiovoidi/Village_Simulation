@@ -1,0 +1,32 @@
+{
+  "thresholds": {
+    "unused": 0,
+    "lowUsage": 30,
+    "moderate": 60
+  },
+  "safety": {
+    "requireZeroReferences": true,
+    "checkDynamicUsage": true,
+    "checkPublicAPI": true,
+    "minDaysSinceModified": 90
+  },
+  "execution": {
+    "dryRun": false,
+    "stopOnTestFailure": true,
+    "maxItemsPerRun": 50,
+    "createBackupBranch": true
+  },
+  "exclusions": {
+    "paths": [
+      "MyHavokSimCode/core/**",
+      "server.js",
+      "node_modules/**",
+      "coverage/**",
+      ".git/**"
+    ],
+    "patterns": [
+      "**/index.js",
+      "**/*Config.js"
+    ]
+  }
+}

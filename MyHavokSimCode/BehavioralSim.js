@@ -17,6 +17,30 @@ export class BehavioralSim {
         this.navigationMesh = new NavigationMesh(scene);
         this.basicAgent = new BasicAgent(scene);
         
+        // Performance optimization integration
+        this.performanceOptimizer = null;
+        this.optimizationEnabled = true;
+        this.lastOptimizationUpdate = 0;
+        this.optimizationUpdateInterval = 1000; // Update every second
+        
+        // Agent performance tracking
+        this.agentPerformanceData = {
+            totalAgents: 0,
+            activeAgents: 0,
+            visibleAgents: 0,
+            updateTime: 0,
+            lastFrameTime: 0
+        };
+        
+        // Distance-based optimization settings
+        this.distanceOptimization = {
+            enabled: true,
+            nearDistance: 20,    // Full update frequency
+            mediumDistance: 50,  // Reduced update frequency
+            farDistance: 100,    // Minimal update frequency
+            cullingDistance: 150 // Don't update at all
+        };
+        
         // Return the initialization promise
         return this.init();
     }
@@ -43,14 +67,412 @@ export class BehavioralSim {
             // Initialize dinosaur
             this.initializeDinosaur();
 
-            // Start behavior update loop
-            this.scene.registerBeforeRender(() => this.updateBehaviors());
+            // Start behavior update loop with optimization support
+            this.scene.registerBeforeRender(() => this.updateBehaviorsOptimized());
 
             // Return this for chaining
             return this;
         } catch (error) {
             console.error('Failed to initialize BehavioralSim:', error);
             throw error;
+        }
+    }
+    
+    /**
+     * Set performance optimizer reference for integration
+     * @param {PerformanceOptimizer} optimizer - Performance optimizer instance
+     */
+    setPerformanceOptimizer(optimizer) {
+        this.performanceOptimizer = optimizer;
+        console.log('BehavioralSim integrated with PerformanceOptimizer');
+    }
+    
+    /**
+     * Enable or disable optimization features
+     * @param {boolean} enabled - Whether to enable optimization
+     */
+    setOptimizationEnabled(enabled) {
+        this.optimizationEnabled = enabled;
+        console.log(`BehavioralSim optimization ${enabled ? 'enabled' : 'disabled'}`);
+    }
+    
+    /**
+     * Configure distance-based optimization settings
+     * @param {Object} settings - Distance optimization settings
+     */
+    configureDistanceOptimization(settings) {
+        this.distanceOptimization = { ...this.distanceOptimization, ...settings };
+        console.log('Distance optimization configured:', this.distanceOptimization);
+    }
+    
+    /**
+     * Optimized behavior update method
+     */
+    updateBehaviorsOptimized() {
+        const startTime = performance.now();
+        
+        try {
+            // Get camera position for distance calculations
+            const camera = this.scene.activeCamera;
+            const cameraPosition = camera ? camera.position : new BABYLON.Vector3(0, 0, 0);
+            
+            // Update agent performance tracking
+            this.updateAgentPerformanceTracking(cameraPosition);
+            
+            // Update behaviors with optimization
+            if (this.optimizationEnabled) {
+                this.updateBehaviorsWithOptimization(cameraPosition);
+            } else {
+                this.updateBehaviors(); // Fallback to original method
+            }
+            
+            // Track performance
+            const endTime = performance.now();
+            this.agentPerformanceData.updateTime = endTime - startTime;
+            this.agentPerformanceData.lastFrameTime = endTime;
+            
+            // Update optimization system periodically
+            if (endTime - this.lastOptimizationUpdate > this.optimizationUpdateInterval) {
+                this.updateOptimizationMetrics();
+                this.lastOptimizationUpdate = endTime;
+            }
+            
+        } catch (error) {
+            console.error('Error in optimized behavior update:', error);
+            // Fallback to original method
+            this.updateBehaviors();
+        }
+    }
+    
+    /**
+     * Update behaviors with distance-based optimization
+     * @param {BABYLON.Vector3} cameraPosition - Camera position for distance calculations
+     */
+    updateBehaviorsWithOptimization(cameraPosition) {
+        // Update different agent types with optimization
+        this.updateAgentsWithOptimization(cameraPosition);
+        this.updateZombiesWithOptimization(cameraPosition);
+        this.updateDogsWithOptimization(cameraPosition);
+        this.updateVillagersWithOptimization(cameraPosition);
+        this.updateDinosaursWithOptimization(cameraPosition);
+    }
+    
+    /**
+     * Update basic agents with distance-based optimization
+     * @param {BABYLON.Vector3} cameraPosition - Camera position
+     */
+    updateAgentsWithOptimization(cameraPosition) {
+        if (!this.agents || this.agents.length === 0) return;
+        
+        for (let i = 0; i < this.agents.length; i++) {
+            const agent = this.agents[i];
+            if (!agent || !agent.mesh) continue;
+            
+            const distance = BABYLON.Vector3.Distance(agent.mesh.position, cameraPosition);
+            const updateFrequency = this.getUpdateFrequencyForDistance(distance);
+            
+            // Skip update based on distance and frame timing
+            if (updateFrequency < 1.0 && Math.random() > updateFrequency) {
+                continue;
+            }
+            
+            // Update agent behavior
+            this.updateAgentBehavior(agent, distance < this.distanceOptimization.nearDistance);
+        }
+    }
+    
+    /**
+     * Update zombies with distance-based optimization
+     * @param {BABYLON.Vector3} cameraPosition - Camera position
+     */
+    updateZombiesWithOptimization(cameraPosition) {
+        if (!this.zombies || this.zombies.length === 0) return;
+        
+        for (let i = 0; i < this.zombies.length; i++) {
+            const zombie = this.zombies[i];
+            if (!zombie || !zombie.mesh) continue;
+            
+            const distance = BABYLON.Vector3.Distance(zombie.mesh.position, cameraPosition);
+            const updateFrequency = this.getUpdateFrequencyForDistance(distance);
+            
+            if (updateFrequency < 1.0 && Math.random() > updateFrequency) {
+                continue;
+            }
+            
+            // Update zombie behavior (simplified for distant zombies)
+            this.updateZombieBehavior(zombie, distance < this.distanceOptimization.nearDistance);
+        }
+    }
+    
+    /**
+     * Update dogs with distance-based optimization
+     * @param {BABYLON.Vector3} cameraPosition - Camera position
+     */
+    updateDogsWithOptimization(cameraPosition) {
+        if (!this.dogBehaviour) return;
+        
+        // Let the dog behavior system handle its own optimization
+        if (this.dogBehaviour.updateWithOptimization) {
+            this.dogBehaviour.updateWithOptimization(cameraPosition, this.distanceOptimization);
+        } else {
+            this.dogBehaviour.update();
+        }
+    }
+    
+    /**
+     * Update villagers with distance-based optimization
+     * @param {BABYLON.Vector3} cameraPosition - Camera position
+     */
+    updateVillagersWithOptimization(cameraPosition) {
+        if (!this.villagerBehaviour) return;
+        
+        // Let the villager behavior system handle its own optimization
+        if (this.villagerBehaviour.updateWithOptimization) {
+            this.villagerBehaviour.updateWithOptimization(cameraPosition, this.distanceOptimization);
+        } else {
+            this.villagerBehaviour.update();
+        }
+    }
+    
+    /**
+     * Update dinosaurs with distance-based optimization
+     * @param {BABYLON.Vector3} cameraPosition - Camera position
+     */
+    updateDinosaursWithOptimization(cameraPosition) {
+        if (!this.dinosaurBehaviour) return;
+        
+        // Let the dinosaur behavior system handle its own optimization
+        if (this.dinosaurBehaviour.updateWithOptimization) {
+            this.dinosaurBehaviour.updateWithOptimization(cameraPosition, this.distanceOptimization);
+        } else {
+            this.dinosaurBehaviour.update();
+        }
+    }
+    
+    /**
+     * Get update frequency based on distance from camera
+     * @param {number} distance - Distance from camera
+     * @returns {number} Update frequency (0.0 to 1.0)
+     */
+    getUpdateFrequencyForDistance(distance) {
+        if (distance < this.distanceOptimization.nearDistance) {
+            return 1.0; // Full update frequency
+        } else if (distance < this.distanceOptimization.mediumDistance) {
+            return 0.5; // Half update frequency
+        } else if (distance < this.distanceOptimization.farDistance) {
+            return 0.25; // Quarter update frequency
+        } else if (distance < this.distanceOptimization.cullingDistance) {
+            return 0.1; // Very low update frequency
+        } else {
+            return 0.0; // No updates
+        }
+    }
+    
+    /**
+     * Update agent performance tracking
+     * @param {BABYLON.Vector3} cameraPosition - Camera position
+     */
+    updateAgentPerformanceTracking(cameraPosition) {
+        let totalAgents = 0;
+        let activeAgents = 0;
+        let visibleAgents = 0;
+        
+        // Count basic agents
+        if (this.agents) {
+            totalAgents += this.agents.length;
+            for (const agent of this.agents) {
+                if (agent && agent.mesh) {
+                    activeAgents++;
+                    const distance = BABYLON.Vector3.Distance(agent.mesh.position, cameraPosition);
+                    if (distance < this.distanceOptimization.farDistance) {
+                        visibleAgents++;
+                    }
+                }
+            }
+        }
+        
+        // Count zombies
+        if (this.zombies) {
+            totalAgents += this.zombies.length;
+            activeAgents += this.zombies.length;
+            for (const zombie of this.zombies) {
+                if (zombie && zombie.mesh) {
+                    const distance = BABYLON.Vector3.Distance(zombie.mesh.position, cameraPosition);
+                    if (distance < this.distanceOptimization.farDistance) {
+                        visibleAgents++;
+                    }
+                }
+            }
+        }
+        
+        // Count dogs
+        if (this.dogBehaviour && this.dogBehaviour.dogs) {
+            totalAgents += this.dogBehaviour.dogs.length;
+            activeAgents += this.dogBehaviour.dogs.length;
+            for (const dog of this.dogBehaviour.dogs) {
+                if (dog && dog.mesh) {
+                    const distance = BABYLON.Vector3.Distance(dog.mesh.position, cameraPosition);
+                    if (distance < this.distanceOptimization.farDistance) {
+                        visibleAgents++;
+                    }
+                }
+            }
+        }
+        
+        // Count villagers
+        if (this.villagerBehaviour && this.villagerBehaviour.villagers) {
+            totalAgents += this.villagerBehaviour.villagers.length;
+            activeAgents += this.villagerBehaviour.villagers.length;
+            for (const villager of this.villagerBehaviour.villagers) {
+                if (villager && villager.mesh) {
+                    const distance = BABYLON.Vector3.Distance(villager.mesh.position, cameraPosition);
+                    if (distance < this.distanceOptimization.farDistance) {
+                        visibleAgents++;
+                    }
+                }
+            }
+        }
+        
+        // Count dinosaurs
+        if (this.dinosaurBehaviour && this.dinosaurBehaviour.dinosaurs) {
+            totalAgents += this.dinosaurBehaviour.dinosaurs.length;
+            activeAgents += this.dinosaurBehaviour.dinosaurs.length;
+            for (const dinosaur of this.dinosaurBehaviour.dinosaurs) {
+                if (dinosaur && dinosaur.mesh) {
+                    const distance = BABYLON.Vector3.Distance(dinosaur.mesh.position, cameraPosition);
+                    if (distance < this.distanceOptimization.farDistance) {
+                        visibleAgents++;
+                    }
+                }
+            }
+        }
+        
+        // Update performance data
+        this.agentPerformanceData.totalAgents = totalAgents;
+        this.agentPerformanceData.activeAgents = activeAgents;
+        this.agentPerformanceData.visibleAgents = visibleAgents;
+    }
+    
+    /**
+     * Update optimization metrics for the performance optimizer
+     */
+    updateOptimizationMetrics() {
+        if (!this.performanceOptimizer) return;
+        
+        // Send agent performance data to the optimizer
+        const metrics = {
+            agentCount: this.agentPerformanceData.totalAgents,
+            activeAgentCount: this.agentPerformanceData.activeAgents,
+            visibleAgentCount: this.agentPerformanceData.visibleAgents,
+            agentUpdateTime: this.agentPerformanceData.updateTime,
+            optimizationEnabled: this.optimizationEnabled,
+            distanceOptimization: this.distanceOptimization
+        };
+        
+        // This would integrate with the AI processing optimizer
+        if (this.performanceOptimizer.aiProcessingOptimizer) {
+            // Send metrics to AI processing optimizer
+            if (this.performanceOptimizer.aiProcessingOptimizer.updateMetrics) {
+                this.performanceOptimizer.aiProcessingOptimizer.updateMetrics(metrics);
+            }
+        }
+    }
+    
+    /**
+     * Get agent performance data for monitoring
+     * @returns {Object} Agent performance data
+     */
+    getAgentPerformanceData() {
+        return { ...this.agentPerformanceData };
+    }
+    
+    /**
+     * Update individual agent behavior with optimization
+     * @param {Object} agent - Agent object
+     * @param {boolean} fullUpdate - Whether to perform full update
+     */
+    updateAgentBehavior(agent, fullUpdate = true) {
+        if (!agent || !agent.mesh) return;
+        
+        try {
+            if (fullUpdate) {
+                // Full behavior update for nearby agents
+                const flockingForce = this.calculateFlockingForce(agent);
+                
+                switch (agent.state) {
+                    case 'seeking':
+                        this.updateSeekingBehavior(agent, flockingForce);
+                        break;
+                    case 'waiting':
+                        this.updateWaitingBehavior(agent);
+                        break;
+                }
+                
+                this.updateAgentPhysics(agent);
+                this.updateLimbAnimations(agent);
+            } else {
+                // Simplified update for distant agents
+                this.updateAgentPhysicsSimplified(agent);
+            }
+        } catch (error) {
+            console.error('Error updating agent behavior:', error);
+        }
+    }
+    
+    /**
+     * Update individual zombie behavior with optimization
+     * @param {Object} zombie - Zombie object
+     * @param {boolean} fullUpdate - Whether to perform full update
+     */
+    updateZombieBehavior(zombie, fullUpdate = true) {
+        if (!zombie || !zombie.mesh) return;
+        
+        try {
+            if (fullUpdate) {
+                // Full zombie behavior update
+                // This would integrate with the zombie behavior system
+                if (this.zombieBehaviour && this.zombieBehaviour.updateZombie) {
+                    this.zombieBehaviour.updateZombie(zombie);
+                }
+            } else {
+                // Simplified update for distant zombies
+                this.updateZombiePhysicsSimplified(zombie);
+            }
+        } catch (error) {
+            console.error('Error updating zombie behavior:', error);
+        }
+    }
+    
+    /**
+     * Simplified physics update for distant agents
+     * @param {Object} agent - Agent object
+     */
+    updateAgentPhysicsSimplified(agent) {
+        if (!agent || !agent.mesh || !agent.currentTarget) return;
+        
+        // Simple movement towards target without complex calculations
+        const direction = agent.currentTarget.subtract(agent.mesh.position);
+        direction.normalize();
+        direction.scaleInPlace(agent.speed * 0.5); // Reduced speed for distant agents
+        
+        agent.mesh.position.addInPlace(direction);
+    }
+    
+    /**
+     * Simplified physics update for distant zombies
+     * @param {Object} zombie - Zombie object
+     */
+    updateZombiePhysicsSimplified(zombie) {
+        if (!zombie || !zombie.mesh) return;
+        
+        // Very basic movement for distant zombies
+        if (zombie.targetPosition) {
+            const direction = zombie.targetPosition.subtract(zombie.mesh.position);
+            if (direction.length() > 0.1) {
+                direction.normalize();
+                direction.scaleInPlace(zombie.speed * 0.3); // Very reduced speed
+                zombie.mesh.position.addInPlace(direction);
+            }
         }
     }
 

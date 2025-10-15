@@ -32,6 +32,32 @@ export class ThresholdMonitor {
                 warning: { min: 0, max: 500 },
                 info: { min: 0, max: 200 }
             },
+            // Optimization-specific thresholds
+            'optimization.lod.averageLODLevel': {
+                warning: { min: 0, max: 0.5 }, // Too low LOD usage
+                info: { min: 0.5, max: 2.0 }
+            },
+            'optimization.culling.cullingRatio': {
+                warning: { min: 0, max: 0.2 }, // Low culling effectiveness
+                info: { min: 0.2, max: 1.0 }
+            },
+            'optimization.instancing.instancingRatio': {
+                warning: { min: 0, max: 0.1 }, // Low instancing usage
+                info: { min: 0.1, max: 1.0 }
+            },
+            'optimization.memory.poolEfficiency': {
+                warning: { min: 0, max: 0.6 }, // Low pool efficiency
+                info: { min: 0.6, max: 1.0 }
+            },
+            'optimization.agents.scheduler.averageUpdatesPerFrame': {
+                warning: { min: 0, max: Infinity }, // Will be set dynamically based on total agents
+                critical: { min: 0, max: Infinity }
+            },
+            'optimization.effectiveness.overall': {
+                critical: { min: 0, max: 20 }, // Very low optimization effectiveness
+                warning: { min: 20, max: 50 }, // Low optimization effectiveness
+                info: { min: 50, max: 100 }
+            },
             ...options.thresholds
         };
 
@@ -41,8 +67,18 @@ export class ThresholdMonitor {
             escalationTime: 300000, // 5 minutes before escalating
             maxAlertsPerMinute: 10,
             enabledSeverities: ['critical', 'warning', 'info'],
+            enableOptimizationTriggers: true, // Enable automatic optimization triggers
+            optimizationTriggerCooldown: 60000, // 1 minute between optimization triggers
             ...options.alertConfig
         };
+
+        // Optimization trigger system
+        this.optimizationTriggers = new Map(); // metricType -> trigger config
+        this.optimizationCallbacks = new Map(); // callbackId -> callback function
+        this.lastOptimizationTriggers = new Map(); // metricType -> timestamp
+        
+        // Initialize default optimization triggers
+        this.initializeOptimizationTriggers();
 
         // Alert callbacks
         this.alertCallbacks = new Map();
@@ -63,6 +99,75 @@ export class ThresholdMonitor {
     }
 
     /**
+     * Initialize default optimization triggers
+     */
+    initializeOptimizationTriggers() {
+        // Frame rate triggers
+        this.optimizationTriggers.set('frameRate', {
+            critical: {
+                actions: ['enableAggressiveOptimization', 'reduceQuality', 'limitAgentUpdates'],
+                message: 'Critical frame rate - enabling aggressive optimizations'
+            },
+            warning: {
+                actions: ['enableModerateOptimization', 'adjustLOD'],
+                message: 'Low frame rate - enabling moderate optimizations'
+            }
+        });
+
+        // Memory triggers
+        this.optimizationTriggers.set('memory', {
+            critical: {
+                actions: ['triggerMemoryCleanup', 'reduceTextureQuality', 'limitInstances'],
+                message: 'Critical memory usage - triggering cleanup'
+            },
+            warning: {
+                actions: ['scheduleMemoryCleanup', 'optimizePoolSizes'],
+                message: 'High memory usage - scheduling cleanup'
+            }
+        });
+
+        // Optimization effectiveness triggers
+        this.optimizationTriggers.set('optimization.effectiveness.overall', {
+            critical: {
+                actions: ['enableAllOptimizations', 'resetOptimizationSettings'],
+                message: 'Very low optimization effectiveness - enabling all optimizations'
+            },
+            warning: {
+                actions: ['analyzeOptimizationGaps', 'adjustOptimizationSettings'],
+                message: 'Low optimization effectiveness - analyzing gaps'
+            }
+        });
+
+        // LOD optimization triggers
+        this.optimizationTriggers.set('optimization.lod.averageLODLevel', {
+            warning: {
+                actions: ['increaseLODDistances', 'enableMoreAggressiveLOD'],
+                message: 'Low LOD usage - increasing LOD aggressiveness'
+            }
+        });
+
+        // Culling optimization triggers
+        this.optimizationTriggers.set('optimization.culling.cullingRatio', {
+            warning: {
+                actions: ['adjustCullingSettings', 'enableOcclusionCulling'],
+                message: 'Low culling effectiveness - adjusting settings'
+            }
+        });
+
+        // Agent scheduling triggers
+        this.optimizationTriggers.set('optimization.agents.scheduler.averageUpdatesPerFrame', {
+            warning: {
+                actions: ['reduceAgentUpdateFrequency', 'adjustAgentPriorities'],
+                message: 'High agent processing load - reducing update frequency'
+            },
+            critical: {
+                actions: ['enableAgentBatching', 'limitActiveAgents'],
+                message: 'Critical agent processing load - enabling batching'
+            }
+        });
+    }
+
+    /**
      * Start threshold monitoring
      */
     start() {
@@ -79,6 +184,7 @@ export class ThresholdMonitor {
         this.activeAlerts.clear();
         this.alertCooldowns.clear();
         this.recentAlerts = [];
+        this.lastOptimizationTriggers.clear();
     }
 
     /**
@@ -107,6 +213,9 @@ export class ThresholdMonitor {
 
         const alerts = [];
         const timestamp = metrics.timestamp || Date.now();
+
+        // Update dynamic thresholds based on current metrics
+        this.updateDynamicThresholds(metrics);
 
         // Check each metric type
         for (const [metricType, thresholds] of Object.entries(this.thresholds)) {
@@ -217,6 +326,9 @@ export class ThresholdMonitor {
         // Add to recent alerts for rate limiting
         this.recentAlerts.push(alert.timestamp);
 
+        // Check for optimization triggers
+        this.checkOptimizationTriggers(alert);
+
         // Check for escalation
         this.checkEscalation(alert);
 
@@ -248,6 +360,48 @@ export class ThresholdMonitor {
             this.notifyCallbacks(resolutionAlert);
             console.log(`✅ RESOLVED: ${resolutionAlert.message}`);
         }
+    }
+
+    /**
+     * Check for optimization triggers
+     */
+    checkOptimizationTriggers(alert) {
+        if (!this.alertConfig.enableOptimizationTriggers) {
+            return;
+        }
+
+        const trigger = this.optimizationTriggers.get(alert.metricType);
+        if (!trigger || !trigger[alert.severity]) {
+            return;
+        }
+
+        // Check cooldown for this trigger
+        const lastTrigger = this.lastOptimizationTriggers.get(alert.metricType);
+        if (lastTrigger && alert.timestamp - lastTrigger < this.alertConfig.optimizationTriggerCooldown) {
+            return;
+        }
+
+        const triggerConfig = trigger[alert.severity];
+        
+        // Create optimization trigger event
+        const optimizationTrigger = {
+            id: this.generateAlertId(),
+            timestamp: alert.timestamp,
+            type: 'optimization_trigger',
+            metricType: alert.metricType,
+            severity: alert.severity,
+            actions: triggerConfig.actions,
+            message: triggerConfig.message,
+            triggeringAlert: alert
+        };
+
+        // Record trigger time
+        this.lastOptimizationTriggers.set(alert.metricType, alert.timestamp);
+
+        // Notify optimization callbacks
+        this.notifyOptimizationCallbacks(optimizationTrigger);
+
+        console.log(`⚡ OPTIMIZATION TRIGGER: ${optimizationTrigger.message}`);
     }
 
     /**
@@ -288,8 +442,45 @@ export class ThresholdMonitor {
             case 'agents':
                 return metrics.scene?.meshCount;
             default:
-                // Support nested paths
+                // Support nested paths for optimization metrics
                 return this.getNestedValue(metrics, metricType);
+        }
+    }
+
+    /**
+     * Update dynamic thresholds based on current system state
+     */
+    updateDynamicThresholds(metrics) {
+        // Update agent scheduling thresholds based on total agents
+        if (metrics.optimization?.agents?.scheduler?.totalAgents) {
+            const totalAgents = metrics.optimization.agents.scheduler.totalAgents;
+            const maxRecommendedUpdatesPerFrame = Math.max(1, Math.floor(totalAgents * 0.3));
+            const criticalUpdatesPerFrame = Math.max(1, Math.floor(totalAgents * 0.8));
+
+            this.thresholds['optimization.agents.scheduler.averageUpdatesPerFrame'] = {
+                warning: { min: maxRecommendedUpdatesPerFrame, max: Infinity },
+                critical: { min: criticalUpdatesPerFrame, max: Infinity }
+            };
+        }
+
+        // Update memory thresholds based on available memory
+        if (metrics.memory?.total) {
+            const totalMemoryMB = metrics.memory.total / (1024 * 1024);
+            
+            // Adjust thresholds for systems with different memory amounts
+            if (totalMemoryMB < 4096) { // Less than 4GB
+                this.thresholds.memory = {
+                    critical: { min: 0, max: 85 },
+                    warning: { min: 0, max: 70 },
+                    info: { min: 0, max: 55 }
+                };
+            } else if (totalMemoryMB > 16384) { // More than 16GB
+                this.thresholds.memory = {
+                    critical: { min: 0, max: 95 },
+                    warning: { min: 0, max: 85 },
+                    info: { min: 0, max: 75 }
+                };
+            }
         }
     }
 
@@ -391,6 +582,65 @@ export class ThresholdMonitor {
      */
     removeAlertCallback(callbackId) {
         return this.alertCallbacks.delete(callbackId);
+    }
+
+    /**
+     * Register optimization trigger callback
+     */
+    onOptimizationTrigger(callback, options = {}) {
+        const {
+            actions = null, // Filter by specific actions
+            metricTypes = null, // Filter by metric types
+            severities = ['critical', 'warning']
+        } = options;
+
+        const callbackId = this.generateCallbackId();
+        
+        this.optimizationCallbacks.set(callbackId, {
+            callback,
+            actions,
+            metricTypes,
+            severities
+        });
+
+        return callbackId;
+    }
+
+    /**
+     * Remove optimization trigger callback
+     */
+    removeOptimizationCallback(callbackId) {
+        return this.optimizationCallbacks.delete(callbackId);
+    }
+
+    /**
+     * Notify optimization trigger callbacks
+     */
+    notifyOptimizationCallbacks(trigger) {
+        for (const [id, config] of this.optimizationCallbacks) {
+            const { callback, actions, metricTypes, severities } = config;
+            
+            // Check severity filter
+            if (!severities.includes(trigger.severity)) {
+                continue;
+            }
+            
+            // Check metric type filter
+            if (metricTypes && !metricTypes.includes(trigger.metricType)) {
+                continue;
+            }
+            
+            // Check action filter
+            if (actions && !trigger.actions.some(action => actions.includes(action))) {
+                continue;
+            }
+            
+            try {
+                callback(trigger);
+            } catch (error) {
+                console.error(`Error in optimization trigger callback ${id}:`, error);
+            }
+        }
     }
 
     /**
@@ -587,6 +837,73 @@ export class ThresholdMonitor {
     }
 
     /**
+     * Add or update optimization trigger
+     */
+    setOptimizationTrigger(metricType, severity, config) {
+        if (!this.optimizationTriggers.has(metricType)) {
+            this.optimizationTriggers.set(metricType, {});
+        }
+        
+        this.optimizationTriggers.get(metricType)[severity] = config;
+    }
+
+    /**
+     * Remove optimization trigger
+     */
+    removeOptimizationTrigger(metricType, severity = null) {
+        if (!this.optimizationTriggers.has(metricType)) {
+            return false;
+        }
+
+        if (severity) {
+            delete this.optimizationTriggers.get(metricType)[severity];
+        } else {
+            this.optimizationTriggers.delete(metricType);
+        }
+        
+        return true;
+    }
+
+    /**
+     * Get optimization triggers
+     */
+    getOptimizationTriggers(metricType = null) {
+        if (metricType) {
+            return this.optimizationTriggers.get(metricType) || null;
+        }
+        return Object.fromEntries(this.optimizationTriggers);
+    }
+
+    /**
+     * Enable or disable optimization triggers
+     */
+    setOptimizationTriggersEnabled(enabled) {
+        this.alertConfig.enableOptimizationTriggers = enabled;
+    }
+
+    /**
+     * Get optimization trigger statistics
+     */
+    getOptimizationTriggerStatistics() {
+        const triggerCounts = {};
+        let totalTriggers = 0;
+
+        // Count triggers by metric type
+        for (const [metricType, lastTrigger] of this.lastOptimizationTriggers) {
+            triggerCounts[metricType] = (triggerCounts[metricType] || 0) + 1;
+            totalTriggers++;
+        }
+
+        return {
+            totalTriggers,
+            triggersByMetric: triggerCounts,
+            enabledTriggers: this.optimizationTriggers.size,
+            triggersEnabled: this.alertConfig.enableOptimizationTriggers,
+            lastTriggerTimes: Object.fromEntries(this.lastOptimizationTriggers)
+        };
+    }
+
+    /**
      * Clear all alert history
      */
     clearHistory() {
@@ -606,8 +923,11 @@ export class ThresholdMonitor {
     dispose() {
         this.stop();
         this.alertCallbacks.clear();
+        this.optimizationCallbacks.clear();
         this.clearHistory();
         this.activeAlerts.clear();
         this.alertCooldowns.clear();
+        this.optimizationTriggers.clear();
+        this.lastOptimizationTriggers.clear();
     }
 }

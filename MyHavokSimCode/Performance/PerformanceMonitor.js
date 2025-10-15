@@ -21,6 +21,18 @@ export class PerformanceMonitor {
         this.cpuProfiler = new CPUProfiler();
         this.agentPerformanceTracker = new AgentPerformanceTracker();
         
+        // Optimization system references (set externally)
+        this.optimizationSystems = {
+            lodManager: null,
+            cullingSystem: null,
+            instanceManager: null,
+            memoryManager: null,
+            agentScheduler: null,
+            behaviorOptimizer: null,
+            physicsOptimizer: null,
+            adaptiveQualityManager: null
+        };
+        
         // Initialize data storage and threshold monitoring
         this.dataStore = new PerformanceDataStore({
             maxStorageSize: 10000,
@@ -140,7 +152,8 @@ export class PerformanceMonitor {
             cpu: cpuData,
             agents: agentData,
             scene: this.getSceneMetrics(),
-            system: this.getSystemMetrics()
+            system: this.getSystemMetrics(),
+            optimization: this.getOptimizationMetrics()
         };
 
         // Store in history (legacy)
@@ -201,6 +214,373 @@ export class PerformanceMonitor {
             maxTextureSize: engineStats ? engineStats.maxTextureSize : 0,
             maxVertexAttribs: engineStats ? engineStats.maxVertexAttribs : 0
         };
+    }
+
+    /**
+     * Get optimization-specific metrics
+     */
+    getOptimizationMetrics() {
+        const optimizationMetrics = {
+            timestamp: performance.now(),
+            lod: this.getLODMetrics(),
+            culling: this.getCullingMetrics(),
+            instancing: this.getInstancingMetrics(),
+            memory: this.getMemoryOptimizationMetrics(),
+            agents: this.getAgentOptimizationMetrics(),
+            physics: this.getPhysicsOptimizationMetrics(),
+            quality: this.getQualityMetrics(),
+            effectiveness: this.calculateOptimizationEffectiveness()
+        };
+
+        return optimizationMetrics;
+    }
+
+    /**
+     * Get LOD (Level of Detail) metrics
+     */
+    getLODMetrics() {
+        if (!this.optimizationSystems.lodManager) {
+            return {
+                enabled: false,
+                totalMeshes: 0,
+                lodLevel0: 0,
+                lodLevel1: 0,
+                lodLevel2: 0,
+                lodLevel3: 0,
+                averageLODLevel: 0,
+                lodSwitches: 0,
+                culledMeshes: 0
+            };
+        }
+
+        const lodStats = this.optimizationSystems.lodManager.getStatistics();
+        const totalVisible = lodStats.lodLevel0 + lodStats.lodLevel1 + lodStats.lodLevel2;
+        const averageLODLevel = totalVisible > 0 ? 
+            (lodStats.lodLevel1 + lodStats.lodLevel2 * 2 + lodStats.lodLevel3 * 3) / totalVisible : 0;
+
+        return {
+            enabled: lodStats.enabled,
+            totalMeshes: lodStats.totalMeshes,
+            lodLevel0: lodStats.lodLevel0,
+            lodLevel1: lodStats.lodLevel1,
+            lodLevel2: lodStats.lodLevel2,
+            lodLevel3: lodStats.lodLevel3,
+            averageLODLevel: Math.round(averageLODLevel * 100) / 100,
+            lodSwitches: lodStats.lodSwitches || 0,
+            culledMeshes: lodStats.lodLevel3,
+            updateDuration: lodStats.updateDuration || 0,
+            meshesProcessed: lodStats.meshesProcessed || 0
+        };
+    }
+
+    /**
+     * Get culling system metrics
+     */
+    getCullingMetrics() {
+        if (!this.optimizationSystems.cullingSystem) {
+            return {
+                enabled: false,
+                totalObjects: 0,
+                frustumCulled: 0,
+                occlusionCulled: 0,
+                visible: 0,
+                cullingRatio: 0,
+                frustumTests: 0,
+                occlusionTests: 0
+            };
+        }
+
+        const cullingStats = this.optimizationSystems.cullingSystem.getStatistics();
+        const totalCulled = cullingStats.frustumCulled + cullingStats.occlusionCulled;
+        const cullingRatio = cullingStats.totalObjects > 0 ? 
+            totalCulled / cullingStats.totalObjects : 0;
+
+        return {
+            enabled: cullingStats.enabled,
+            totalObjects: cullingStats.totalObjects,
+            frustumCulled: cullingStats.frustumCulled,
+            occlusionCulled: cullingStats.occlusionCulled,
+            visible: cullingStats.visible,
+            cullingRatio: Math.round(cullingRatio * 100) / 100,
+            frustumTests: cullingStats.frustumTests,
+            occlusionTests: cullingStats.occlusionTests,
+            updateDuration: cullingStats.updateDuration || 0,
+            spatialGridCells: cullingStats.spatialGridCells || 0,
+            occluders: cullingStats.occluders || 0
+        };
+    }
+
+    /**
+     * Get instancing system metrics
+     */
+    getInstancingMetrics() {
+        if (!this.optimizationSystems.instanceManager) {
+            return {
+                enabled: false,
+                totalMeshes: 0,
+                instancedMeshes: 0,
+                instanceGroups: 0,
+                totalInstances: 0,
+                drawCallsSaved: 0,
+                instancingRatio: 0
+            };
+        }
+
+        const instanceStats = this.optimizationSystems.instanceManager.getStatistics();
+        const instancingRatio = instanceStats.totalMeshes > 0 ? 
+            instanceStats.instancedMeshes / instanceStats.totalMeshes : 0;
+
+        return {
+            enabled: instanceStats.enabled,
+            totalMeshes: instanceStats.totalMeshes,
+            instancedMeshes: instanceStats.instancedMeshes,
+            instanceGroups: instanceStats.instanceGroups,
+            totalInstances: instanceStats.totalInstances,
+            drawCallsSaved: instanceStats.drawCallsSaved,
+            instancingRatio: Math.round(instancingRatio * 100) / 100,
+            memoryUsed: instanceStats.memoryUsed || 0,
+            bufferUpdates: instanceStats.bufferUpdates || 0,
+            updateDuration: instanceStats.updateDuration || 0
+        };
+    }
+
+    /**
+     * Get memory optimization metrics
+     */
+    getMemoryOptimizationMetrics() {
+        if (!this.optimizationSystems.memoryManager) {
+            return {
+                enabled: false,
+                poolHits: 0,
+                poolMisses: 0,
+                objectsPooled: 0,
+                resourcesDisposed: 0,
+                memoryReclaimed: 0,
+                poolEfficiency: 0
+            };
+        }
+
+        const memoryStats = this.optimizationSystems.memoryManager.getStatistics();
+        const totalPoolRequests = memoryStats.poolHits + memoryStats.poolMisses;
+        const poolEfficiency = totalPoolRequests > 0 ? 
+            memoryStats.poolHits / totalPoolRequests : 0;
+
+        return {
+            enabled: true,
+            poolHits: memoryStats.poolHits,
+            poolMisses: memoryStats.poolMisses,
+            objectsPooled: memoryStats.objectsPooled,
+            objectsReturned: memoryStats.objectsReturned,
+            resourcesDisposed: memoryStats.resourcesDisposed,
+            memoryReclaimed: memoryStats.memoryReclaimed,
+            poolEfficiency: Math.round(poolEfficiency * 100) / 100,
+            cleanupCycles: memoryStats.cleanupCycles,
+            trackedResources: memoryStats.resources?.tracked || 0,
+            isMemoryPressure: memoryStats.cleanup?.isMemoryPressure || false
+        };
+    }
+
+    /**
+     * Get agent optimization metrics
+     */
+    getAgentOptimizationMetrics() {
+        const agentMetrics = {
+            scheduler: this.getAgentSchedulerMetrics(),
+            behavior: this.getBehaviorOptimizerMetrics()
+        };
+
+        return agentMetrics;
+    }
+
+    /**
+     * Get agent scheduler metrics
+     */
+    getAgentSchedulerMetrics() {
+        if (!this.optimizationSystems.agentScheduler) {
+            return {
+                enabled: false,
+                totalAgents: 0,
+                updatesThisFrame: 0,
+                averageUpdatesPerFrame: 0,
+                skippedUpdates: 0
+            };
+        }
+
+        const schedulerStats = this.optimizationSystems.agentScheduler.getMetrics();
+
+        return {
+            enabled: schedulerStats.schedulingEnabled,
+            totalAgents: schedulerStats.totalAgents,
+            updatesThisFrame: schedulerStats.updatesThisFrame,
+            averageUpdatesPerFrame: Math.round(schedulerStats.averageUpdatesPerFrame * 100) / 100,
+            updatesPerSecond: Math.round(schedulerStats.updatesPerSecond * 100) / 100,
+            skippedUpdates: schedulerStats.skippedUpdates,
+            priorityDistribution: schedulerStats.priorityDistribution,
+            queueSizes: schedulerStats.queueSizes
+        };
+    }
+
+    /**
+     * Get behavior optimizer metrics
+     */
+    getBehaviorOptimizerMetrics() {
+        if (!this.optimizationSystems.behaviorOptimizer) {
+            return {
+                enabled: false,
+                cachedBehaviors: 0,
+                cacheHits: 0,
+                cacheMisses: 0,
+                sharedComputations: 0
+            };
+        }
+
+        const behaviorStats = this.optimizationSystems.behaviorOptimizer.getStatistics();
+        const totalCacheRequests = behaviorStats.cacheHits + behaviorStats.cacheMisses;
+        const cacheEfficiency = totalCacheRequests > 0 ? 
+            behaviorStats.cacheHits / totalCacheRequests : 0;
+
+        return {
+            enabled: behaviorStats.enabled,
+            cachedBehaviors: behaviorStats.cachedBehaviors || 0,
+            cacheHits: behaviorStats.cacheHits || 0,
+            cacheMisses: behaviorStats.cacheMisses || 0,
+            cacheEfficiency: Math.round(cacheEfficiency * 100) / 100,
+            sharedComputations: behaviorStats.sharedComputations || 0,
+            optimizedBehaviors: behaviorStats.optimizedBehaviors || 0
+        };
+    }
+
+    /**
+     * Get physics optimization metrics
+     */
+    getPhysicsOptimizationMetrics() {
+        if (!this.optimizationSystems.physicsOptimizer) {
+            return {
+                enabled: false,
+                activeBodies: 0,
+                sleepingBodies: 0,
+                collisionChecks: 0,
+                spatialOptimizations: 0
+            };
+        }
+
+        const physicsStats = this.optimizationSystems.physicsOptimizer.getStatistics();
+
+        return {
+            enabled: physicsStats.enabled,
+            activeBodies: physicsStats.activeBodies || 0,
+            sleepingBodies: physicsStats.sleepingBodies || 0,
+            totalBodies: (physicsStats.activeBodies || 0) + (physicsStats.sleepingBodies || 0),
+            collisionChecks: physicsStats.collisionChecks || 0,
+            spatialOptimizations: physicsStats.spatialOptimizations || 0,
+            updateFrequency: physicsStats.updateFrequency || 60,
+            processingTime: physicsStats.processingTime || 0
+        };
+    }
+
+    /**
+     * Get quality management metrics
+     */
+    getQualityMetrics() {
+        if (!this.optimizationSystems.adaptiveQualityManager) {
+            return {
+                enabled: false,
+                currentQualityLevel: 100,
+                targetQualityLevel: 100,
+                qualityAdjustments: 0,
+                autoAdjustmentEnabled: false
+            };
+        }
+
+        const qualityStats = this.optimizationSystems.adaptiveQualityManager.getStatistics();
+
+        return {
+            enabled: qualityStats.enabled,
+            currentQualityLevel: qualityStats.currentQualityLevel || 100,
+            targetQualityLevel: qualityStats.targetQualityLevel || 100,
+            qualityAdjustments: qualityStats.qualityAdjustments || 0,
+            autoAdjustmentEnabled: qualityStats.autoAdjustmentEnabled || false,
+            lastAdjustmentTime: qualityStats.lastAdjustmentTime || 0,
+            performanceScore: qualityStats.performanceScore || 100
+        };
+    }
+
+    /**
+     * Calculate overall optimization effectiveness
+     */
+    calculateOptimizationEffectiveness() {
+        const effectiveness = {
+            overall: 0,
+            rendering: 0,
+            memory: 0,
+            agents: 0,
+            physics: 0
+        };
+
+        // Calculate rendering effectiveness (LOD + Culling + Instancing)
+        const lodMetrics = this.getLODMetrics();
+        const cullingMetrics = this.getCullingMetrics();
+        const instancingMetrics = this.getInstancingMetrics();
+
+        if (lodMetrics.enabled || cullingMetrics.enabled || instancingMetrics.enabled) {
+            let renderingScore = 0;
+            let renderingComponents = 0;
+
+            if (lodMetrics.enabled) {
+                // Higher average LOD level means more optimization
+                renderingScore += Math.min(100, lodMetrics.averageLODLevel * 33);
+                renderingComponents++;
+            }
+
+            if (cullingMetrics.enabled) {
+                // Higher culling ratio means more optimization
+                renderingScore += cullingMetrics.cullingRatio * 100;
+                renderingComponents++;
+            }
+
+            if (instancingMetrics.enabled) {
+                // Higher instancing ratio means more optimization
+                renderingScore += instancingMetrics.instancingRatio * 100;
+                renderingComponents++;
+            }
+
+            effectiveness.rendering = renderingComponents > 0 ? 
+                Math.round(renderingScore / renderingComponents) : 0;
+        }
+
+        // Calculate memory effectiveness
+        const memoryMetrics = this.getMemoryOptimizationMetrics();
+        if (memoryMetrics.enabled) {
+            effectiveness.memory = Math.round(memoryMetrics.poolEfficiency * 100);
+        }
+
+        // Calculate agent effectiveness
+        const agentMetrics = this.getAgentOptimizationMetrics();
+        if (agentMetrics.scheduler.enabled) {
+            const schedulerEfficiency = agentMetrics.scheduler.totalAgents > 0 ? 
+                (agentMetrics.scheduler.averageUpdatesPerFrame / agentMetrics.scheduler.totalAgents) * 100 : 0;
+            effectiveness.agents = Math.min(100, Math.round(schedulerEfficiency));
+        }
+
+        // Calculate physics effectiveness
+        const physicsMetrics = this.getPhysicsOptimizationMetrics();
+        if (physicsMetrics.enabled && physicsMetrics.totalBodies > 0) {
+            const sleepRatio = physicsMetrics.sleepingBodies / physicsMetrics.totalBodies;
+            effectiveness.physics = Math.round(sleepRatio * 100);
+        }
+
+        // Calculate overall effectiveness
+        const components = [
+            effectiveness.rendering,
+            effectiveness.memory,
+            effectiveness.agents,
+            effectiveness.physics
+        ].filter(score => score > 0);
+
+        effectiveness.overall = components.length > 0 ? 
+            Math.round(components.reduce((a, b) => a + b, 0) / components.length) : 0;
+
+        return effectiveness;
     }
 
     /**
@@ -637,6 +1017,241 @@ export class PerformanceMonitor {
     }
 
     /**
+     * Register optimization systems for metrics collection
+     */
+    registerOptimizationSystem(systemName, systemInstance) {
+        if (this.optimizationSystems.hasOwnProperty(systemName)) {
+            this.optimizationSystems[systemName] = systemInstance;
+            console.log(`Registered optimization system: ${systemName}`);
+            return true;
+        } else {
+            console.warn(`Unknown optimization system: ${systemName}`);
+            return false;
+        }
+    }
+
+    /**
+     * Unregister an optimization system
+     */
+    unregisterOptimizationSystem(systemName) {
+        if (this.optimizationSystems.hasOwnProperty(systemName)) {
+            this.optimizationSystems[systemName] = null;
+            console.log(`Unregistered optimization system: ${systemName}`);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Get optimization impact measurement
+     */
+    measureOptimizationImpact(timeRangeMs = 30000) {
+        const endTime = performance.now();
+        const startTime = endTime - timeRangeMs;
+        
+        const recentMetrics = this.metricsHistory.filter(m => 
+            m.timestamp >= startTime && m.optimization
+        );
+
+        if (recentMetrics.length < 2) {
+            return null;
+        }
+
+        const firstMetrics = recentMetrics[0];
+        const lastMetrics = recentMetrics[recentMetrics.length - 1];
+
+        // Calculate performance improvements
+        const frameRateImprovement = lastMetrics.frameRate.current - firstMetrics.frameRate.current;
+        const memoryImprovement = firstMetrics.memory.used - lastMetrics.memory.used;
+        
+        // Calculate optimization effectiveness changes
+        const effectivenessImprovement = {
+            overall: lastMetrics.optimization.effectiveness.overall - firstMetrics.optimization.effectiveness.overall,
+            rendering: lastMetrics.optimization.effectiveness.rendering - firstMetrics.optimization.effectiveness.rendering,
+            memory: lastMetrics.optimization.effectiveness.memory - firstMetrics.optimization.effectiveness.memory,
+            agents: lastMetrics.optimization.effectiveness.agents - firstMetrics.optimization.effectiveness.agents,
+            physics: lastMetrics.optimization.effectiveness.physics - firstMetrics.optimization.effectiveness.physics
+        };
+
+        return {
+            timeRange: timeRangeMs,
+            sampleCount: recentMetrics.length,
+            performance: {
+                frameRateChange: Math.round(frameRateImprovement * 100) / 100,
+                memoryChange: Math.round(memoryImprovement / 1024 / 1024 * 100) / 100, // MB
+                frameTimeChange: (1000 / lastMetrics.frameRate.current) - (1000 / firstMetrics.frameRate.current)
+            },
+            effectiveness: effectivenessImprovement,
+            optimizationStats: {
+                lodSwitches: lastMetrics.optimization.lod.lodSwitches || 0,
+                cullingRatio: lastMetrics.optimization.culling.cullingRatio || 0,
+                poolEfficiency: lastMetrics.optimization.memory.poolEfficiency || 0,
+                agentSchedulingEfficiency: lastMetrics.optimization.agents.scheduler.averageUpdatesPerFrame || 0
+            }
+        };
+    }
+
+    /**
+     * Generate optimization effectiveness report
+     */
+    generateOptimizationReport(timeRange = 300000) { // 5 minutes default
+        const endTime = Date.now();
+        const startTime = endTime - timeRange;
+        
+        const performanceStats = this.getPerformanceStatistics(startTime, endTime);
+        const optimizationImpact = this.measureOptimizationImpact(timeRange);
+        const currentOptimization = this.getOptimizationMetrics();
+        
+        return {
+            timeRange: { start: startTime, end: endTime, duration: timeRange },
+            currentOptimization,
+            optimizationImpact,
+            performance: performanceStats,
+            recommendations: this.generateOptimizationRecommendations(currentOptimization, performanceStats),
+            summary: this.generateOptimizationSummary(currentOptimization, optimizationImpact)
+        };
+    }
+
+    /**
+     * Generate optimization recommendations
+     */
+    generateOptimizationRecommendations(optimizationMetrics, performanceStats) {
+        const recommendations = [];
+
+        // LOD recommendations
+        if (optimizationMetrics.lod.enabled && optimizationMetrics.lod.averageLODLevel < 1.0) {
+            recommendations.push({
+                category: 'LOD',
+                priority: 'medium',
+                message: 'Consider increasing LOD distances to improve performance',
+                impact: 'Reduces rendering complexity for distant objects'
+            });
+        }
+
+        // Culling recommendations
+        if (optimizationMetrics.culling.enabled && optimizationMetrics.culling.cullingRatio < 0.3) {
+            recommendations.push({
+                category: 'Culling',
+                priority: 'high',
+                message: 'Low culling ratio detected - check culling configuration',
+                impact: 'Improves performance by hiding non-visible objects'
+            });
+        }
+
+        // Instancing recommendations
+        if (optimizationMetrics.instancing.enabled && optimizationMetrics.instancing.instancingRatio < 0.2) {
+            recommendations.push({
+                category: 'Instancing',
+                priority: 'medium',
+                message: 'Low instancing ratio - consider grouping similar meshes',
+                impact: 'Reduces draw calls for similar objects'
+            });
+        }
+
+        // Memory recommendations
+        if (optimizationMetrics.memory.enabled && optimizationMetrics.memory.poolEfficiency < 0.7) {
+            recommendations.push({
+                category: 'Memory',
+                priority: 'medium',
+                message: 'Low object pool efficiency - adjust pool sizes',
+                impact: 'Reduces garbage collection overhead'
+            });
+        }
+
+        // Agent scheduling recommendations
+        if (optimizationMetrics.agents.scheduler.enabled) {
+            const updateRatio = optimizationMetrics.agents.scheduler.averageUpdatesPerFrame / 
+                               optimizationMetrics.agents.scheduler.totalAgents;
+            if (updateRatio > 0.5) {
+                recommendations.push({
+                    category: 'Agents',
+                    priority: 'high',
+                    message: 'High agent update ratio - consider reducing update frequency',
+                    impact: 'Spreads AI processing load across frames'
+                });
+            }
+        }
+
+        // Performance-based recommendations
+        if (performanceStats && performanceStats.frameRate && performanceStats.frameRate.mean < 30) {
+            recommendations.push({
+                category: 'Performance',
+                priority: 'critical',
+                message: 'Low frame rate detected - enable aggressive optimizations',
+                impact: 'Improves overall performance and user experience'
+            });
+        }
+
+        return recommendations;
+    }
+
+    /**
+     * Generate optimization summary
+     */
+    generateOptimizationSummary(optimizationMetrics, optimizationImpact) {
+        const summary = {
+            overallEffectiveness: optimizationMetrics.effectiveness.overall,
+            status: 'good',
+            activeOptimizations: 0,
+            keyMetrics: {},
+            improvements: [],
+            issues: []
+        };
+
+        // Count active optimizations
+        if (optimizationMetrics.lod.enabled) summary.activeOptimizations++;
+        if (optimizationMetrics.culling.enabled) summary.activeOptimizations++;
+        if (optimizationMetrics.instancing.enabled) summary.activeOptimizations++;
+        if (optimizationMetrics.memory.enabled) summary.activeOptimizations++;
+        if (optimizationMetrics.agents.scheduler.enabled) summary.activeOptimizations++;
+
+        // Set status based on effectiveness
+        if (optimizationMetrics.effectiveness.overall < 30) {
+            summary.status = 'poor';
+        } else if (optimizationMetrics.effectiveness.overall < 60) {
+            summary.status = 'fair';
+        } else if (optimizationMetrics.effectiveness.overall >= 80) {
+            summary.status = 'excellent';
+        }
+
+        // Key metrics
+        summary.keyMetrics = {
+            lodLevel: optimizationMetrics.lod.averageLODLevel,
+            cullingRatio: optimizationMetrics.culling.cullingRatio,
+            instancingRatio: optimizationMetrics.instancing.instancingRatio,
+            poolEfficiency: optimizationMetrics.memory.poolEfficiency,
+            drawCallsSaved: optimizationMetrics.instancing.drawCallsSaved
+        };
+
+        // Analyze improvements
+        if (optimizationImpact) {
+            if (optimizationImpact.performance.frameRateChange > 5) {
+                summary.improvements.push(`Frame rate improved by ${optimizationImpact.performance.frameRateChange.toFixed(1)} FPS`);
+            }
+            if (optimizationImpact.performance.memoryChange > 10) {
+                summary.improvements.push(`Memory usage reduced by ${optimizationImpact.performance.memoryChange.toFixed(1)} MB`);
+            }
+            if (optimizationImpact.effectiveness.overall > 10) {
+                summary.improvements.push(`Overall optimization effectiveness improved by ${optimizationImpact.effectiveness.overall}%`);
+            }
+        }
+
+        // Identify issues
+        if (optimizationMetrics.culling.enabled && optimizationMetrics.culling.cullingRatio < 0.2) {
+            summary.issues.push('Low culling effectiveness');
+        }
+        if (optimizationMetrics.memory.enabled && optimizationMetrics.memory.isMemoryPressure) {
+            summary.issues.push('Memory pressure detected');
+        }
+        if (optimizationMetrics.agents.scheduler.enabled && 
+            optimizationMetrics.agents.scheduler.averageUpdatesPerFrame > optimizationMetrics.agents.scheduler.totalAgents * 0.8) {
+            summary.issues.push('High agent processing load');
+        }
+
+        return summary;
+    }
+
+    /**
      * Dispose of the performance monitor
      */
     dispose() {
@@ -664,6 +1279,11 @@ export class PerformanceMonitor {
         
         if (this.thresholdMonitor) {
             this.thresholdMonitor.dispose();
+        }
+        
+        // Clear optimization system references
+        for (const systemName in this.optimizationSystems) {
+            this.optimizationSystems[systemName] = null;
         }
         
         this.updateCallbacks = [];

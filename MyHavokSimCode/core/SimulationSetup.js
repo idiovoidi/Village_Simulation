@@ -24,6 +24,11 @@ export class SimulationSetup {
     this.scene = scene;
     this.core = new SimulationCore();
     this.initialized = false;
+    
+    // Performance optimization integration
+    this.performanceOptimizer = null;
+    this.behavioralSim = null;
+    this.performanceMonitor = null;
   }
   
   /**
@@ -44,6 +49,9 @@ export class SimulationSetup {
       
       // Create initial entities
       this.createInitialEntities();
+      
+      // Initialize performance monitoring
+      await this.initializePerformanceMonitoring();
       
       this.initialized = true;
       console.log("Simulation initialization complete");
@@ -188,6 +196,123 @@ export class SimulationSetup {
     // await this.core.initializeSystem('render');
     // await this.core.initializeSystem('ai');
     // etc.
+  }
+  
+  /**
+   * Initialize performance monitoring systems
+   */
+  async initializePerformanceMonitoring() {
+    try {
+      console.log("Initializing performance monitoring...");
+      
+      // Import and initialize PerformanceMonitor
+      const { PerformanceMonitor } = await import('../Performance/PerformanceMonitor.js');
+      this.performanceMonitor = new PerformanceMonitor(this.scene);
+      await this.performanceMonitor.initialize();
+      
+      // Import and initialize BehavioralSim
+      const { BehavioralSim } = await import('../BehavioralSim.js');
+      this.behavioralSim = await new BehavioralSim(this.scene);
+      
+      // Register performance monitor as a service
+      this.core.serviceRegistry.registerService('performanceMonitor', this.performanceMonitor);
+      this.core.serviceRegistry.registerService('behavioralSim', this.behavioralSim);
+      
+      console.log("Performance monitoring initialization complete");
+      
+    } catch (error) {
+      console.error("Failed to initialize performance monitoring:", error);
+      // Don't throw - performance monitoring is optional
+    }
+  }
+  
+  /**
+   * Set performance optimizer reference for integration
+   * @param {PerformanceOptimizer} optimizer - Performance optimizer instance
+   */
+  setPerformanceOptimizer(optimizer) {
+    this.performanceOptimizer = optimizer;
+    
+    // Integrate with behavioral simulation
+    if (this.behavioralSim) {
+      this.behavioralSim.setPerformanceOptimizer(optimizer);
+    }
+    
+    console.log("SimulationSetup integrated with PerformanceOptimizer");
+  }
+  
+  /**
+   * Get performance monitor instance
+   * @returns {PerformanceMonitor|null} Performance monitor instance
+   */
+  getPerformanceMonitor() {
+    return this.performanceMonitor;
+  }
+  
+  /**
+   * Get behavioral simulation instance
+   * @returns {BehavioralSim|null} Behavioral simulation instance
+   */
+  getBehavioralSim() {
+    return this.behavioralSim;
+  }
+  
+  /**
+   * Update simulation systems - called each frame
+   * @param {number} deltaTime - Time since last update
+   */
+  update(deltaTime) {
+    try {
+      // Update core systems
+      if (this.core) {
+        this.core.update(deltaTime);
+      }
+      
+      // Update performance monitoring
+      if (this.performanceMonitor) {
+        this.performanceMonitor.update(deltaTime);
+      }
+      
+      // Behavioral simulation updates are handled in its own render loop
+      
+    } catch (error) {
+      console.error("Error updating simulation:", error);
+    }
+  }
+  
+  /**
+   * Dispose of simulation resources
+   */
+  dispose() {
+    try {
+      console.log("Disposing simulation...");
+      
+      // Dispose behavioral simulation
+      if (this.behavioralSim) {
+        this.behavioralSim.dispose();
+        this.behavioralSim = null;
+      }
+      
+      // Dispose performance monitor
+      if (this.performanceMonitor) {
+        this.performanceMonitor.dispose();
+        this.performanceMonitor = null;
+      }
+      
+      // Dispose core
+      if (this.core) {
+        this.core.dispose();
+        this.core = null;
+      }
+      
+      this.performanceOptimizer = null;
+      this.initialized = false;
+      
+      console.log("Simulation disposal complete");
+      
+    } catch (error) {
+      console.error("Error disposing simulation:", error);
+    }
   }
   
   /**

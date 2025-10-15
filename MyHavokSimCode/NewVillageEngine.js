@@ -12,6 +12,7 @@ import {
   validateArgs 
 } from './core/ErrorHandling.js';
 import { SimulationSetup } from './core/SimulationSetup.js';
+import { PerformanceOptimizer } from './Performance/PerformanceOptimizer.js';
 
 export class VillageEngine {
   constructor(canvas) {
@@ -21,6 +22,7 @@ export class VillageEngine {
     this.simulation = null;
     this.camera = null;
     this.light = null;
+    this.performanceOptimizer = null;
     this.initialized = false;
     this.lastTime = 0;
   }
@@ -47,6 +49,15 @@ export class VillageEngine {
     this.simulation = new SimulationSetup(this.canvas, this.scene);
     return this.simulation.initialize()
       .then(() => {
+        // Initialize performance optimizer
+        return this.initializePerformanceOptimizer();
+      })
+      .then(() => {
+        // Integrate simulation with performance optimizer
+        if (this.performanceOptimizer && this.simulation) {
+          this.simulation.setPerformanceOptimizer(this.performanceOptimizer);
+        }
+        
         // Start render loop
         this.startRenderLoop();
         
@@ -191,6 +202,307 @@ export class VillageEngine {
   }
   
   /**
+   * Initialize performance optimizer
+   */
+  async initializePerformanceOptimizer() {
+    try {
+      console.log("Initializing PerformanceOptimizer...");
+      
+      // Get the performance monitor from the simulation if available
+      const performanceMonitor = this.simulation?.performanceMonitor || null;
+      
+      // Collect all available systems for the optimizer
+      const systems = {
+        performanceMonitor: performanceMonitor,
+        villageEngine: this,
+        simulation: this.simulation,
+        // Add agent systems if available
+        agentSystems: this.simulation?.agentSystems || null,
+        // Add physics engine if available
+        physicsEngine: this.simulation?.physicsEngine || null,
+        // Add other systems as they become available
+        behavioralSim: this.simulation?.behavioralSim || null,
+        villageSystem: this.simulation?.villageSystem || null
+      };
+      
+      // Create performance optimizer with all available systems
+      this.performanceOptimizer = new PerformanceOptimizer(this.engine, this.scene, systems);
+      
+      // Set up optimization event handlers
+      this.setupOptimizationEventHandlers();
+      
+      // Initialize the optimizer
+      await this.performanceOptimizer.initialize();
+      
+      // Configure optimization settings based on detected hardware
+      this.configureOptimizationSettings();
+      
+      // Start optimization by default
+      this.performanceOptimizer.startOptimization();
+      
+      console.log("PerformanceOptimizer initialization complete");
+      
+    } catch (error) {
+      console.error("Failed to initialize PerformanceOptimizer:", error);
+      // Don't throw here - performance optimization is not critical for basic functionality
+      // The simulation should still work without it
+      this.performanceOptimizer = null;
+    }
+  }
+  
+  /**
+   * Set up optimization event handlers
+   */
+  setupOptimizationEventHandlers() {
+    if (!this.performanceOptimizer) return;
+    
+    // Handle optimization events
+    this.performanceOptimizer.onOptimization((event, data) => {
+      switch (event) {
+        case 'started':
+          console.log('Performance optimization started');
+          break;
+        case 'stopped':
+          console.log('Performance optimization stopped');
+          break;
+        case 'optimization_triggered':
+          console.log(`Optimization triggered: ${data.reason}`, data.data);
+          this.handleOptimizationTriggered(data.reason, data.data);
+          break;
+        case 'level_changed':
+          console.log(`Optimization level changed to: ${data.level}`);
+          break;
+        case 'target_fps_changed':
+          console.log(`Target FPS changed to: ${data.fps}`);
+          break;
+        case 'adaptive_quality_changed':
+          console.log(`Adaptive quality ${data.enabled ? 'enabled' : 'disabled'}`);
+          break;
+      }
+    });
+    
+    // Handle performance alerts
+    this.performanceOptimizer.onAlert((alert) => {
+      console.warn('Performance alert:', alert);
+      this.handlePerformanceAlert(alert);
+    });
+  }
+  
+  /**
+   * Configure optimization settings based on hardware and preferences
+   */
+  configureOptimizationSettings() {
+    if (!this.performanceOptimizer) return;
+    
+    try {
+      // Set target FPS based on display refresh rate or default to 60
+      const refreshRate = screen.refreshRate || 60;
+      const targetFPS = Math.min(refreshRate, 60); // Cap at 60 for stability
+      this.performanceOptimizer.setTargetFPS(targetFPS);
+      
+      // Enable adaptive quality by default
+      this.performanceOptimizer.enableAdaptiveQuality(true);
+      
+      // Set optimization level based on hardware capabilities
+      // This could be enhanced with actual hardware detection
+      const optimizationLevel = this.detectOptimizationLevel();
+      this.performanceOptimizer.setOptimizationLevel(optimizationLevel);
+      
+      console.log(`Optimization configured: ${targetFPS} FPS target, ${optimizationLevel} level`);
+      
+    } catch (error) {
+      console.error('Failed to configure optimization settings:', error);
+    }
+  }
+  
+  /**
+   * Detect appropriate optimization level based on hardware
+   */
+  detectOptimizationLevel() {
+    try {
+      // Basic hardware detection - this could be enhanced
+      const canvas = this.engine.getRenderingCanvas();
+      const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+      
+      if (!gl) {
+        return 'conservative'; // No WebGL support
+      }
+      
+      // Check for high-end GPU indicators
+      const renderer = gl.getParameter(gl.RENDERER);
+      const vendor = gl.getParameter(gl.VENDOR);
+      
+      // Simple heuristics - could be improved with more sophisticated detection
+      if (renderer.includes('RTX') || renderer.includes('RX 6') || renderer.includes('RX 7')) {
+        return 'balanced'; // High-end GPU
+      } else if (renderer.includes('GTX') || renderer.includes('RX 5')) {
+        return 'balanced'; // Mid-range GPU
+      } else {
+        return 'conservative'; // Assume lower-end hardware
+      }
+      
+    } catch (error) {
+      console.warn('Hardware detection failed, using conservative optimization:', error);
+      return 'conservative';
+    }
+  }
+  
+  /**
+   * Handle optimization triggered events
+   */
+  handleOptimizationTriggered(reason, data) {
+    // This method can be extended to handle specific optimization scenarios
+    switch (reason) {
+      case 'low_fps':
+        console.log(`Low FPS detected: ${data.avgFPS} (target: ${data.targetFPS})`);
+        // Could trigger additional engine-level optimizations here
+        break;
+      case 'high_memory':
+        console.log(`High memory usage detected: ${data.avgMemory}%`);
+        // Could trigger garbage collection or resource cleanup
+        if (this.scene) {
+          this.scene.cleanCachedEffects();
+        }
+        break;
+      case 'critical_alert':
+        console.warn('Critical performance alert - taking emergency measures');
+        // Could disable non-essential systems
+        break;
+    }
+  }
+  
+  /**
+   * Handle performance alerts
+   */
+  handlePerformanceAlert(alert) {
+    // Log the alert and potentially take action
+    if (alert.severity === 'critical') {
+      console.error('Critical performance issue detected:', alert);
+      // Could trigger emergency optimization measures
+    } else if (alert.severity === 'warning') {
+      console.warn('Performance warning:', alert);
+    }
+  }
+  
+  /**
+   * Get performance optimizer instance
+   * @returns {PerformanceOptimizer|null} Performance optimizer instance
+   */
+  getPerformanceOptimizer() {
+    return this.performanceOptimizer;
+  }
+  
+  /**
+   * Enable or disable performance optimization
+   * @param {boolean} enabled - Whether to enable optimization
+   */
+  setOptimizationEnabled(enabled) {
+    if (!this.performanceOptimizer) {
+      console.warn('PerformanceOptimizer not available');
+      return;
+    }
+    
+    if (enabled) {
+      this.performanceOptimizer.startOptimization();
+    } else {
+      this.performanceOptimizer.stopOptimization();
+    }
+  }
+  
+  /**
+   * Set optimization level
+   * @param {string} level - Optimization level ('conservative', 'balanced', 'aggressive')
+   */
+  setOptimizationLevel(level) {
+    if (!this.performanceOptimizer) {
+      console.warn('PerformanceOptimizer not available');
+      return;
+    }
+    
+    try {
+      this.performanceOptimizer.setOptimizationLevel(level);
+    } catch (error) {
+      console.error('Failed to set optimization level:', error);
+    }
+  }
+  
+  /**
+   * Set target FPS
+   * @param {number} fps - Target FPS
+   */
+  setTargetFPS(fps) {
+    if (!this.performanceOptimizer) {
+      console.warn('PerformanceOptimizer not available');
+      return;
+    }
+    
+    try {
+      this.performanceOptimizer.setTargetFPS(fps);
+    } catch (error) {
+      console.error('Failed to set target FPS:', error);
+    }
+  }
+  
+  /**
+   * Get optimization status
+   * @returns {Object|null} Optimization status
+   */
+  getOptimizationStatus() {
+    if (!this.performanceOptimizer) {
+      return null;
+    }
+    
+    return this.performanceOptimizer.getOptimizationStatus();
+  }
+  
+  /**
+   * Show optimization settings UI
+   */
+  showOptimizationSettings() {
+    if (!this.performanceOptimizer) {
+      console.warn('PerformanceOptimizer not available');
+      return;
+    }
+    
+    this.performanceOptimizer.showSettings();
+  }
+  
+  /**
+   * Hide optimization settings UI
+   */
+  hideOptimizationSettings() {
+    if (!this.performanceOptimizer) {
+      return;
+    }
+    
+    this.performanceOptimizer.hideSettings();
+  }
+  
+  /**
+   * Toggle optimization settings UI
+   */
+  toggleOptimizationSettings() {
+    if (!this.performanceOptimizer) {
+      console.warn('PerformanceOptimizer not available');
+      return;
+    }
+    
+    this.performanceOptimizer.toggleSettings();
+  }
+  
+  /**
+   * Get optimization configuration
+   * @returns {OptimizationConfig|null} Configuration instance
+   */
+  getOptimizationConfig() {
+    if (!this.performanceOptimizer) {
+      return null;
+    }
+    
+    return this.performanceOptimizer.getOptimizationConfig();
+  }
+  
+  /**
    * Add performance metrics display
    * @param {BABYLON.Scene} scene - Babylon.js scene
    */
@@ -253,6 +565,11 @@ export class VillageEngine {
       const deltaTime = (currentTime - this.lastTime) / 1000; // Convert to seconds
       this.lastTime = currentTime;
       
+      // Update performance optimizer
+      if (this.performanceOptimizer) {
+        this.performanceOptimizer.updateOptimizations(deltaTime);
+      }
+      
       // Update simulation
       if (this.simulation) {
         this.simulation.update(deltaTime);
@@ -278,10 +595,23 @@ export class VillageEngine {
       // Stop render loop
       this.engine.stopRenderLoop();
       
+      // Dispose performance optimizer first (it may need access to other systems)
+      if (this.performanceOptimizer) {
+        console.log("Disposing PerformanceOptimizer...");
+        this.performanceOptimizer.dispose();
+        this.performanceOptimizer = null;
+      }
+      
       // Dispose simulation
       if (this.simulation) {
         this.simulation.dispose();
         this.simulation = null;
+      }
+      
+      // Dispose shadow generator
+      if (this.shadowGenerator) {
+        this.shadowGenerator.dispose();
+        this.shadowGenerator = null;
       }
       
       // Dispose scene
@@ -296,7 +626,14 @@ export class VillageEngine {
         this.engine = null;
       }
       
+      // Clean up references
+      this.camera = null;
+      this.light = null;
+      this.canvas = null;
+      
       this.initialized = false;
+      console.log("VillageEngine disposal complete");
+      
     } catch (error) {
       throw new SimulationError(`Failed to dispose engine: ${error.message}`);
     }

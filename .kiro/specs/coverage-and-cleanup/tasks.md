@@ -171,6 +171,7 @@
 
   - [ ] 6.2 Implement CLI argument parsing
 
+
     - Add `--dry-run` flag to preview changes without executing
     - Add `--phase` flag to run specific phases (analysis, verify, cleanup, report)
     - Add `--yes` flag to skip confirmation prompts

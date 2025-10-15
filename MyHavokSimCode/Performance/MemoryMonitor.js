@@ -1,10 +1,14 @@
 /**
- * Memory monitoring component for performance tracking
- * Monitors heap memory usage and GPU memory when available
+ * Enhanced memory monitoring component for performance tracking and optimization
+ * Monitors heap memory usage, GPU memory, and provides optimization features
  */
 
 export class MemoryMonitor {
-    constructor() {
+    constructor(memoryManager = null, resourceCleanupSystem = null) {
+        // Integration with optimization systems
+        this.memoryManager = memoryManager;
+        this.resourceCleanupSystem = resourceCleanupSystem;
+        
         // Memory tracking state
         this.isMonitoring = false;
         this.memoryHistory = [];
@@ -30,6 +34,43 @@ export class MemoryMonitor {
         // Monitoring interval
         this.monitoringInterval = null;
         this.updateInterval = 1000; // Update every second
+        
+        // Memory pressure detection
+        this.memoryPressure = {
+            isActive: false,
+            level: 'normal', // 'normal', 'warning', 'critical', 'emergency'
+            threshold: {
+                warning: 0.7,    // 70%
+                critical: 0.85,  // 85%
+                emergency: 0.95  // 95%
+            },
+            history: [],
+            lastAlert: 0
+        };
+        
+        // Memory usage prediction
+        this.prediction = {
+            enabled: true,
+            samples: [],
+            maxSamples: 20,
+            trend: 'stable', // 'increasing', 'decreasing', 'stable'
+            predictedUsage: 0,
+            timeToLimit: Infinity
+        };
+        
+        // Optimization recommendations
+        this.recommendations = {
+            active: [],
+            history: [],
+            lastUpdate: 0
+        };
+        
+        // Alert system
+        this.alerts = {
+            callbacks: new Set(),
+            suppressionTime: 30000, // 30 seconds between similar alerts
+            lastAlerts: new Map()
+        };
         
         // Check for memory API availability
         this.hasMemoryAPI = this.checkMemoryAPISupport();
@@ -104,7 +145,7 @@ export class MemoryMonitor {
     }
 
     /**
-     * Update memory metrics
+     * Update memory metrics with optimization features
      */
     updateMemoryMetrics() {
         if (!this.isMonitoring) {
@@ -133,6 +174,12 @@ export class MemoryMonitor {
         if (this.memoryHistory.length > this.maxHistorySize) {
             this.memoryHistory.shift();
         }
+        
+        // Enhanced optimization features
+        this.detectMemoryPressure(memorySnapshot);
+        this.updateMemoryPrediction(memorySnapshot);
+        this.generateOptimizationRecommendations();
+        this.checkMemoryAlerts();
     }
 
     /**
@@ -375,10 +422,473 @@ export class MemoryMonitor {
     }
 
     /**
+     * Detect memory pressure conditions
+     */
+    detectMemoryPressure(memorySnapshot) {
+        const usagePercent = memorySnapshot.total > 0 ? 
+            memorySnapshot.used / memorySnapshot.total : 0;
+        
+        let newLevel = 'normal';
+        let isActive = false;
+        
+        if (usagePercent >= this.memoryPressure.threshold.emergency) {
+            newLevel = 'emergency';
+            isActive = true;
+        } else if (usagePercent >= this.memoryPressure.threshold.critical) {
+            newLevel = 'critical';
+            isActive = true;
+        } else if (usagePercent >= this.memoryPressure.threshold.warning) {
+            newLevel = 'warning';
+            isActive = true;
+        }
+        
+        const previousLevel = this.memoryPressure.level;
+        this.memoryPressure.isActive = isActive;
+        this.memoryPressure.level = newLevel;
+        
+        // Add to pressure history
+        this.memoryPressure.history.push({
+            timestamp: memorySnapshot.timestamp,
+            level: newLevel,
+            usagePercent,
+            used: memorySnapshot.used,
+            total: memorySnapshot.total
+        });
+        
+        // Maintain pressure history size
+        if (this.memoryPressure.history.length > 50) {
+            this.memoryPressure.history.shift();
+        }
+        
+        // Trigger alerts on level changes
+        if (newLevel !== previousLevel && isActive) {
+            this.triggerMemoryPressureAlert(newLevel, usagePercent);
+        }
+        
+        // Trigger optimization actions
+        if (isActive && this.memoryManager) {
+            switch (newLevel) {
+                case 'warning':
+                    // Proactive cleanup
+                    this.triggerProactiveCleanup();
+                    break;
+                case 'critical':
+                    // Aggressive cleanup
+                    this.memoryManager.triggerAggressiveCleanup();
+                    break;
+                case 'emergency':
+                    // Emergency cleanup
+                    this.memoryManager.triggerEmergencyCleanup();
+                    break;
+            }
+        }
+    }
+
+    /**
+     * Update memory usage prediction
+     */
+    updateMemoryPrediction(memorySnapshot) {
+        if (!this.prediction.enabled) {
+            return;
+        }
+        
+        // Add sample to prediction data
+        this.prediction.samples.push({
+            timestamp: memorySnapshot.timestamp,
+            used: memorySnapshot.used,
+            total: memorySnapshot.total
+        });
+        
+        // Maintain sample size
+        if (this.prediction.samples.length > this.prediction.maxSamples) {
+            this.prediction.samples.shift();
+        }
+        
+        // Calculate trend if we have enough samples
+        if (this.prediction.samples.length >= 5) {
+            this.calculateMemoryTrend();
+            this.predictFutureUsage();
+        }
+    }
+
+    /**
+     * Calculate memory usage trend
+     */
+    calculateMemoryTrend() {
+        const samples = this.prediction.samples;
+        if (samples.length < 5) {
+            return;
+        }
+        
+        // Linear regression to determine trend
+        const n = samples.length;
+        const sumX = samples.reduce((sum, sample, index) => sum + index, 0);
+        const sumY = samples.reduce((sum, sample) => sum + sample.used, 0);
+        const sumXY = samples.reduce((sum, sample, index) => sum + (index * sample.used), 0);
+        const sumXX = samples.reduce((sum, sample, index) => sum + (index * index), 0);
+        
+        const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+        
+        // Determine trend based on slope
+        const threshold = 1024 * 10; // 10KB per sample threshold
+        if (Math.abs(slope) < threshold) {
+            this.prediction.trend = 'stable';
+        } else if (slope > 0) {
+            this.prediction.trend = 'increasing';
+        } else {
+            this.prediction.trend = 'decreasing';
+        }
+    }
+
+    /**
+     * Predict future memory usage
+     */
+    predictFutureUsage() {
+        const samples = this.prediction.samples;
+        if (samples.length < 5) {
+            return;
+        }
+        
+        const lastSample = samples[samples.length - 1];
+        const firstSample = samples[0];
+        const timeSpan = lastSample.timestamp - firstSample.timestamp;
+        const usageChange = lastSample.used - firstSample.used;
+        
+        if (timeSpan > 0) {
+            const changeRate = usageChange / timeSpan; // bytes per ms
+            
+            // Predict usage in 60 seconds
+            const futureTime = 60000; // 60 seconds
+            this.prediction.predictedUsage = lastSample.used + (changeRate * futureTime);
+            
+            // Calculate time to memory limit (if increasing)
+            if (changeRate > 0 && lastSample.total > 0) {
+                const remainingMemory = lastSample.total - lastSample.used;
+                this.prediction.timeToLimit = remainingMemory / changeRate;
+            } else {
+                this.prediction.timeToLimit = Infinity;
+            }
+        }
+    }
+
+    /**
+     * Generate optimization recommendations
+     */
+    generateOptimizationRecommendations() {
+        const currentTime = performance.now();
+        
+        // Don't update recommendations too frequently
+        if (currentTime - this.recommendations.lastUpdate < 10000) { // 10 seconds
+            return;
+        }
+        
+        this.recommendations.lastUpdate = currentTime;
+        this.recommendations.active = [];
+        
+        const metrics = this.getCurrentMetrics();
+        const usagePercent = metrics.usagePercentage / 100;
+        
+        // Memory usage recommendations
+        if (usagePercent > 0.8) {
+            this.recommendations.active.push({
+                type: 'memory_usage',
+                priority: 'high',
+                title: 'High Memory Usage Detected',
+                description: `Memory usage is at ${metrics.usagePercentage}%. Consider reducing quality settings or disposing unused resources.`,
+                actions: ['reduce_quality', 'cleanup_resources', 'enable_aggressive_cleanup']
+            });
+        } else if (usagePercent > 0.6) {
+            this.recommendations.active.push({
+                type: 'memory_usage',
+                priority: 'medium',
+                title: 'Moderate Memory Usage',
+                description: `Memory usage is at ${metrics.usagePercentage}%. Monitor for continued growth.`,
+                actions: ['monitor_growth', 'enable_proactive_cleanup']
+            });
+        }
+        
+        // Memory trend recommendations
+        if (this.prediction.trend === 'increasing') {
+            const timeToLimit = this.prediction.timeToLimit;
+            if (timeToLimit < 300000) { // Less than 5 minutes
+                this.recommendations.active.push({
+                    type: 'memory_trend',
+                    priority: 'critical',
+                    title: 'Rapid Memory Growth Detected',
+                    description: `Memory usage is growing rapidly. Estimated time to limit: ${this.formatTime(timeToLimit)}.`,
+                    actions: ['immediate_cleanup', 'check_memory_leaks', 'reduce_quality']
+                });
+            } else if (timeToLimit < 1800000) { // Less than 30 minutes
+                this.recommendations.active.push({
+                    type: 'memory_trend',
+                    priority: 'medium',
+                    title: 'Memory Usage Growing',
+                    description: `Memory usage is steadily increasing. Estimated time to limit: ${this.formatTime(timeToLimit)}.`,
+                    actions: ['schedule_cleanup', 'monitor_closely']
+                });
+            }
+        }
+        
+        // Object pool recommendations
+        if (this.memoryManager) {
+            const poolStats = this.memoryManager.getStatistics();
+            for (const [poolType, stats] of Object.entries(poolStats.pools || {})) {
+                if (stats.utilization > 0.9) {
+                    this.recommendations.active.push({
+                        type: 'object_pool',
+                        priority: 'medium',
+                        title: `Object Pool Near Capacity`,
+                        description: `${poolType} pool is ${Math.round(stats.utilization * 100)}% full. Consider increasing pool size or improving object recycling.`,
+                        actions: ['increase_pool_size', 'improve_recycling']
+                    });
+                }
+            }
+        }
+        
+        // Resource cleanup recommendations
+        if (this.resourceCleanupSystem) {
+            const cleanupStats = this.resourceCleanupSystem.getStatistics();
+            if (cleanupStats.queuedForDisposal > 50) {
+                this.recommendations.active.push({
+                    type: 'resource_cleanup',
+                    priority: 'medium',
+                    title: 'Large Disposal Queue',
+                    description: `${cleanupStats.queuedForDisposal} resources queued for disposal. Consider more frequent cleanup cycles.`,
+                    actions: ['increase_cleanup_frequency', 'immediate_cleanup']
+                });
+            }
+        }
+        
+        // Add to history
+        if (this.recommendations.active.length > 0) {
+            this.recommendations.history.push({
+                timestamp: currentTime,
+                recommendations: [...this.recommendations.active]
+            });
+            
+            // Maintain history size
+            if (this.recommendations.history.length > 20) {
+                this.recommendations.history.shift();
+            }
+        }
+    }
+
+    /**
+     * Check and trigger memory alerts
+     */
+    checkMemoryAlerts() {
+        const currentTime = performance.now();
+        
+        // Check for memory leak alerts
+        const leakInfo = this.detectMemoryLeak();
+        if (leakInfo.detected) {
+            this.triggerAlert('memory_leak', {
+                message: leakInfo.recommendation,
+                growthRate: leakInfo.growthRate,
+                threshold: leakInfo.threshold
+            });
+        }
+        
+        // Check for prediction alerts
+        if (this.prediction.timeToLimit < 300000) { // Less than 5 minutes
+            this.triggerAlert('memory_limit_approaching', {
+                message: `Memory limit will be reached in approximately ${this.formatTime(this.prediction.timeToLimit)}`,
+                timeToLimit: this.prediction.timeToLimit,
+                predictedUsage: this.prediction.predictedUsage
+            });
+        }
+    }
+
+    /**
+     * Trigger memory pressure alert
+     */
+    triggerMemoryPressureAlert(level, usagePercent) {
+        const alertKey = `memory_pressure_${level}`;
+        const currentTime = performance.now();
+        const lastAlert = this.alerts.lastAlerts.get(alertKey) || 0;
+        
+        // Check suppression time
+        if (currentTime - lastAlert < this.alerts.suppressionTime) {
+            return;
+        }
+        
+        this.alerts.lastAlerts.set(alertKey, currentTime);
+        this.memoryPressure.lastAlert = currentTime;
+        
+        this.triggerAlert('memory_pressure', {
+            level,
+            usagePercent: Math.round(usagePercent * 100),
+            message: `Memory pressure level: ${level} (${Math.round(usagePercent * 100)}% usage)`
+        });
+    }
+
+    /**
+     * Trigger proactive cleanup
+     */
+    triggerProactiveCleanup() {
+        if (this.memoryManager) {
+            // Trigger a gentler cleanup than aggressive mode
+            this.memoryManager.performScheduledCleanup();
+        }
+        
+        if (this.resourceCleanupSystem) {
+            this.resourceCleanupSystem.performCleanupCycle();
+        }
+    }
+
+    /**
+     * Trigger a generic alert
+     */
+    triggerAlert(type, data) {
+        const alert = {
+            type,
+            timestamp: performance.now(),
+            data
+        };
+        
+        // Notify all registered callbacks
+        for (const callback of this.alerts.callbacks) {
+            try {
+                callback(alert);
+            } catch (error) {
+                console.error('Error in memory alert callback:', error);
+            }
+        }
+        
+        // Log the alert
+        console.warn(`Memory Alert [${type}]:`, data.message || data);
+    }
+
+    /**
+     * Register alert callback
+     */
+    onAlert(callback) {
+        if (typeof callback === 'function') {
+            this.alerts.callbacks.add(callback);
+        }
+    }
+
+    /**
+     * Unregister alert callback
+     */
+    offAlert(callback) {
+        this.alerts.callbacks.delete(callback);
+    }
+
+    /**
+     * Get memory pressure information
+     */
+    getMemoryPressureInfo() {
+        return {
+            ...this.memoryPressure,
+            history: [...this.memoryPressure.history]
+        };
+    }
+
+    /**
+     * Get memory prediction information
+     */
+    getMemoryPrediction() {
+        return {
+            ...this.prediction,
+            samples: [...this.prediction.samples]
+        };
+    }
+
+    /**
+     * Get optimization recommendations
+     */
+    getOptimizationRecommendations() {
+        return {
+            active: [...this.recommendations.active],
+            history: [...this.recommendations.history],
+            lastUpdate: this.recommendations.lastUpdate
+        };
+    }
+
+    /**
+     * Set memory pressure thresholds
+     */
+    setMemoryPressureThresholds(warning, critical, emergency) {
+        this.memoryPressure.threshold.warning = Math.max(0.1, Math.min(1.0, warning));
+        this.memoryPressure.threshold.critical = Math.max(this.memoryPressure.threshold.warning, Math.min(1.0, critical));
+        this.memoryPressure.threshold.emergency = Math.max(this.memoryPressure.threshold.critical, Math.min(1.0, emergency));
+    }
+
+    /**
+     * Enable/disable memory prediction
+     */
+    setMemoryPredictionEnabled(enabled) {
+        this.prediction.enabled = enabled;
+        if (!enabled) {
+            this.prediction.samples = [];
+        }
+    }
+
+    /**
+     * Set integration with memory management systems
+     */
+    setMemoryManager(memoryManager) {
+        this.memoryManager = memoryManager;
+    }
+
+    /**
+     * Set integration with resource cleanup system
+     */
+    setResourceCleanupSystem(resourceCleanupSystem) {
+        this.resourceCleanupSystem = resourceCleanupSystem;
+    }
+
+    /**
+     * Format time duration to human readable format
+     */
+    formatTime(milliseconds) {
+        if (milliseconds === Infinity) {
+            return 'never';
+        }
+        
+        const seconds = Math.floor(milliseconds / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        
+        if (hours > 0) {
+            return `${hours}h ${minutes % 60}m`;
+        } else if (minutes > 0) {
+            return `${minutes}m ${seconds % 60}s`;
+        } else {
+            return `${seconds}s`;
+        }
+    }
+
+    /**
+     * Get enhanced current metrics with optimization data
+     */
+    getCurrentMetricsEnhanced() {
+        const baseMetrics = this.getCurrentMetrics();
+        
+        return {
+            ...baseMetrics,
+            pressure: this.getMemoryPressureInfo(),
+            prediction: this.getMemoryPrediction(),
+            recommendations: this.getOptimizationRecommendations(),
+            optimization: {
+                memoryManager: this.memoryManager ? this.memoryManager.getStatistics() : null,
+                resourceCleanup: this.resourceCleanupSystem ? this.resourceCleanupSystem.getStatistics() : null
+            }
+        };
+    }
+
+    /**
      * Dispose of the memory monitor
      */
     dispose() {
         this.stop();
         this.memoryHistory = [];
+        this.memoryPressure.history = [];
+        this.prediction.samples = [];
+        this.recommendations.active = [];
+        this.recommendations.history = [];
+        this.alerts.callbacks.clear();
+        this.alerts.lastAlerts.clear();
     }
 }

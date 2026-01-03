@@ -7,6 +7,10 @@ Create a Kiro spec in `.kiro/specs/village-sim-typescript-engine/` consisting of
 - `design.md` - Component-level architecture with correctness properties
 - `tasks.md` - Dependency-ordered implementation plan with test tasks
 
+In `requirements.md`, each acceptance criterion MUST use an EARS template (e.g., "WHEN \<trigger\> THE System SHALL \<response\>").
+
+**Do not write implementation code in this spec; produce only `.kiro/specs/...` markdown files.**
+
 ## Workflow Rules
 
 1. **Staged approval**: Draft `requirements.md` first and ask for approval before proceeding to `design.md`, then `tasks.md`
@@ -84,4 +88,4 @@ Create a Kiro spec in `.kiro/specs/village-sim-typescript-engine/` consisting of
 
 ## Task
 
-Begin by reading `architecture-overview.md` and `glossary.md`, then draft `requirements.md` for Part 2. Ask for approval before continuing.
+Begin by reading `architecture-overview.md` and `glossary.md`, then draft `requirements.md` for Part 2. Ask for approval before continuing to `design.md`.

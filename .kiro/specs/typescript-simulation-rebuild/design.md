@@ -11,6 +11,12 @@ This design outlines the documentation structure and content needed to enable re
 
 ## Documentation Architecture
 
+### Normative vs Informative Convention
+
+Throughout this documentation:
+- **Normative statements** use MUST/SHALL and appear only in "Semantics (Normative Guarantees)" sections. These are binding requirements for Part 2 implementation.
+- **Informative statements** describe concepts, provide context, or suggest approaches. These guide understanding but are not binding.
+
 ### Three-Domain Structure
 
 | Domain | Purpose | Audience | Changes When |
@@ -117,6 +123,88 @@ What to log and measure:
 - #[[file:related-doc.md]]
 ```
 
+## C4 Architecture Diagrams
+
+### Context Diagram (Level 1)
+
+Shows the simulation system and its external interactions:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                         User                                 │
+│                    (Observer/Player)                         │
+└─────────────────────┬───────────────────────────────────────┘
+                      │ Views simulation
+                      │ Selects levels
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│              3D Village Simulation                           │
+│                                                              │
+│  Renders 3D village with AI agents, environmental systems,  │
+│  and physics interactions for observation-focused gameplay   │
+└─────────────────────┬───────────────────────────────────────┘
+                      │ Uses
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  External Dependencies                       │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
+│  │ Babylon.js  │  │   Havok     │  │   Browser   │         │
+│  │ (Rendering) │  │  (Physics)  │  │    APIs     │         │
+│  └─────────────┘  └─────────────┘  └─────────────┘         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Container Diagram (Level 2)
+
+Shows major containers within the simulation:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    3D Village Simulation                         │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │                     Core Engine                            │  │
+│  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────────────┐  │  │
+│  │  │   ECS   │ │  Event  │ │  Game   │ │   Dependency    │  │  │
+│  │  │  World  │ │   Bus   │ │  Loop   │ │   Container     │  │  │
+│  │  └─────────┘ └─────────┘ └─────────┘ └─────────────────┘  │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│                                                                  │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐                │
+│  │   Render    │ │   Physics   │ │    Agent    │                │
+│  │   System    │ │   System    │ │   System    │                │
+│  └──────┬──────┘ └──────┬──────┘ └─────────────┘                │
+│         │               │                                        │
+│         ▼               ▼                                        │
+│  ┌─────────────┐ ┌─────────────┐                                │
+│  │ Babylon.js  │ │   Havok     │                                │
+│  │  Adapter    │ │  Adapter    │                                │
+│  └─────────────┘ └─────────────┘                                │
+│                                                                  │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐                │
+│  │ Environment │ │    Level    │ │ Performance │                │
+│  │   System    │ │   System    │ │   System    │                │
+│  └─────────────┘ └─────────────┘ └─────────────┘                │
+│                                                                  │
+│  ┌─────────────┐                                                │
+│  │     UI      │                                                │
+│  │   System    │                                                │
+│  └─────────────┘                                                │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Container Responsibilities:**
+
+| Container | Responsibility |
+|-----------|---------------|
+| Core Engine | Coordinates all systems, manages entity lifecycle |
+| Render System | Visual output via Babylon.js adapter |
+| Physics System | Physical simulation via Havok adapter |
+| Agent System | AI behaviors for all agent types |
+| Environment System | Day/night, water, clouds, terrain |
+| Level System | Level loading, configuration, transitions |
+| Performance System | Optimization, monitoring, quality scaling |
+| UI System | User interface elements |
+
 ## Core System Abstractions
 
 ### Entity-Component-System (ECS)
@@ -140,11 +228,11 @@ What to log and measure:
 6. World disposed
 
 **Semantics (Normative Guarantees)**:
-- Entities are unique identifiers with no inherent data
-- Components are pure data attached to exactly one entity
-- Systems process entities matching their component requirements
-- Queries return consistent results within a single frame
-- Component changes take effect before next query
+- Entities MUST be unique identifiers with no inherent data
+- Components MUST be pure data attached to exactly one entity
+- Systems MUST process entities matching their component requirements
+- Queries MUST return consistent results within a single frame
+- Component changes MUST take effect before next query
 
 **Correctness Properties**: 1, 2, 3
 
@@ -169,12 +257,14 @@ What to log and measure:
 5. Event bus disposed
 
 **Semantics (Normative Guarantees)**:
-- Handlers execute synchronously in registration order
-- Each handler receives event data exactly once per emission
-- Handler errors are caught and logged; remaining handlers still execute
-- Unsubscribed handlers do not receive subsequent events
+- Handlers MUST execute synchronously in registration order
+- Each handler MUST receive event data exactly once per emission
+- Handler errors MUST be caught and logged; remaining handlers MUST still execute
+- Unsubscribed handlers MUST NOT receive subsequent events
+- Re-entrancy: Handlers MAY emit events during handling; nested events MUST be processed immediately (depth-first), completing before the outer handler continues
+- Event data MUST NOT be mutated by handlers; mutations have undefined behavior
 
-**Correctness Properties**: 4
+**Correctness Properties**: 4, 5
 
 #[[file:docs/Code_Tech_Docs/core-systems/event-system.md]]
 
@@ -198,12 +288,12 @@ What to log and measure:
 5. Loop disposed
 
 **Semantics (Normative Guarantees)**:
-- Physics updates occur at fixed timestep regardless of frame rate
-- Multiple physics updates may occur per frame if needed to catch up
-- Render updates occur once per frame
-- Interpolation factor provided for visual smoothing
+- Physics updates MUST occur at fixed timestep regardless of frame rate
+- Multiple physics updates MAY occur per frame if needed to catch up
+- Render updates MUST occur once per frame
+- Interpolation factor MUST be provided for visual smoothing
 
-**Correctness Properties**: 5
+**Correctness Properties**: 6
 
 #[[file:docs/Code_Tech_Docs/core-systems/game-loop.md]]
 
@@ -226,12 +316,12 @@ What to log and measure:
 4. State machine disposed
 
 **Semantics (Normative Guarantees)**:
-- Current state is always defined and valid
-- Transitions only occur between states with defined transition rules
-- Entry action executes after transition, before first update in new state
-- Exit action executes before transition, after last update in old state
+- Current state MUST always be defined and valid
+- Transitions MUST only occur between states with defined transition rules
+- Entry action MUST execute after transition, before first update in new state
+- Exit action MUST execute before transition, after last update in old state
 
-**Correctness Properties**: 13
+**Correctness Properties**: 7, 8
 
 #[[file:docs/Code_Tech_Docs/patterns/state-machine.md]]
 
@@ -248,10 +338,12 @@ Agents are composed of three layers with distinct responsibilities:
 | Agent | Instance management | Identity, data, lifecycle coordination |
 
 **Semantics (Normative Guarantees)**:
-- All three layers initialized before first agent update
-- Model position synchronized with agent position each frame
-- Behavior updates before model updates
-- Agent disposal cleans up all three layers
+- All three layers MUST be initialized before first agent update
+- Model position MUST be synchronized with agent position each frame
+- Behavior MUST update before model updates
+- Agent disposal MUST clean up all three layers
+
+**Correctness Properties**: 10, 11
 
 #[[file:docs/Code_Tech_Docs/subsystems/agent-system.md]]
 
@@ -283,9 +375,11 @@ Three forces combine for flocking/shoaling/herding:
 | Alignment | Match group heading | Coordinate movement |
 
 **Semantics (Normative Guarantees)**:
-- Forces calculated from neighbors within perception radius
-- Forces weighted by configurable coefficients
-- Combined force added to individual steering
+- Forces MUST be calculated from neighbors within perception radius
+- Forces MUST be weighted by configurable coefficients
+- Combined force MUST be added to individual steering
+
+**Correctness Properties**: 9
 
 #[[file:docs/Code_Tech_Docs/patterns/group-behavior.md]]
 
@@ -300,9 +394,11 @@ Three forces combine for flocking/shoaling/herding:
 - Zombie activity (more active at night)
 
 **Semantics (Normative Guarantees)**:
-- Time progresses at configurable rate (game hours per real second)
-- Lighting values interpolate smoothly between time-of-day keyframes
-- Agent behaviors query current time to determine schedule
+- Time MUST progress at configurable rate (game hours per real second)
+- Lighting values MUST interpolate smoothly between time-of-day keyframes
+- Agent behaviors MUST be able to query current time to determine schedule
+
+**Correctness Properties**: 15
 
 #[[file:docs/Design_Docs/environment-systems/day-night-cycle.md]]
 
@@ -315,8 +411,10 @@ Three forces combine for flocking/shoaling/herding:
 - Seed-based for reproducibility
 
 **Semantics (Normative Guarantees)**:
-- Same seed produces identical layout
-- Generated layout passes validation (no overlaps, all connected)
+- Same seed MUST produce identical layout
+- Generated layout MUST pass validation (no overlaps, all connected)
+
+**Correctness Properties**: 16
 
 #[[file:docs/Design_Docs/environment-systems/procedural-generation.md]]
 
@@ -329,9 +427,11 @@ Three forces combine for flocking/shoaling/herding:
 4. Transition: Unload current → Load next
 
 **Semantics (Normative Guarantees)**:
-- Only configured systems active after load
-- Previous level fully disposed before new level initializes
-- Agent populations match configuration
+- Only configured systems MUST be active after load
+- Previous level MUST be fully disposed before new level initializes
+- Agent populations MUST match configuration
+
+**Correctness Properties**: 12, 13, 14
 
 #[[file:docs/Code_Tech_Docs/subsystems/level-system.md]]
 
@@ -342,25 +442,27 @@ Three forces combine for flocking/shoaling/herding:
 **Purpose**: Efficient queries for nearby entities.
 
 **Semantics (Normative Guarantees)**:
-- Query results are correct (no false negatives)
-- Query performance better than linear scan
+- Query results MUST be correct (no false negatives)
+- Query performance SHOULD be better than linear scan
 
 ### Behavior Throttling
 
 **Purpose**: Reduce CPU for distant agents.
 
 **Semantics (Normative Guarantees)**:
-- Agents beyond threshold distance update less frequently
-- Throttling does not affect correctness, only precision
+- Agents beyond threshold distance MUST update less frequently
+- Throttling MUST NOT affect correctness, only precision
 
 ### Quality Scaling
 
 **Purpose**: Maintain frame rate on varying hardware.
 
 **Semantics (Normative Guarantees)**:
-- Quality reduces when frame rate below threshold for configured duration
-- Quality increases when frame rate above threshold for configured duration
-- Hysteresis prevents oscillation
+- Quality MUST reduce when frame rate below threshold for configured duration
+- Quality MUST increase when frame rate above threshold for configured duration
+- Hysteresis MUST prevent oscillation
+
+**Correctness Properties**: 18, 19
 
 #[[file:docs/Code_Tech_Docs/subsystems/performance-system.md]]
 
@@ -433,38 +535,42 @@ What are the implications of this decision?
 
 ## Correctness Properties
 
-Properties categorized by system:
+Properties categorized by system. Each property is a normative guarantee that Part 2 implementation MUST satisfy.
 
 ### ECS Properties
-1. Entities with components returned by matching queries
-2. Destroyed entities not returned by queries
-3. Component changes reflected in subsequent queries
+1. **Entity-Component Query Inclusion**: For any entity with components C₁...Cₙ, querying for entities with components C₁...Cₙ MUST return that entity.
+2. **Destroyed Entity Exclusion**: For any destroyed entity, subsequent queries MUST NOT return that entity.
+3. **Component Change Visibility**: For any component added or removed, subsequent queries MUST reflect that change.
 
 ### Event Properties
-4. All handlers receive emitted events exactly once
+4. **Handler Delivery**: For any event emitted, all registered handlers for that event type MUST receive the event data exactly once.
+5. **Handler Error Isolation**: For any handler that throws an error, remaining handlers MUST still execute.
 
 ### Game Loop Properties
-5. Physics updates at fixed timestep regardless of frame rate
+6. **Fixed Timestep Consistency**: For any sequence of frames, physics updates MUST occur at the configured fixed timestep regardless of frame rate.
+
+### State Machine Properties
+7. **Transition Validity**: For any state machine, transitions MUST only occur between states with defined transition rules.
+8. **State Validity**: For any state machine, the current state MUST always be a valid, defined state.
 
 ### Agent Properties
-6. State transitions only between defined transitions
-7. Agents always have valid current state
-8. Group forces include cohesion, separation, alignment
-9. All agent layers initialized before first update
+9. **Group Force Composition**: For any agent in a group, the steering force MUST include cohesion, separation, and alignment components.
+10. **Agent Initialization Order**: For any agent, all three layers (Model, Behavior, Agent) MUST be initialized before the first update.
+11. **Agent Error Recovery**: For any error during agent update, the agent MUST remain in a valid state.
 
 ### Level Properties
-10. Only configured systems active after load
-11. Previous level disposed before new level initializes
-12. Agent populations match configuration
+12. **System Activation**: For any level load, only systems specified in the configuration MUST be active.
+13. **Resource Cleanup**: For any level transition, previous level resources MUST be disposed before new level initializes.
+14. **Population Matching**: For any loaded level, agent populations MUST match the level configuration.
 
 ### Environment Properties
-13. Lighting matches expected values for game time
-14. Same seed produces identical procedural generation
-15. Terrain height queries return valid values in bounds
+15. **Lighting Consistency**: For any game time value, lighting MUST match the expected values for that time of day.
+16. **Procedural Determinism**: For any seed value, procedural generation MUST produce identical results.
+17. **Terrain Query Validity**: For any position within terrain bounds, height queries MUST return a valid value.
 
 ### Performance Properties
-16. Objects outside frustum not rendered
-17. Quality adjusts when frame rate crosses thresholds
+18. **Frustum Culling**: For any object outside the view frustum, that object MUST NOT be submitted for rendering.
+19. **Quality Adjustment**: For any frame rate below threshold for the configured duration, quality MUST be reduced.
 
 #[[file:docs/Code_Tech_Docs/correctness-properties.md]]
 

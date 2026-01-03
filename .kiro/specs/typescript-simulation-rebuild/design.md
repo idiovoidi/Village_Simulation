@@ -14,8 +14,10 @@ This design outlines the documentation structure and content needed to enable re
 ### Normative vs Informative Convention
 
 Throughout this documentation:
-- **Normative statements** use MUST/SHALL and appear only in "Semantics (Normative Guarantees)" sections. These are binding requirements for Part 2 implementation.
+- **Normative statements** use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY, MUST NOT, SHALL NOT, SHOULD NOT) and appear only in "Semantics (Normative Guarantees)" sections. These are binding requirements for Part 2 implementation.
 - **Informative statements** describe concepts, provide context, or suggest approaches. These guide understanding but are not binding.
+
+The key words MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT, SHOULD, SHOULD NOT, RECOMMENDED, MAY, and OPTIONAL are to be interpreted as described in RFC 2119 and BCP 14.
 
 ### Three-Domain Structure
 
@@ -205,6 +207,9 @@ Shows major containers within the simulation:
 | Performance System | Optimization, monitoring, quality scaling |
 | UI System | User interface elements |
 
+**Adapter Boundary (Normative)**:
+Core Engine MUST NOT depend directly on Babylon.js or Havok APIs. Core Engine MUST depend only on adapter-facing abstractions. This enables testing core logic without GPU/physics runtime and allows future backend substitution.
+
 ## Core System Abstractions
 
 ### Entity-Component-System (ECS)
@@ -231,8 +236,8 @@ Shows major containers within the simulation:
 - Entities MUST be unique identifiers with no inherent data
 - Components MUST be pure data attached to exactly one entity
 - Systems MUST process entities matching their component requirements
-- Queries MUST return consistent results within a single frame
-- Component changes MUST take effect before next query
+- Structural changes (entity creation/destruction, component add/remove) MUST be applied at defined sync points (start of frame or end of system update), not mid-iteration
+- Queries within a single frame after sync point MUST return consistent results
 
 **Correctness Properties**: 1, 2, 3
 
@@ -262,7 +267,8 @@ Shows major containers within the simulation:
 - Handler errors MUST be caught and logged; remaining handlers MUST still execute
 - Unsubscribed handlers MUST NOT receive subsequent events
 - Re-entrancy: Handlers MAY emit events during handling; nested events MUST be processed immediately (depth-first), completing before the outer handler continues
-- Event data MUST NOT be mutated by handlers; mutations have undefined behavior
+- Re-entrancy depth MUST be bounded; implementations SHOULD limit to 10 levels and MUST throw an error if exceeded
+- Event data MUST NOT be mutated by handlers; mutating event data MAY cause later handlers to observe modified state and is considered an implementation error
 
 **Correctness Properties**: 4, 5
 
@@ -290,6 +296,8 @@ Shows major containers within the simulation:
 **Semantics (Normative Guarantees)**:
 - Physics updates MUST occur at fixed timestep regardless of frame rate
 - Multiple physics updates MAY occur per frame if needed to catch up
+- Accumulated time MUST be clamped to a maximum (e.g., 250ms) to prevent "spiral of death" when frames take too long
+- Maximum substeps per frame SHOULD be limited (e.g., 5) to bound worst-case frame time
 - Render updates MUST occur once per frame
 - Interpolation factor MUST be provided for visual smoothing
 
@@ -442,8 +450,10 @@ Three forces combine for flocking/shoaling/herding:
 **Purpose**: Efficient queries for nearby entities.
 
 **Semantics (Normative Guarantees)**:
-- Query results MUST be correct (no false negatives)
-- Query performance SHOULD be better than linear scan
+- Query results MUST be correct (no false negatives within query bounds)
+
+**Observability Notes**:
+- Query performance SHOULD be better than linear scan; implementations SHOULD target O(log n) or O(1) average case
 
 ### Behavior Throttling
 
@@ -451,7 +461,9 @@ Three forces combine for flocking/shoaling/herding:
 
 **Semantics (Normative Guarantees)**:
 - Agents beyond threshold distance MUST update less frequently
-- Throttling MUST NOT affect correctness, only precision
+- Throttling MUST NOT affect state machine invariants (valid states, valid transitions)
+- Throttling MUST NOT prevent event delivery to throttled agents
+- Throttling MAY reduce position integration smoothness for distant agents
 
 ### Quality Scaling
 
@@ -591,7 +603,13 @@ Properties categorized by system. Each property is a normative guarantee that Pa
 |------|------|-----------|
 | Circular dependencies | Madge | Zero allowed |
 | Code coverage | Vitest/v8 | 70% minimum |
-| Orphan modules | Madge | Reported (warning) |
+| Orphan modules | Madge | Reported (warning only) |
+
+**Orphan Module Exceptions**: The following are expected orphans and SHOULD NOT be flagged as issues:
+- Application entrypoints (index.ts, main.ts)
+- Test files and test utilities
+- Type declaration files (.d.ts)
+- Configuration files
 
 ### Smoke Test Requirements
 

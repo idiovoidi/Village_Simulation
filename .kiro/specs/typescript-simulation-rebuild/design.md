@@ -17,7 +17,7 @@ Throughout this documentation:
 - **Normative statements** use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY, MUST NOT, SHALL NOT, SHOULD NOT) and appear only in "Semantics (Normative Guarantees)" sections. These are binding requirements for Part 2 implementation.
 - **Informative statements** describe concepts, provide context, or suggest approaches. These guide understanding but are not binding.
 
-The key words MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT, SHOULD, SHOULD NOT, RECOMMENDED, MAY, and OPTIONAL are to be interpreted as described in RFC 2119 and BCP 14.
+The key words MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT, SHOULD, SHOULD NOT, RECOMMENDED, MAY, and OPTIONAL are to be interpreted as described in RFC 2119 and BCP 14. Only uppercase RFC 2119 keywords are normative; lowercase uses (e.g., "should", "may") are informative.
 
 ### Three-Domain Structure
 
@@ -236,8 +236,9 @@ Core Engine MUST NOT depend directly on Babylon.js or Havok APIs. Core Engine MU
 - Entities MUST be unique identifiers with no inherent data
 - Components MUST be pure data attached to exactly one entity
 - Systems MUST process entities matching their component requirements
-- Structural changes (entity creation/destruction, component add/remove) MUST be applied at defined sync points (start of frame or end of system update), not mid-iteration
-- Queries within a single frame after sync point MUST return consistent results
+- Structural changes (entity creation/destruction, component add/remove) MUST be queued during iteration and applied at the end of the current system update
+- Entity iteration over a query MUST be stable for the duration of that system update (no mid-iteration invalidation)
+- Queries after a sync point MUST reflect all queued changes
 
 **Correctness Properties**: 1, 2, 3
 
@@ -268,7 +269,8 @@ Core Engine MUST NOT depend directly on Babylon.js or Havok APIs. Core Engine MU
 - Unsubscribed handlers MUST NOT receive subsequent events
 - Re-entrancy: Handlers MAY emit events during handling; nested events MUST be processed immediately (depth-first), completing before the outer handler continues
 - Re-entrancy depth MUST be bounded; implementations SHOULD limit to 10 levels and MUST throw an error if exceeded
-- Event data MUST NOT be mutated by handlers; mutating event data MAY cause later handlers to observe modified state and is considered an implementation error
+- When max re-entrancy depth is exceeded, the nested emit MUST be aborted and an error of category "system" with severity "error" MUST be logged; outer handlers MUST continue
+- Event data immutability is a contract, not enforced; mutating event data MAY cause later handlers to observe modified state and is considered an implementation error
 
 **Correctness Properties**: 4, 5
 
@@ -296,10 +298,15 @@ Core Engine MUST NOT depend directly on Babylon.js or Havok APIs. Core Engine MU
 **Semantics (Normative Guarantees)**:
 - Physics updates MUST occur at fixed timestep regardless of frame rate
 - Multiple physics updates MAY occur per frame if needed to catch up
-- Accumulated time MUST be clamped to a maximum (e.g., 250ms) to prevent "spiral of death" when frames take too long
-- Maximum substeps per frame SHOULD be limited (e.g., 5) to bound worst-case frame time
+- Accumulated time MUST be clamped to prevent "spiral of death"; the maximum accumulated time is a configurable parameter (default: 250ms)
+- Maximum substeps per frame is a configurable parameter (default: 5) to bound worst-case frame time
 - Render updates MUST occur once per frame
 - Interpolation factor MUST be provided for visual smoothing
+
+**Configuration Parameters**:
+- `fixedTimestep`: Physics update interval (default: 16.67ms / 60Hz)
+- `maxAccumulatedTime`: Maximum time to accumulate before clamping (default: 250ms)
+- `maxSubsteps`: Maximum physics updates per frame (default: 5)
 
 **Correctness Properties**: 6
 
@@ -332,6 +339,41 @@ Core Engine MUST NOT depend directly on Babylon.js or Havok APIs. Core Engine MU
 **Correctness Properties**: 7, 8
 
 #[[file:docs/Code_Tech_Docs/patterns/state-machine.md]]
+
+### Update Ordering Rules
+
+The canonical order of phases within each frame:
+
+```
+1. Input Processing
+   └─ Capture user input, UI events
+
+2. Fixed-Step Simulation (may repeat if catching up)
+   ├─ Physics update
+   │   └─ ECS sync point (apply queued structural changes)
+   ├─ Agent behavior update
+   │   └─ ECS sync point
+   ├─ Environment update
+   │   └─ ECS sync point
+   └─ External event flush (physics callbacks, etc.)
+
+3. Variable-Step Update
+   ├─ Animation updates
+   ├─ LOD updates
+   └─ Performance monitoring
+
+4. Render
+   ├─ Frustum culling
+   ├─ Draw calls
+   └─ UI overlay
+```
+
+**Semantics (Normative Guarantees)**:
+- Fixed-step simulation MUST complete all substeps before variable-step update begins
+- ECS sync points MUST occur at the end of each system update (not start of frame)
+- The Event Bus is immediate (synchronous, depth-first); "External event flush" is for events from external backends (physics collision callbacks) that are buffered until their sync point
+- Render MUST occur after all updates complete
+- Systems within the same phase MAY execute in any order unless explicit dependencies are declared
 
 ## Agent System Abstractions
 
@@ -604,12 +646,15 @@ Properties categorized by system. Each property is a normative guarantee that Pa
 | Circular dependencies | Madge | Zero allowed |
 | Code coverage | Vitest/v8 | 70% minimum |
 | Orphan modules | Madge | Reported (warning only) |
+| Dependency graph | Madge | DOT artifact on main branch |
 
 **Orphan Module Exceptions**: The following are expected orphans and SHOULD NOT be flagged as issues:
 - Application entrypoints (index.ts, main.ts)
 - Test files and test utilities
 - Type declaration files (.d.ts)
 - Configuration files
+
+**Dependency Graph Artifact**: On main branch builds, Madge SHOULD export a DOT-format dependency graph for architectural review and commit-to-commit diff analysis.
 
 ### Smoke Test Requirements
 

@@ -1,8 +1,10 @@
-# Design Document: TypeScript Simulation Documentation
+# Design Document: Simulation Documentation (Part 1)
 
 ## Overview
 
-This design outlines the documentation structure and core abstractions needed to rebuild the 3D Village Simulation. The goal is to create comprehensive documentation across three domains (Art, Design, Tech) that captures the logic, patterns, and relationships of the existing system—enabling a future implementation spec to rebuild it from scratch.
+This design outlines the documentation structure and content needed to enable rebuilding the 3D Village Simulation. Part 1 creates comprehensive documentation across three domains (Art, Design, Tech). Part 2 (a separate spec) will implement the engine using this documentation.
+
+**C4 Stopping Point**: Part 1 documents architecture to the Component level. Code-level examples and implementation details are deferred to Part 2.
 
 #[[file:docs/Design_Docs/simulation-overview.md]]
 #[[file:docs/Code_Tech_Docs/architecture-overview.md]]
@@ -11,13 +13,11 @@ This design outlines the documentation structure and core abstractions needed to
 
 ### Three-Domain Structure
 
-Documentation is separated by concern to allow independent evolution:
-
 | Domain | Purpose | Audience | Changes When |
 |--------|---------|----------|--------------|
 | Art Docs | Visual intent, assets, style guides | Artists, UI designers | Art direction changes |
 | Design Docs | Gameplay goals, behaviors, rules | Designers, product owners | Game mechanics change |
-| Tech Docs | Architecture, patterns, APIs | Developers | Implementation changes |
+| Tech Docs | Architecture, patterns, specifications | Developers | Architecture changes |
 
 ### Directory Structure
 
@@ -42,14 +42,20 @@ docs/
 │   │   └── wildlife-mechanics.md
 │   ├── environment-systems/
 │   │   ├── day-night-cycle.md
-│   │   ├── weather-system.md
-│   │   └── procedural-generation.md
-│   ├── level-design/
-│   │   ├── level-types.md
-│   │   └── level-configurations.md
-│   └── game-rules.md
+│   │   ├── procedural-generation.md
+│   │   └── water-system.md
+│   └── level-design/
+│       ├── level-types.md
+│       └── level-configurations.md
 └── Code_Tech_Docs/
     ├── architecture-overview.md
+    ├── glossary.md
+    ├── traceability-matrix.md
+    ├── adrs/
+    │   ├── 001-ecs-pattern.md
+    │   ├── 002-event-bus-semantics.md
+    │   ├── 003-modular-monolith.md
+    │   └── 004-state-machine-approach.md
     ├── core-systems/
     │   ├── ecs-pattern.md
     │   ├── event-system.md
@@ -67,192 +73,265 @@ docs/
     │   ├── object-pooling.md
     │   ├── spatial-partitioning.md
     │   └── error-handling.md
+    ├── correctness-properties.md
     └── testing-strategy.md
 ```
 
-### Livelink Cross-References
+### Documentation Page Template
 
-Documents reference related content across domains using livelinks:
+Each technical documentation page follows this structure:
 
-- `#[[file:docs/Art_Docs/zombie-sprites.md]]` - Visual assets
-- `#[[file:docs/Design_Docs/zombie-mechanics.md]]` - Behavior rules
-- `#[[file:docs/Code_Tech_Docs/agent-system.md]]` - Implementation patterns
+```markdown
+# [System/Pattern Name]
 
-## Core Abstractions
+## Purpose
+What this system/pattern does and why it exists.
+
+## Boundaries
+What is in scope and out of scope for this system.
+
+## Responsibilities
+- Responsibility 1
+- Responsibility 2
+
+## Lifecycle
+1. Initialization
+2. Active operation
+3. Cleanup/disposal
+
+## Semantics (Normative Guarantees)
+Precise behavioral guarantees that implementations MUST follow:
+- Guarantee 1
+- Guarantee 2
+
+## Correctness Properties
+Links to properties this system must satisfy:
+- Property N: [description] → #[[file:docs/Code_Tech_Docs/correctness-properties.md#property-n]]
+
+## Observability
+What to log and measure:
+- Metrics to track
+- Events to log
+
+## Cross-References
+- #[[file:related-doc.md]]
+```
+
+## Core System Abstractions
 
 ### Entity-Component-System (ECS)
 
-The simulation uses ECS to compose game objects from reusable parts:
+**Purpose**: Compose game objects from reusable data and behavior.
 
-**Entity**: A unique identifier with no data or behavior of its own.
+**Boundaries**: Manages entities and components. Does not handle rendering, physics, or AI directly—those are separate systems that query the ECS.
 
-**Component**: Pure data attached to entities (position, health, velocity, etc.).
+**Responsibilities**:
+- Create and destroy entities
+- Attach and detach components
+- Query entities by component composition
+- Notify systems of entity/component changes
 
-**System**: Logic that operates on entities with specific component combinations.
+**Lifecycle**:
+1. World created
+2. Systems registered
+3. Entities created with components
+4. Per-frame: systems query and process entities
+5. Entities destroyed, components detached
+6. World disposed
 
-**World**: Container managing entities, components, and systems.
+**Semantics (Normative Guarantees)**:
+- Entities are unique identifiers with no inherent data
+- Components are pure data attached to exactly one entity
+- Systems process entities matching their component requirements
+- Queries return consistent results within a single frame
+- Component changes take effect before next query
 
-Key relationships:
-- Entities have zero or more components
-- Systems query the world for entities matching component requirements
-- Systems process matching entities each frame
-- Components are added/removed dynamically
+**Correctness Properties**: 1, 2, 3
 
-#[[file:docs/Code_Tech_Docs/ecs-pattern.md]]
+#[[file:docs/Code_Tech_Docs/core-systems/ecs-pattern.md]]
 
 ### Event Bus
 
-Decoupled communication between systems:
+**Purpose**: Decouple communication between systems.
 
-- Systems emit events without knowing subscribers
-- Systems subscribe to events without knowing emitters
-- Events are typed with associated data payloads
+**Boundaries**: Handles event emission and subscription. Does not process events or manage event persistence.
+
+**Responsibilities**:
+- Register event handlers
+- Emit events to handlers
+- Manage handler lifecycle (subscribe/unsubscribe)
+
+**Lifecycle**:
+1. Event bus created
+2. Systems subscribe to events
+3. Events emitted during simulation
+4. Systems unsubscribe on disposal
+5. Event bus disposed
+
+**Semantics (Normative Guarantees)**:
 - Handlers execute synchronously in registration order
-- Handler errors are isolated (don't break other handlers)
+- Each handler receives event data exactly once per emission
+- Handler errors are caught and logged; remaining handlers still execute
+- Unsubscribed handlers do not receive subsequent events
 
-Event categories:
-- Physics events (collision start/end, trigger enter/exit)
-- Agent events (state change, spawn, despawn)
-- Level events (load, unload, transition)
-- Time events (hour change, day change)
-- Performance events (threshold warnings)
+**Correctness Properties**: 4
 
-#[[file:docs/Code_Tech_Docs/event-system.md]]
+#[[file:docs/Code_Tech_Docs/core-systems/event-system.md]]
 
 ### Game Loop
 
-Fixed timestep for physics, variable for rendering:
+**Purpose**: Coordinate simulation updates and rendering.
 
-- Physics updates at consistent intervals (e.g., 60Hz)
-- Accumulated time handles frame rate variations
-- Render updates as fast as possible
-- Interpolation smooths visual updates between physics steps
+**Boundaries**: Manages timing and update scheduling. Does not implement system logic.
 
-#[[file:docs/Code_Tech_Docs/game-loop.md]]
+**Responsibilities**:
+- Track elapsed time
+- Trigger physics updates at fixed intervals
+- Trigger render updates each frame
+- Provide interpolation factor for smooth rendering
+
+**Lifecycle**:
+1. Loop initialized with timestep configuration
+2. Loop started
+3. Per-frame: accumulate time, run fixed updates, render
+4. Loop stopped
+5. Loop disposed
+
+**Semantics (Normative Guarantees)**:
+- Physics updates occur at fixed timestep regardless of frame rate
+- Multiple physics updates may occur per frame if needed to catch up
+- Render updates occur once per frame
+- Interpolation factor provided for visual smoothing
+
+**Correctness Properties**: 5
+
+#[[file:docs/Code_Tech_Docs/core-systems/game-loop.md]]
 
 ### State Machine
 
-Agent behaviors modeled as finite state machines:
+**Purpose**: Model agent behaviors as discrete states with transitions.
 
-- States define behavior during that state
-- Transitions define conditions to change states
-- Entry/exit actions handle state setup/cleanup
-- Only valid transitions are allowed
-- Current state is always defined
+**Boundaries**: Manages state and transitions. Does not implement state-specific behavior.
 
-#[[file:docs/Code_Tech_Docs/state-machine.md]]
+**Responsibilities**:
+- Track current state
+- Validate transition requests
+- Execute entry/exit actions
+- Provide state query interface
+
+**Lifecycle**:
+1. State machine created with initial state
+2. States and transitions defined
+3. Per-update: evaluate transitions, execute current state
+4. State machine disposed
+
+**Semantics (Normative Guarantees)**:
+- Current state is always defined and valid
+- Transitions only occur between states with defined transition rules
+- Entry action executes after transition, before first update in new state
+- Exit action executes before transition, after last update in old state
+
+**Correctness Properties**: 13
+
+#[[file:docs/Code_Tech_Docs/patterns/state-machine.md]]
 
 ## Agent System Abstractions
 
 ### Three-Layer Composition
 
-Agents are composed of three layers:
+Agents are composed of three layers with distinct responsibilities:
 
-**Model Layer**: Visual representation
-- 3D mesh and materials
-- Animations and animation blending
-- Position/rotation synchronization with logic
+| Layer | Responsibility | Contains |
+|-------|---------------|----------|
+| Model | Visual representation | Mesh, materials, animations |
+| Behavior | Decision making | State machine, perception, group behavior |
+| Agent | Instance management | Identity, data, lifecycle coordination |
 
-**Behavior Layer**: Decision making
-- State machine for behavior states
-- Perception (what the agent knows about the world)
-- Group behaviors (flocking, herding)
+**Semantics (Normative Guarantees)**:
+- All three layers initialized before first agent update
+- Model position synchronized with agent position each frame
+- Behavior updates before model updates
+- Agent disposal cleans up all three layers
 
-**Agent Layer**: Instance management
-- Unique identity and data
-- Lifecycle (spawn, update, despawn)
-- Component coordination
+#[[file:docs/Code_Tech_Docs/subsystems/agent-system.md]]
 
-#[[file:docs/Code_Tech_Docs/agent-system.md]]
+### Agent Types Summary
 
-### Agent Types
+| Agent | Domain | Group Behavior | States |
+|-------|--------|----------------|--------|
+| Villager | Ground | Social network | Idle, Working, Socializing, Sleeping, Fleeing, Sheltering |
+| Zombie | Ground | Horde cohesion | Wandering, Suspicious, Pursuing, Lurging |
+| Fish | Water volume | Shoaling | Swimming, Feeding, Fleeing |
+| Bird | Air volume | Flocking | Flying, Circling, Perching, Migrating |
+| Dog | Ground | Pack | Patrolling, Alert, Chasing |
+| Boat | Water surface | None | Docked, Sailing, Arriving |
 
-| Agent | Movement Domain | Group Behavior | Key States |
-|-------|-----------------|----------------|------------|
-| Villager | Ground (navmesh) | Social network | Idle, Working, Socializing, Sleeping, Fleeing, Sheltering |
-| Zombie | Ground (navmesh) | Horde cohesion | Wandering, Suspicious, Pursuing, Lurging |
-| Fish | Water (3D volume) | Shoaling | Swimming, Feeding, Fleeing |
-| Bird | Air (3D volume) | Flocking | Flying, Circling, Perching, Migrating |
-| Dog | Ground (navmesh) | Pack behavior | Patrolling, Alert, Chasing |
-| Boat | Water (surface) | None | Docked, Sailing, Arriving |
+Each agent type requires a complete state diagram in Design Docs.
 
 #[[file:docs/Design_Docs/agent-behaviors/villager-mechanics.md]]
 #[[file:docs/Design_Docs/agent-behaviors/zombie-mechanics.md]]
 #[[file:docs/Design_Docs/agent-behaviors/wildlife-mechanics.md]]
 
-### Group Behaviors
+### Group Behavior Forces
 
-Flocking/shoaling/herding use three forces:
+Three forces combine for flocking/shoaling/herding:
 
-**Cohesion**: Steer toward average position of neighbors
-**Separation**: Steer away from nearby neighbors to avoid crowding
-**Alignment**: Steer toward average heading of neighbors
+| Force | Direction | Purpose |
+|-------|-----------|---------|
+| Cohesion | Toward group center | Keep group together |
+| Separation | Away from neighbors | Prevent crowding |
+| Alignment | Match group heading | Coordinate movement |
 
-Forces are weighted and combined with individual goals.
+**Semantics (Normative Guarantees)**:
+- Forces calculated from neighbors within perception radius
+- Forces weighted by configurable coefficients
+- Combined force added to individual steering
 
-#[[file:docs/Code_Tech_Docs/patterns/flocking-behavior.md]]
+#[[file:docs/Code_Tech_Docs/patterns/group-behavior.md]]
 
 ## Environment System Abstractions
 
 ### Day/Night Cycle
 
-Time progression affects:
+**Effects on simulation**:
 - Sun position and lighting color/intensity
 - Ambient light levels
-- Agent behavior schedules (villagers sleep at night)
-- Zombie activity levels (more active at night)
+- Villager schedule (sleep at night)
+- Zombie activity (more active at night)
 
-Time is measured in game hours, with configurable real-time to game-time ratio.
+**Semantics (Normative Guarantees)**:
+- Time progresses at configurable rate (game hours per real second)
+- Lighting values interpolate smoothly between time-of-day keyframes
+- Agent behaviors query current time to determine schedule
 
 #[[file:docs/Design_Docs/environment-systems/day-night-cycle.md]]
 
 ### Procedural Generation
 
-Village generation follows rules:
-- Place buildings on valid terrain (flat, not water)
-- Connect buildings with roads
-- Ensure no overlapping structures
+**Village generation rules**:
+- Buildings placed on valid terrain (flat, not water)
+- No overlapping structures
+- Roads connect buildings
 - Seed-based for reproducibility
 
-Road network generation:
-- Connect key locations (buildings, village center)
-- Follow terrain contours
-- Integrate with navigation mesh
+**Semantics (Normative Guarantees)**:
+- Same seed produces identical layout
+- Generated layout passes validation (no overlaps, all connected)
 
 #[[file:docs/Design_Docs/environment-systems/procedural-generation.md]]
 
-### Water Simulation
+### Level System
 
-Water affects gameplay:
-- Fish and boats navigate within/on water
-- Ground agents avoid water (except at bridges)
-- Buoyancy applies to physics bodies in water
-- Visual waves and reflections
+**Level lifecycle**:
+1. Load: Parse config, initialize systems, spawn agents
+2. Run: Normal simulation
+3. Unload: Despawn agents, dispose systems, cleanup
+4. Transition: Unload current → Load next
 
-#[[file:docs/Code_Tech_Docs/subsystems/water-system.md]]
-
-## Level System Abstractions
-
-### Level Configuration
-
-Levels are defined declaratively:
-- Which systems are active
-- Agent populations and spawn areas
-- Environmental settings (time, weather)
-- Terrain parameters
-
-Level types: Village, Rural, Coastal, Wilderness
-
-#[[file:docs/Design_Docs/level-design/level-types.md]]
-
-### Level Lifecycle
-
-1. **Load**: Parse config, initialize required systems, spawn agents
-2. **Run**: Normal simulation loop
-3. **Unload**: Despawn agents, dispose systems, cleanup resources
-4. **Transition**: Unload current, load next
-
-Resources from previous level must be fully disposed before new level initializes.
+**Semantics (Normative Guarantees)**:
+- Only configured systems active after load
+- Previous level fully disposed before new level initializes
+- Agent populations match configuration
 
 #[[file:docs/Code_Tech_Docs/subsystems/level-system.md]]
 
@@ -260,175 +339,210 @@ Resources from previous level must be fully disposed before new level initialize
 
 ### Spatial Partitioning
 
-Efficient queries for nearby entities:
-- Divide world into cells/regions
-- Entities register in cells based on position
-- Queries check only relevant cells
-- Update registrations when entities move
+**Purpose**: Efficient queries for nearby entities.
 
-#[[file:docs/Code_Tech_Docs/patterns/spatial-partitioning.md]]
-
-### Level of Detail (LOD)
-
-Reduce detail for distant objects:
-- Multiple mesh versions at different detail levels
-- Switch based on camera distance
-- Thresholds configurable per object type
+**Semantics (Normative Guarantees)**:
+- Query results are correct (no false negatives)
+- Query performance better than linear scan
 
 ### Behavior Throttling
 
-Reduce update frequency for distant agents:
-- Full updates for nearby agents
-- Reduced frequency for distant agents
-- Skip updates for very distant agents
-- Distance thresholds configurable
+**Purpose**: Reduce CPU for distant agents.
+
+**Semantics (Normative Guarantees)**:
+- Agents beyond threshold distance update less frequently
+- Throttling does not affect correctness, only precision
 
 ### Quality Scaling
 
-Dynamic quality adjustment based on performance:
-- Monitor frame rate
-- Reduce quality when below threshold
-- Increase quality when above threshold
+**Purpose**: Maintain frame rate on varying hardware.
+
+**Semantics (Normative Guarantees)**:
+- Quality reduces when frame rate below threshold for configured duration
+- Quality increases when frame rate above threshold for configured duration
 - Hysteresis prevents oscillation
 
 #[[file:docs/Code_Tech_Docs/subsystems/performance-system.md]]
 
 ## Error Handling Abstractions
 
-### Error Categories
+### Error Categories and Severity
 
-Errors classified by source:
-- Physics errors
-- Render errors
-- Agent errors
-- Level errors
-- System errors
+| Category | Examples | Typical Severity |
+|----------|----------|------------------|
+| Physics | Body creation failure, collision error | Error/Critical |
+| Render | Context lost, shader compile failure | Critical |
+| Agent | State machine error, pathfinding failure | Error |
+| Level | Load failure, config parse error | Critical |
+| System | Initialization failure, update error | Error/Critical |
 
-### Error Severity
+### Severity Handling
 
-- **Critical**: Cannot continue, must halt or return to safe state
-- **Error**: Significant problem, log and attempt recovery
-- **Warning**: Potential issue, log and continue
-- **Info**: Informational, log only
-
-### Recovery Strategies
-
-- Agent errors: Reset agent to default state
-- Level load errors: Return to level selection
-- Render context lost: Attempt restoration, fail if unsuccessful
-- Memory threshold: Trigger cleanup routines
+| Severity | Action |
+|----------|--------|
+| Critical | Log, halt or return to safe state |
+| Error | Log, attempt recovery |
+| Warning | Log, continue |
+| Info | Log only |
 
 #[[file:docs/Code_Tech_Docs/patterns/error-handling.md]]
 
+## Architecture Decision Records
+
+### ADR Template
+
+Each ADR follows this structure:
+
+```markdown
+# ADR-NNN: [Title]
+
+## Status
+[Proposed | Accepted | Deprecated | Superseded]
+
+## Context
+What situation prompted this decision?
+
+## Options Considered
+1. Option A - description
+2. Option B - description
+3. Option C - description
+
+## Decision
+Which option was chosen?
+
+## Rationale
+Why was this option chosen over alternatives?
+
+## Consequences
+What are the implications of this decision?
+- Positive consequences
+- Negative consequences
+- Risks
+```
+
+### Required ADRs
+
+| ADR | Topic | Key Decision |
+|-----|-------|--------------|
+| 001 | ECS Pattern | Why ECS over inheritance hierarchy |
+| 002 | Event Bus Semantics | Sync vs async, error isolation |
+| 003 | Modular Monolith | Why not microservices or pure monolith |
+| 004 | State Machine Approach | Why FSM over behavior trees |
+
+#[[file:docs/Code_Tech_Docs/adrs/]]
+
 ## Correctness Properties
 
-Properties that must hold true for correct system behavior:
+Properties categorized by system:
 
 ### ECS Properties
-1. Entities with components are returned by queries for those components
-2. Destroyed entities are not returned by any query
-3. Component changes are reflected in subsequent queries
+1. Entities with components returned by matching queries
+2. Destroyed entities not returned by queries
+3. Component changes reflected in subsequent queries
 
 ### Event Properties
-4. All registered handlers receive emitted events exactly once
-5. Handler errors don't prevent other handlers from executing
+4. All handlers receive emitted events exactly once
+
+### Game Loop Properties
+5. Physics updates at fixed timestep regardless of frame rate
 
 ### Agent Properties
-6. State transitions only occur between states with defined transitions
-7. Agents always have a valid current state
-8. Group behavior forces include cohesion, separation, and alignment
+6. State transitions only between defined transitions
+7. Agents always have valid current state
+8. Group forces include cohesion, separation, alignment
+9. All agent layers initialized before first update
 
 ### Level Properties
-9. Only configured systems are active after level load
-10. Previous level resources are disposed before new level initializes
-11. Agent populations match level configuration
+10. Only configured systems active after load
+11. Previous level disposed before new level initializes
+12. Agent populations match configuration
 
 ### Environment Properties
-12. Lighting matches expected values for current game time
-13. Procedural generation with same seed produces identical results
-14. Terrain height queries return valid values within bounds
+13. Lighting matches expected values for game time
+14. Same seed produces identical procedural generation
+15. Terrain height queries return valid values in bounds
 
 ### Performance Properties
-15. Objects outside view frustum are not rendered
-16. Quality adjusts when frame rate crosses thresholds
+16. Objects outside frustum not rendered
+17. Quality adjusts when frame rate crosses thresholds
 
-## Testing Strategy
+#[[file:docs/Code_Tech_Docs/correctness-properties.md]]
+
+## Testing Strategy Documentation
 
 ### Test Categories
 
-**Unit Tests**: Individual functions and classes in isolation
+| Category | Purpose | Scope |
+|----------|---------|-------|
+| Unit | Individual functions/classes | Isolated |
+| Integration | System interactions | Multiple systems |
+| Property | Invariants across inputs | Randomized |
+| Smoke | Boot verification | Full application |
 
-**Integration Tests**: System interactions and data flow
+### Quality Gates
 
-**Property Tests**: Invariants that hold across many inputs (using fast-check)
-
-**Smoke Tests**: Application boots and runs without errors
+| Gate | Tool | Threshold |
+|------|------|-----------|
+| Circular dependencies | Madge | Zero allowed |
+| Code coverage | Vitest/v8 | 70% minimum |
+| Orphan modules | Madge | Reported (warning) |
 
 ### Smoke Test Requirements
 
-Node smoke test:
-- Import core modules
-- Construct dependency container
-- Register systems with mocks
-- Run 10 update ticks
-- Complete without errors
+**Node smoke**: Import modules, construct container, run 10 ticks with mocks
 
-Browser smoke test:
-- Create canvas element
-- Initialize engine
-- Create scene
-- Verify no console errors
+**Browser smoke**: Create canvas, init engine, verify no errors
 
-Level smoke tests (one per level type):
-- Load minimal level config
-- Run 10 update ticks
-- Verify level loaded correctly
-
-### Code Quality Gates
-
-**Circular Dependencies**: Build fails if Madge detects cycles in src/
-
-**Orphan Modules**: Report files not imported by any other file
-
-**Coverage Thresholds**: 70% minimum for statements, branches, functions, lines
+**Level smoke**: Load each level type, run 10 ticks
 
 #[[file:docs/Code_Tech_Docs/testing-strategy.md]]
 
 ## Documentation Deliverables
 
-### Art Docs Deliverables
+### Art Docs
 - [ ] Visual style guide
 - [ ] Villager model specifications
 - [ ] Zombie visual specifications
-- [ ] Wildlife model specifications
+- [ ] Wildlife model specifications (fish, bird, dog, boat)
 - [ ] Terrain texture guide
 - [ ] Water effect specifications
 - [ ] Lighting mood guide
 - [ ] UI asset specifications
 
-### Design Docs Deliverables
+### Design Docs
 - [ ] Simulation overview
-- [ ] Villager behavior rules
-- [ ] Zombie behavior rules
-- [ ] Wildlife behavior rules
+- [ ] Villager state diagram and behavior rules
+- [ ] Zombie state diagram and behavior rules
+- [ ] Fish behavior rules
+- [ ] Bird behavior rules
+- [ ] Dog behavior rules
+- [ ] Boat behavior rules
 - [ ] Day/night cycle rules
 - [ ] Procedural generation rules
-- [ ] Level type definitions
-- [ ] Level configuration schema
+- [ ] Level type definitions (Village, Rural, Coastal, Wilderness)
+- [ ] Level configuration examples
 
-### Tech Docs Deliverables
+### Tech Docs
 - [ ] Architecture overview
+- [ ] Glossary
+- [ ] Traceability matrix
+- [ ] ADR-001: ECS Pattern
+- [ ] ADR-002: Event Bus Semantics
+- [ ] ADR-003: Modular Monolith
+- [ ] ADR-004: State Machine Approach
 - [ ] ECS pattern documentation
 - [ ] Event system documentation
 - [ ] Game loop documentation
-- [ ] State machine documentation
+- [ ] Dependency injection documentation
 - [ ] Render system documentation
 - [ ] Physics system documentation
 - [ ] Agent system documentation
 - [ ] Environment system documentation
 - [ ] Level system documentation
 - [ ] Performance system documentation
+- [ ] State machine pattern
 - [ ] Object pooling pattern
 - [ ] Spatial partitioning pattern
 - [ ] Error handling pattern
-- [ ] Testing strategy documentation
+- [ ] Correctness properties
+- [ ] Testing strategy

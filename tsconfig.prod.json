@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "sourceMap": false,
+    "declaration": false,
+    "removeComments": true,
+    "noEmitOnError": true
+  },
+  "exclude": [
+    "node_modules",
+    "coverage",
+    "docs",
+    "memory-bank",
+    "**/*.test.ts",
+    "**/*.test.js",
+    "test-*.js",
+    "run-*-tests.js"
+  ]
+}

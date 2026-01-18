@@ -18,6 +18,8 @@
  * Install with: npm install @eslint/js globals --save-dev
  */
 
+import tsParser from '@typescript-eslint/parser';
+
 // Simple ESLint configuration without external dependencies
 export default [
   {
@@ -283,6 +285,11 @@ export default [
   {
     // TypeScript-specific rules (for future .ts files)
     files: ['**/*.ts', '**/*.tsx'],
+    languageOptions: {
+      parser: tsParser,
+      ecmaVersion: 2022,
+      sourceType: 'module',
+    },
     rules: {
       // These will be enhanced when TypeScript parser is added
       'no-undef': 'off', // TypeScript handles this

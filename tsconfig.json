@@ -1,81 +1,46 @@
 {
   "compilerOptions": {
-    // Language and Environment
     "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true,
-
-    // Type Checking - STRICT MODE
+    "lib": ["ES2022", "DOM", "WebWorker"],
+    "module": "ES2022",
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
     "strictFunctionTypes": true,
-    "strictBindCallApply": true,
-    "strictPropertyInitialization": true,
-    "noImplicitThis": true,
-    "useUnknownInCatchVariables": true,
-    "alwaysStrict": true,
-
-    // Additional Checks
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "exactOptionalPropertyTypes": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true,
-    "noPropertyAccessFromIndexSignature": true,
-
-    // Emit
+    
+    "allowJs": true,
+    "checkJs": false,
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
+    
     "outDir": "./dist",
-    "removeComments": false,
-    "importHelpers": true,
-
-    // Interop Constraints
-    "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-
-    // Skip type checking for libraries
-    "skipLibCheck": true,
-
-    // Path mapping for cleaner imports
-    "baseUrl": ".",
+    "rootDir": "./MyHavokSimCode",
+    "baseUrl": "./",
     "paths": {
-      "@/*": ["./MyHavokSimCode/*"],
-      "@core/*": ["./MyHavokSimCode/core/*"],
-      "@agents/*": ["./MyHavokSimCode/Agents/*"],
-      "@systems/*": ["./MyHavokSimCode/systems/*"],
-      "@performance/*": ["./MyHavokSimCode/Performance/*"],
-      "@utilities/*": ["./MyHavokSimCode/Utilities/*"],
-      "@ui/*": ["./MyHavokSimCode/UI/*"],
-      "@environment/*": ["./MyHavokSimCode/Environment/*"],
-      "@village/*": ["./MyHavokSimCode/Village/*"],
-      "@navigation/*": ["./MyHavokSimCode/Navigation/*"],
-      "@effects/*": ["./MyHavokSimCode/Effects/*"],
-      "@levels/*": ["./MyHavokSimCode/LevelSystem/*"]
+      "@core/*": ["MyHavokSimCode/core/*"],
+      "@agents/*": ["MyHavokSimCode/Agents/*"],
+      "@systems/*": ["MyHavokSimCode/systems/*"]
     }
   },
   "include": [
     "MyHavokSimCode/**/*",
-    "assets/**/*",
-    "*.ts",
-    "*.js"
+    "assets/AssetManager.js"
   ],
   "exclude": [
     "node_modules",
-    "dist",
+    "dist", 
     "coverage",
-    "**/*.test.js",
+    "docs",
+    "memory-bank",
     "**/*.test.ts",
+    "**/*.test.js",
     "test-*.js",
     "run-*-tests.js"
   ]

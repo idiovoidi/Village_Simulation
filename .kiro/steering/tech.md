@@ -2,79 +2,145 @@
 inclusion: always
 ---
 
-# Technology Stack
+# Technology Stack & Development Guidelines
 
 ## Core Technologies
 
 - **3D Engine**: Babylon.js v7.47.2 (WebGL/WebGPU rendering)
 - **Physics Engine**: Havok Physics v1.3.10
 - **UI Framework**: Babylon.js GUI
-- **Language**: JavaScript (ES6 modules)
-- **Package Manager**: pnpm
+- **Language**: JavaScript (ES6 modules) with ongoing TypeScript migration
+- **Package Manager**: pnpm (REQUIRED - do not use npm or yarn)
+- **Test Framework**: Node.js built-in test runner with c8 coverage
+- **Server**: Fastify v5.2.0 with CORS and static file serving
 
-## Dependencies
+## Critical Dependencies
 
-Key libraries loaded via CDN:
-- babylon.js (core engine)
-- HavokPhysics_umd.js (physics)
-- babylon.gui.min.js (UI)
-- babylonjs.loaders.min.js (asset loading)
-- babylonjs.materials.min.js (material library)
+External libraries loaded via CDN (do NOT bundle):
+- `babylon.js` - Core 3D engine
+- `HavokPhysics_umd.js` - Physics simulation
+- `babylon.gui.min.js` - UI components
+- `babylonjs.loaders.min.js` - Asset loading (GLTF, OBJ, etc.)
+- `babylonjs.materials.min.js` - Material library
 
-## Development Setup
+## Development Workflow
 
 ### Installation
 ```bash
-pnpm install
+pnpm install  # Always use pnpm
 ```
 
-### Running the Development Server
+### Running the Simulation
 ```bash
-# Start the Fastify server
-pnpm start
-
-# Or with auto-reload
-pnpm dev
+pnpm start    # Production server (port 3000)
+pnpm dev      # Development with auto-reload
 ```
+Access at `http://localhost:3000`
 
-The server runs on port 3000 by default. Open `http://localhost:3000` in a browser.
-
-### Testing
+### Testing Commands
 ```bash
-# Run all tests
-pnpm test
-
-# Run with coverage
-pnpm run test:coverage
-
-# Browser-based coverage
-pnpm run coverage:browser
-
-# Analyze coverage
-pnpm run coverage:analyze
-
-# Open coverage report
-pnpm run coverage:open
+pnpm test                    # Run all tests
+pnpm run test:coverage       # Generate coverage report
+pnpm run coverage:browser    # Browser-based coverage
+pnpm run coverage:analyze    # Analyze coverage data
+pnpm run coverage:open       # Open HTML coverage report
 ```
 
 ### Performance Testing
 ```bash
-# Run performance tests
-node run-performance-tests.js
-
-# Run CPU profiler tests
-node run-cpu-profiler-tests.js
-
-# Run data storage tests
-node run-data-storage-tests.js
+node run-performance-tests.js      # Full performance suite
+node run-cpu-profiler-tests.js     # CPU profiling
+node run-data-storage-tests.js     # Data storage tests
 ```
 
-## Build Configuration
+## Code Style & Conventions
 
-- **Development Config**: `dev.config.js`
-- **Coverage Config**: `.c8rc.json` (c8 coverage tool)
-- **Server**: `server.js` (Fastify with CORS and static file serving)
+### File Organization
+- Place agent code in `MyHavokSimCode/Agents/{AgentType}/`
+- Core systems go in `MyHavokSimCode/core/`
+- Tests co-locate with source: `{module}/tests/{module}.test.js`
+- Use ES6 module syntax (`import`/`export`)
+
+### Naming Conventions
+- **Classes**: PascalCase (e.g., `VillageEngine`, `ZombieBehaviour`)
+- **Files**: Match class names (e.g., `VillageEngine` → `NewVillageEngine.js`)
+- **Instances**: camelCase (e.g., `waterSim`, `fishSystem`)
+- **Behaviors**: Suffix with `Behaviour` (e.g., `VillagerBehaviour`)
+- **Systems**: Suffix with `System` (e.g., `SpawnSystem`)
+
+### TypeScript Migration
+- Project is migrating from JavaScript to TypeScript
+- Prioritize core systems and utilities first
+- Maintain backward compatibility during migration
+- Use `.ts` extension for new TypeScript files
+- Keep type definitions strict and explicit
+
+## Architecture Patterns
+
+### Component-Based Agents
+All agents follow a three-layer pattern:
+1. **Model**: 3D mesh, animations, visual representation
+2. **Behaviour**: State machines, AI logic, group coordination
+3. **Agent**: Individual instances with unique state
+
+### Error Handling
+- Use decorator pattern from `core/ErrorHandling.js`
+- Apply decorators programmatically for JavaScript compatibility
+- All critical methods should have error recovery
+
+### System Initialization
+- Systems configured declaratively in `SYSTEM_CONFIGS` (see `Havokimport.js`)
+- Conditional loading based on level requirements
+- Use dependency injection where possible
+
+## Testing Requirements
+
+### Test Structure
+- Use Node.js built-in `test` and `assert` modules
+- Co-locate tests with source code in `tests/` subdirectories
+- Name test files: `{ModuleName}.test.js`
+
+### Coverage Standards
+- Aim for >80% coverage on core systems
+- Use c8 for coverage reporting
+- Browser-based tests for Babylon.js integration
+
+### Test Execution
+- Tests run in Node.js environment
+- Mock Babylon.js dependencies when needed
+- Use `CompatibilityTestFramework.js` for browser compatibility tests
+
+## Performance Considerations
+
+### Optimization Systems
+- LOD (Level of Detail) management via `LODManager.js`
+- Hardware capability detection via `HardwareDetector.js`
+- Adaptive quality scaling via `AdaptiveQualityManager.js`
+- Spatial partitioning for agent queries
+
+### Performance Monitoring
+- Built-in performance dashboard (`Performance/PerformanceDashboard.js`)
+- Frame rate tracking and alerting
+- Memory monitoring and cleanup systems
 
 ## Browser Compatibility
 
-Requires modern browsers with WebGL or WebGPU support. The simulation includes compatibility checks and error handling for unsupported environments.
+- **Required**: Modern browsers with WebGL 2.0 or WebGPU support
+- **Tested**: Chrome 90+, Firefox 88+, Safari 14+, Edge 90+
+- Includes runtime compatibility checks and graceful degradation
+- Use `CompatibilityTestFramework.js` for validation
+
+## Configuration Files
+
+- `dev.config.js` - Development server configuration
+- `.c8rc.json` - Coverage tool settings
+- `tsconfig.json` - TypeScript compiler options
+- `package.json` - Dependencies and scripts
+
+## Common Pitfalls
+
+- **DO NOT** use npm or yarn - only pnpm
+- **DO NOT** bundle CDN dependencies - they must load externally
+- **DO NOT** modify Babylon.js or Havok core files
+- **ALWAYS** test in browser after changes to rendering/physics code
+- **ALWAYS** check coverage after adding new modules

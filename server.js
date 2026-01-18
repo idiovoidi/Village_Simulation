@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import cors from '@fastify/cors';
 import staticFiles from '@fastify/static';
+import { exec } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -47,12 +48,53 @@ server.get('/api/performance', async (request, reply) => {
     };
 });
 
+/**
+ * Open browser automatically (Windows-compatible)
+ */
+function openBrowser(url) {
+    const platform = process.platform;
+    let command;
+    let options = {};
+    
+    switch (platform) {
+        case 'win32':
+            // Windows: Use cmd.exe to execute start command
+            command = `cmd.exe /c start "" "${url}"`;
+            options = { shell: true };
+            break;
+        case 'darwin':
+            command = `open ${url}`;
+            break;
+        case 'linux':
+            command = `xdg-open ${url}`;
+            break;
+        default:
+            console.log(`🌐 Please open your browser to: ${url}`);
+            return;
+    }
+    
+    exec(command, options, (error) => {
+        if (error) {
+            console.log(`🌐 Please open your browser to: ${url}`);
+        } else {
+            console.log(`🚀 Browser opened automatically: ${url}`);
+        }
+    });
+}
+
 // Start server
 const start = async () => {
     try {
         const port = process.env.PORT || 3000;
         await server.listen({ port, host: '0.0.0.0' });
-        console.log(`🚀 Village Sim server running at http://localhost:${port}`);
+        const url = `http://localhost:${port}`;
+        console.log(`🚀 Village Sim server running at ${url}`);
+        console.log(`Server ready at ${url}`); // VS Code-friendly pattern
+        
+        // Auto-open browser if requested
+        if (process.env.AUTO_OPEN_BROWSER === 'true') {
+            setTimeout(() => openBrowser(url), 1000); // Small delay to ensure server is ready
+        }
     } catch (err) {
         server.log.error(err);
         process.exit(1);

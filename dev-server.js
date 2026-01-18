@@ -82,6 +82,40 @@ class DevServer {
     }
 
     /**
+     * Open browser automatically (Windows-compatible)
+     */
+    openBrowser(url) {
+        const platform = process.platform;
+        let command;
+        let options = {};
+        
+        switch (platform) {
+            case 'win32':
+                // Windows: Use cmd.exe to execute start command
+                command = `cmd.exe /c start "" "${url}"`;
+                options = { shell: true };
+                break;
+            case 'darwin':
+                command = `open ${url}`;
+                break;
+            case 'linux':
+                command = `xdg-open ${url}`;
+                break;
+            default:
+                console.log(`🌐 Please open your browser to: ${url}`);
+                return;
+        }
+        
+        exec(command, options, (error) => {
+            if (error) {
+                console.log(`🌐 Please open your browser to: ${url}`);
+            } else {
+                console.log(`🚀 Browser opened automatically: ${url}`);
+            }
+        });
+    }
+
+    /**
      * Start the Fastify server
      */
     startServer() {
@@ -186,6 +220,12 @@ class DevServer {
         console.log('  Ctrl+C             - Stop development server\n');
         
         console.log('🌐 Server running at: http://localhost:3000');
+        console.log('Server ready at http://localhost:3000'); // VS Code-friendly pattern
+        
+        // Auto-open browser if requested
+        if (process.env.AUTO_OPEN_BROWSER === 'true') {
+            setTimeout(() => this.openBrowser('http://localhost:3000'), 1500);
+        }
     }
 }
 

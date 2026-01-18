@@ -6,6 +6,7 @@
   "main": "index.html",
   "scripts": {
     "start": "node server.js",
+    "start:browser": "node launch-with-browser.js",
     "dev": "node dev-server.js",
     "dev:basic": "nodemon server.js",
     "build": "node build-validate.js && tsc",

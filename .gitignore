@@ -9,7 +9,7 @@ Thumbs.db
 desktop.ini
 
 # IDE/Editor
-.vscode/
+.vscode/chrome-debug-profile
 .idea/
 *.sublime-workspace
 *.sublime-project

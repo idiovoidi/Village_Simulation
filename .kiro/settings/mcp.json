@@ -1,10 +1,16 @@
 {
   "mcpServers": {
     "serena": {
-      "command": "uvx",
-      "args": ["serena-mcp"],
+      "command": "C:\\Users\\Mitchell\\.local\\bin\\uvx.exe",
+      "args": [
+        "--from",
+        "git+https://github.com/oraios/serena",
+        "serena",
+        "start-mcp-server"
+      ],
       "env": {
-        "FASTMCP_LOG_LEVEL": "ERROR"
+        "FASTMCP_LOG_LEVEL": "ERROR",
+        "PATH": "C:\\Users\\Mitchell\\.local\\bin;C:\\Program Files\\Git\\cmd;${PATH}"
       },
       "disabled": false,
       "autoApprove": []

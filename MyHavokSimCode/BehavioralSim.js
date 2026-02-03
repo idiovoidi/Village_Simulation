@@ -2,7 +2,7 @@ import { DogBehaviour } from './Agents/Dogs/DogBehaviour.js';
 import { NavigationMesh } from './Navigation/NavigationMesh.js';
 import { BasicAgent } from './Agents/BasicAgent.js';
 import { VillagerBehaviour } from './Agents/Villagers/VillagerBehaviour.js';
-// DinosaurBehaviour archived - not used in active levels
+import { DinosaurBehaviour } from './Agents/Dinosaurs/DinosaurBehaviour.js';
 
 export class BehavioralSim {
     constructor(scene) {
@@ -13,7 +13,7 @@ export class BehavioralSim {
         this.zombieCount = 10;
         this.dogBehaviour = null;
         this.villagerBehaviour = null;
-        // dinosaurBehaviour removed - archived
+        this.dinosaurBehaviour = null;
         this.navigationMesh = new NavigationMesh(scene);
         this.basicAgent = new BasicAgent(scene);
         
@@ -64,7 +64,8 @@ export class BehavioralSim {
             this.initializeDogs();
             // Initialize villagers
             this.initializeVillagers();
-            // Dinosaur system archived - not used
+            // Initialize dinosaur
+            this.initializeDinosaur();
 
             // PERFORMANCE FIX: Disabled duplicate render loop
             // Updates are handled by the main render loop in Havokimport.js
@@ -154,7 +155,7 @@ export class BehavioralSim {
         this.updateZombiesWithOptimization(cameraPosition);
         this.updateDogsWithOptimization(cameraPosition);
         this.updateVillagersWithOptimization(cameraPosition);
-        // Dinosaur updates removed - system archived
+        this.updateDinosaursWithOptimization(cameraPosition);
     }
     
     /**
@@ -234,7 +235,20 @@ export class BehavioralSim {
         }
     }
     
-    // updateDinosaursWithOptimization removed - dinosaur system archived
+    /**
+     * Update dinosaurs with distance-based optimization
+     * @param {BABYLON.Vector3} cameraPosition - Camera position
+     */
+    updateDinosaursWithOptimization(cameraPosition) {
+        if (!this.dinosaurBehaviour) return;
+        
+        // Let the dinosaur behavior system handle its own optimization
+        if (this.dinosaurBehaviour.updateWithOptimization) {
+            this.dinosaurBehaviour.updateWithOptimization(cameraPosition, this.distanceOptimization);
+        } else {
+            this.dinosaurBehaviour.update();
+        }
+    }
     
     /**
      * Get update frequency based on distance from camera
@@ -320,7 +334,19 @@ export class BehavioralSim {
             }
         }
         
-        // Dinosaur counting removed - system archived
+        // Count dinosaurs
+        if (this.dinosaurBehaviour && this.dinosaurBehaviour.dinosaurs) {
+            totalAgents += this.dinosaurBehaviour.dinosaurs.length;
+            activeAgents += this.dinosaurBehaviour.dinosaurs.length;
+            for (const dinosaur of this.dinosaurBehaviour.dinosaurs) {
+                if (dinosaur && dinosaur.mesh) {
+                    const distance = BABYLON.Vector3.Distance(dinosaur.mesh.position, cameraPosition);
+                    if (distance < this.distanceOptimization.farDistance) {
+                        visibleAgents++;
+                    }
+                }
+            }
+        }
         
         // Update performance data
         this.agentPerformanceData.totalAgents = totalAgents;
@@ -486,7 +512,12 @@ export class BehavioralSim {
         }, 10000); // Check every 10 seconds
     }
 
-    // initializeDinosaur removed - dinosaur system archived
+    initializeDinosaur() {
+        // Create dinosaur behavior manager
+        this.dinosaurBehaviour = new DinosaurBehaviour(this.scene);
+        // Initialize with 1 dinosaur
+        this.dinosaurBehaviour.initialize(1);
+    }
 
     createAgent(name) {
         const startPos = this.getRandomStartPosition();
@@ -836,7 +867,9 @@ export class BehavioralSim {
             this.villagerBehaviour.dispose();
         }
         
-        // Dinosaur disposal removed - system archived
+        if (this.dinosaurBehaviour) {
+            this.dinosaurBehaviour.dispose();
+        }
         
         this.zombies.forEach(zombie => {
             if (zombie.physics) {

@@ -38,6 +38,14 @@ export class BirdBehaviour {
         // });
     }
 
+    /**
+     * Update method called by main loop
+     * Wrapper for updateBirds to maintain consistent API
+     */
+    update(deltaTime) {
+        this.updateBirds(deltaTime);
+    }
+
     updateBirds(deltaTime) {
         // Occasionally update flock center
         if (Math.random() < 0.001) {

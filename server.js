@@ -18,7 +18,13 @@ server.register(cors, {
 // Register static file serving
 server.register(staticFiles, {
     root: path.join(__dirname),
-    prefix: '/'
+    prefix: '/',
+    // Serve index.html for root path explicitly
+    index: ['index.html'],
+    // Ignore ecs-rebuild directory to prevent conflicts
+    ignore: (file) => {
+        return file.includes('ecs-rebuild');
+    }
 });
 
 // API routes for village sim

@@ -212,11 +212,12 @@ export class PhysicsSystem extends System {
       case PhysicsShapeType.Sphere:
         return this.havok.HP_Shape_CreateSphere(dimensions.x / 2);
 
-      case PhysicsShapeType.Capsule:
-        return this.havok.HP_Shape_CreateCapsule(
-          dimensions.x / 2,
-          dimensions.y
-        );
+      case PhysicsShapeType.Capsule: {
+        // For now, use a sphere as a fallback for capsules
+        // TODO: Implement proper capsule shape when Havok API is clarified
+        console.warn('Capsule shape not fully supported, using sphere fallback');
+        return this.havok.HP_Shape_CreateSphere(dimensions.x / 2);
+      }
 
       default:
         console.warn(`Unsupported shape type: ${shapeType}`);

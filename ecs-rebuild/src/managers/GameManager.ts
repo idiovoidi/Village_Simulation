@@ -43,6 +43,10 @@ export class GameManager {
   constructor(canvas: HTMLCanvasElement) {
     this.logger = new Logger();
     this.logger.info('GameManager', 'Initializing Game Manager...');
+    
+    // PROOF: This is the NEW TypeScript ECS rebuild!
+    console.log('%c🎮 TYPESCRIPT ECS REBUILD ACTIVE 🎮', 'background: #4CAF50; color: white; font-size: 20px; padding: 10px; font-weight: bold;');
+    console.log('%cRunning from: ecs-rebuild/src/managers/GameManager.ts', 'color: #2196F3; font-size: 14px;');
 
     // Create world
     this.world = new World();
@@ -131,16 +135,30 @@ export class GameManager {
    * Registers all systems with the world.
    */
   private async registerSystems(havokInstance: any): Promise<void> {
+    console.log('%c⚙️ Registering ECS Systems...', 'color: #9C27B0; font-size: 14px; font-weight: bold;');
+    
     // AI Systems (100-199)
     const villagerScheduleSystem = new VillagerScheduleSystem(this.world);
     this.world.registerSystem(villagerScheduleSystem);
+    console.log('  ✓ VillagerScheduleSystem (Priority: 105)');
     
     this.world.registerSystem(new ThreatAssessmentSystem(this.world, this.spatialGrid));
+    console.log('  ✓ ThreatAssessmentSystem (Priority: 108)');
+    
     this.world.registerSystem(new DecisionSystem(this.world));
+    console.log('  ✓ DecisionSystem (Priority: 110)');
+    
     this.world.registerSystem(new ZombieBehaviorSystem(this.world, this.spatialGrid));
+    console.log('  ✓ ZombieBehaviorSystem (Priority: 115)');
+    
     this.world.registerSystem(new SteeringSystem(this.world));
+    console.log('  ✓ SteeringSystem (Priority: 120)');
+    
     this.world.registerSystem(new PathfindingSystem(this.world, this.pathfindingManager));
+    console.log('  ✓ PathfindingSystem (Priority: 125)');
+    
     this.world.registerSystem(new FlockingSystem(this.world, this.spatialGrid));
+    console.log('  ✓ FlockingSystem (Priority: 130)');
 
     // Initialize villager schedule system
     if (villagerScheduleSystem.initialize) {
@@ -151,10 +169,13 @@ export class GameManager {
     const physicsSystem = new PhysicsSystem(this.world);
     await physicsSystem.initializePhysics(havokInstance);
     this.world.registerSystem(physicsSystem);
+    console.log('  ✓ PhysicsSystem (Priority: 200)');
 
     // Rendering System (600-699)
     this.world.registerSystem(new RenderSystem(this.world, this.renderer.getScene()));
+    console.log('  ✓ RenderSystem (Priority: 600)');
 
+    console.log(`%c✅ Registered ${this.world.systemCount} ECS Systems`, 'color: #4CAF50; font-size: 14px; font-weight: bold;');
     this.logger.info('GameManager', `Registered ${this.world.systemCount} systems`);
   }
 
@@ -173,15 +194,19 @@ export class GameManager {
    * Creates test entities for demonstration.
    */
   private createTestEntities(): void {
+    console.log('%c🏗️ Creating ECS Entities...', 'color: #FF9800; font-size: 14px; font-weight: bold;');
+    
     // Create a few villagers
     for (let i = 0; i < 3; i++) {
       const x = (Math.random() - 0.5) * 20;
       const z = (Math.random() - 0.5) * 20;
       this.entityFactory.createVillager({ x, y: 1, z });
     }
+    console.log('  ✓ Created 3 villagers');
 
     // Create a zombie
     this.entityFactory.createZombie({ x: 10, y: 1, z: 10 });
+    console.log('  ✓ Created 1 zombie');
 
     // Create some fish
     for (let i = 0; i < 5; i++) {
@@ -189,6 +214,7 @@ export class GameManager {
       const z = (Math.random() - 0.5) * 30;
       this.entityFactory.createFish({ x, y: -3, z });
     }
+    console.log('  ✓ Created 5 fish');
 
     // Create some birds
     for (let i = 0; i < 5; i++) {
@@ -196,7 +222,9 @@ export class GameManager {
       const z = (Math.random() - 0.5) * 40;
       this.entityFactory.createBird({ x, y: 15, z });
     }
+    console.log('  ✓ Created 5 birds');
 
+    console.log(`%c✅ Total ECS Entities: ${this.world.entityCount}`, 'color: #4CAF50; font-size: 14px; font-weight: bold;');
     this.logger.info('GameManager', `Created ${this.world.entityCount} entities`);
   }
 

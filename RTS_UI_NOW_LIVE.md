@@ -1,13 +1,14 @@
 # RTS UI is Now Live in Your Game! 🎉
 
-## Latest Update - Improved Styling
+## Latest Update - Centered & Polished UI
 
 The UI has been redesigned with:
+- 🎯 **Fully centered layout** - balanced and professional
 - ✨ Modern sleek design with semi-transparent backgrounds
 - 🎨 Better color scheme (dark blue theme)
-- 📍 Repositioned to avoid WorldClock overlap
-- 🎯 Removed duplicate FPS counter
-- 💎 Polished health bars with gradients
+- 📍 Top bar: Resources (left) | Time (center) | Balanced spacing
+- 📍 Bottom bar: All entity info centered
+- 💎 Polished health bars with gradients (350px wide, centered)
 - 🌙 Day/night icons in time display
 - 👥 Entity count icons (villagers, zombies, animals)
 - ✨ Better selection highlighting (blue glow)
@@ -51,13 +52,14 @@ Then press **F5** in VS Code or open `http://localhost:3000` in your browser.
 
 ### 2. What You'll See
 
-**Top Bar (Sleek & Modern):**
-- Left: `👥 10  •  🧟 5  •  🐾 15` (entity counts with icons)
-- Center: `☀️ 12:34` or `🌙 22:15` (time with day/night icon)
-- Positioned to not overlap WorldClock
+**Top Bar (Centered & Sleek):**
+- Resources (left of center): `👥 10  •  🧟 5  •  🐾 15`
+- Time (center): `☀️ 12:34` or `🌙 22:15`
+- Balanced layout with proper spacing
 
-**Bottom Bar (Polished):**
-- Shows "Click on an entity to inspect" in italic gray text
+**Bottom Bar (Fully Centered):**
+- Shows "Click on an entity to inspect" in centered italic text
+- All entity info displays in the center
 - Semi-transparent dark background with blue border
 
 ### 3. Click on Entities
@@ -68,11 +70,12 @@ Then press **F5** in VS Code or open `http://localhost:3000` in your browser.
 
 ### 4. What You'll See When Selected
 
-- Entity name (e.g., "villager_0")
-- Type (Villager or Zombie)
-- Health bar (color-coded: green/orange/red)
-- Current state (idle, wandering, moving_to_target, etc.)
-- Position coordinates
+**Centered Display:**
+- ◆ Entity name (centered, large, blue)
+- Type: Villager/Zombie (centered)
+- Health bar: 350px wide, centered, color-coded
+- State: idle/wandering/fleeing (centered, green)
+- Position coordinates (centered, subtle)
 
 ## Features Working
 

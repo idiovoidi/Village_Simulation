@@ -47,21 +47,33 @@ export class RTSIntegrationHelper {
     this.topBar.color = this.config.borderColor;
     this.advancedTexture.addControl(this.topBar);
     
-    // Resources (left) - moved right to avoid WorldClock
+    // Create a horizontal stack for centered layout
+    const topStack = new BABYLON.GUI.StackPanel('topStack');
+    topStack.isVertical = false;
+    topStack.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+    topStack.height = '100%';
+    this.topBar.addControl(topStack);
+    
+    // Resources (left side of center)
     this.resourceText = this.createText('Resources: Loading...', '15px', this.config.textColor);
-    this.resourceText.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-    this.resourceText.paddingLeft = '180px'; // Move right of WorldClock
+    this.resourceText.width = '250px';
+    this.resourceText.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+    this.resourceText.paddingRight = '30px';
     this.resourceText.fontWeight = '500';
-    this.topBar.addControl(this.resourceText);
+    topStack.addControl(this.resourceText);
     
     // Time (center)
     this.timeText = this.createText('Time: 00:00', '16px', this.config.accentColor);
-    this.timeText.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+    this.timeText.width = '150px';
+    this.timeText.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
     this.timeText.fontWeight = '600';
-    this.topBar.addControl(this.timeText);
+    topStack.addControl(this.timeText);
     
-    // FPS (right) - hide it since WorldClock might show FPS
-    // We'll skip the FPS display to avoid duplication
+    // Spacer (right side of center) - for balance
+    const spacer = new BABYLON.GUI.Rectangle();
+    spacer.width = '250px';
+    spacer.thickness = 0;
+    topStack.addControl(spacer);
   }
 
   createBottomBar() {
@@ -74,18 +86,17 @@ export class RTSIntegrationHelper {
     this.bottomBar.color = this.config.borderColor;
     this.advancedTexture.addControl(this.bottomBar);
     
-    // Selection panel with better styling
+    // Selection panel centered
     this.selectedEntityPanel = new BABYLON.GUI.StackPanel('selectedEntityPanel');
     this.selectedEntityPanel.isVertical = true;
-    this.selectedEntityPanel.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-    this.selectedEntityPanel.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
-    this.selectedEntityPanel.paddingLeft = '25px';
-    this.selectedEntityPanel.paddingTop = '20px';
-    this.selectedEntityPanel.width = '450px';
+    this.selectedEntityPanel.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+    this.selectedEntityPanel.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+    this.selectedEntityPanel.width = '500px';
     this.bottomBar.addControl(this.selectedEntityPanel);
     
     const noSelectionText = this.createText('Click on an entity to inspect', '14px', 'rgba(255, 255, 255, 0.5)');
     noSelectionText.fontStyle = 'italic';
+    noSelectionText.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
     this.selectedEntityPanel.addControl(noSelectionText);
   }
 
@@ -141,17 +152,19 @@ export class RTSIntegrationHelper {
     if (!this.selectedEntity || !this.selectedEntity.metadata) {
       const noSelectionText = this.createText('Click on an entity to inspect', '14px', 'rgba(255, 255, 255, 0.5)');
       noSelectionText.fontStyle = 'italic';
+      noSelectionText.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
       this.selectedEntityPanel.addControl(noSelectionText);
       return;
     }
     
     const meta = this.selectedEntity.metadata;
     
-    // Entity name with icon
+    // Entity name with icon - centered
     const nameText = this.createText(`◆ ${this.selectedEntity.name}`, '22px', this.config.accentColor);
     nameText.fontWeight = 'bold';
     nameText.shadowColor = 'rgba(0, 0, 0, 0.5)';
     nameText.shadowBlur = 4;
+    nameText.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
     this.selectedEntityPanel.addControl(nameText);
     
     // Spacer
@@ -160,9 +173,10 @@ export class RTSIntegrationHelper {
     spacer1.thickness = 0;
     this.selectedEntityPanel.addControl(spacer1);
     
-    // Entity type with better styling
+    // Entity type with better styling - centered
     const typeText = this.createText(`Type: ${meta.entityType}`, '14px', this.config.textColor);
     typeText.alpha = 0.9;
+    typeText.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
     this.selectedEntityPanel.addControl(typeText);
     
     // Health bar if available
@@ -175,7 +189,7 @@ export class RTSIntegrationHelper {
       this.addHealthBar(meta.health, meta.maxHealth);
     }
     
-    // State if available
+    // State if available - centered
     if (meta.state) {
       const spacer3 = new BABYLON.GUI.Rectangle();
       spacer3.height = '5px';
@@ -184,25 +198,35 @@ export class RTSIntegrationHelper {
       
       const stateText = this.createText(`State: ${meta.state}`, '14px', this.config.highlightColor);
       stateText.fontWeight = '500';
+      stateText.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
       this.selectedEntityPanel.addControl(stateText);
     }
     
-    // Position with better formatting
+    // Position with better formatting - centered
     const pos = this.selectedEntity.position;
     const posText = this.createText(
       `Position: (${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)})`,
       '12px',
       'rgba(255, 255, 255, 0.6)'
     );
+    posText.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
     this.selectedEntityPanel.addControl(posText);
   }
 
   addHealthBar(current, max) {
+    // Container for centering
+    const healthWrapper = new BABYLON.GUI.Rectangle('healthWrapper');
+    healthWrapper.height = '35px';
+    healthWrapper.width = '100%';
+    healthWrapper.thickness = 0;
+    this.selectedEntityPanel.addControl(healthWrapper);
+    
     const healthContainer = new BABYLON.GUI.Rectangle('healthContainer');
     healthContainer.height = '35px';
-    healthContainer.width = '320px';
+    healthContainer.width = '350px';
     healthContainer.thickness = 0;
-    this.selectedEntityPanel.addControl(healthContainer);
+    healthContainer.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+    healthWrapper.addControl(healthContainer);
     
     // Background with gradient effect
     const healthBg = new BABYLON.GUI.Rectangle('healthBg');
@@ -230,6 +254,7 @@ export class RTSIntegrationHelper {
     healthText.fontWeight = '600';
     healthText.shadowColor = 'rgba(0, 0, 0, 0.8)';
     healthText.shadowBlur = 3;
+    healthText.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
     healthContainer.addControl(healthText);
   }
 
@@ -291,7 +316,7 @@ export class RTSIntegrationHelper {
     textBlock.text = text;
     textBlock.fontSize = fontSize;
     textBlock.color = color;
-    textBlock.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+    textBlock.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
     textBlock.height = '30px';
     return textBlock;
   }

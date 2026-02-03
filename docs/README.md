@@ -1,69 +1,109 @@
-# 3D Village Simulation with Havok Physics
+# TypeScript ECS Village Simulation
 
-A dynamic 3D village simulation built with Babylon.js and Havok Physics, featuring intelligent agents, environmental systems, and interactive elements.
-
-## Project Overview
-
-This simulation creates an immersive 3D village environment with multiple integrated systems:
-
-- **Village System**: Roads, buildings, and urban layout
-- **Environmental Systems**: Water simulation, cloud systems
-- **AI Agents**: 
-  - Fish with underwater behavior
-  - Birds with flight patterns
-  - Dogs with ground navigation
-  - Zombies with pathfinding
-  - Boats with water navigation
-- **Time System**: Dynamic day/night cycle
-- **Physics**: Havok-powered physics interactions
-
-## Technical Stack
-
-- **Engine**: Babylon.js v7.47.2
-- **Physics**: Havok Physics v1.3.10
-- **UI**: Babylon.js GUI
-- **Package Management**: pnpm
-
-## Getting Started
-
-1. Install dependencies:
-```bash
-pnpm install
-```
-
-2. Run the development server:
-```bash
-# Your preferred static server
-```
-
-3. Open `index.html` in your browser
+A complete rebuild of the 3D Village Simulation using TypeScript and a pure Entity-Component-System (ECS) architecture.
 
 ## Project Structure
 
 ```
-├── MyHavokSimCode/       # Main simulation code
-│   ├── Agents/          # AI agent behaviors
-│   ├── LevelSystem/     # Level configuration
-│   └── UI/             # User interface components
-├── assets/              # Project assets
-├── docs/               # Documentation
-└── index.html          # Entry point
+ecs-rebuild/
+├── src/
+│   ├── core/          # ECS core infrastructure (World, Entity, Component, System)
+│   ├── components/    # Component definitions
+│   ├── systems/       # System implementations
+│   ├── managers/      # High-level managers (GameManager, ResourceManager, etc.)
+│   ├── utils/         # Utility classes and helpers
+│   └── main.ts        # Application entry point
+├── public/
+│   └── index.html     # HTML entry point
+├── tests/             # Integration tests
+└── coverage/          # Test coverage reports
 ```
 
-## System Architecture
+## Technology Stack
 
-The project follows a modular, component-based architecture with clear separation of concerns:
+- **Language**: TypeScript 5.7+ with strict mode
+- **Build Tool**: Vite 6.0+
+- **3D Engine**: Babylon.js v7.47.2 (loaded from CDN)
+- **Physics**: Havok Physics v1.3.10 (loaded from CDN)
+- **Testing**: Node.js test runner with c8 coverage
+- **Property Testing**: fast-check
+- **Package Manager**: npm (REQUIRED)
 
-1. **Core Systems**: Base simulation systems (physics, rendering)
-2. **Environmental Systems**: Natural environment simulations
-3. **Agent Systems**: AI-driven entity behaviors
-4. **Management Systems**: Level and time management
+## Getting Started
 
-## Performance Optimization
+### Installation
 
-The simulation includes several performance optimization features:
-- Hardware scaling
-- Mesh optimization
-- Performance monitoring
-- Draw call optimization
-- Physics optimization 
+```bash
+npm install
+```
+
+### Development
+
+```bash
+npm run dev
+```
+
+Access the simulation at `http://localhost:3000`
+
+### Building
+
+```bash
+npm run build
+```
+
+### Testing
+
+```bash
+# Run all tests
+npm test
+
+# Run tests with coverage
+npm run test:coverage
+
+# Run tests in watch mode
+npm run test:watch
+```
+
+### Code Quality
+
+```bash
+# Lint code
+npm run lint
+
+# Fix linting issues
+npm run lint:fix
+
+# Format code
+npm run format
+
+# Check formatting
+npm run format:check
+
+# Type check
+npm run type-check
+```
+
+## Architecture
+
+This project follows a pure ECS architecture:
+
+- **Entities**: Unique identifiers representing game objects
+- **Components**: Pure data containers attached to entities
+- **Systems**: Logic processors that operate on entities with specific components
+- **World**: Central coordinator managing entities, components, and systems
+
+## Requirements
+
+See `.kiro/specs/typescript-ecs-rebuild/requirements.md` for detailed requirements.
+
+## Design
+
+See `.kiro/specs/typescript-ecs-rebuild/design.md` for architecture and design decisions.
+
+## Implementation Plan
+
+See `.kiro/specs/typescript-ecs-rebuild/tasks.md` for the implementation task list.
+
+## License
+
+ISC

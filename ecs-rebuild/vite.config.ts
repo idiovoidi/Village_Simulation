@@ -8,7 +8,6 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: true,
     rollupOptions: {
-      input: resolve(__dirname, 'public/index.html'),
       external: [
         'babylonjs',
         'babylonjs-loaders',

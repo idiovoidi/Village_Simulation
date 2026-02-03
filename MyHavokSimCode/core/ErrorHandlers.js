@@ -14,12 +14,12 @@ export function handleAgentError(originalMethod) {
             return originalMethod.apply(this, args);
         } catch (error) {
             console.error(`Error in agent behavior '${originalMethod.name}':`, error);
-            
+
             // Attempt to recover the agent by setting to idle state
             if (this.setState && typeof this.setState === 'function') {
                 this.setState('idle');
             }
-            
+
             // Return a safe default value
             return null;
         }
@@ -36,14 +36,14 @@ export function measurePerformance(originalMethod) {
         const start = performance.now();
         const result = originalMethod.apply(this, args);
         const end = performance.now();
-        
+
         const duration = end - start;
-        
+
         // Only log if duration is above threshold (e.g., 16ms = ~60fps frame budget)
         if (duration > 16) {
             console.warn(`Performance warning: ${this.constructor.name}.${originalMethod.name} took ${duration.toFixed(2)}ms`);
         }
-        
+
         return result;
     };
 }
@@ -61,17 +61,17 @@ export function throttle(interval, originalMethod) {
             return throttle(interval, method);
         };
     }
-    
+
     let lastExecutionTime = 0;
-    
+
     return function(...args) {
         const now = Date.now();
-        
+
         if (now - lastExecutionTime >= interval) {
             lastExecutionTime = now;
             return originalMethod.apply(this, args);
         }
-        
+
         // Skip execution if called too frequently
         return null;
     };
@@ -125,4 +125,4 @@ export class ResourceError extends AgentError {
         super(message);
         this.name = 'ResourceError';
     }
-} 
+}

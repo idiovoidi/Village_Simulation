@@ -18,6 +18,9 @@ Quick summaries of completed work, organized by date.
 - **[Cleanup Orchestrator](03-02-2026_CLEANUP-ORCHESTRATOR.md)**  
   Automated tool for safe removal of unused code with coverage analysis, verification, and rollback
 
+- **[Codebase Cleanup](03-02-2026_CODEBASE-CLEANUP.md)**  
+  Removed ~20,000 lines of unused code, archived enhanced zombie and dinosaur systems
+
 ## Archive
 
 Test files and old verbose reports moved to `Archive/` folder.

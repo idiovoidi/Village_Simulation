@@ -51,11 +51,8 @@ export class VillagerBehaviour {
             return angle;
         };
         
-        // Initialize update loop
-        this.scene.onBeforeRenderObservable.add(() => {
-            const deltaTime = this.scene.getEngine().getDeltaTime() * 0.001;
-            this.updateVillagers(deltaTime);
-        });
+        // PERFORMANCE FIX: Removed duplicate render loop
+        // Updates are now handled by the main update() method called from BehavioralSim
         
         console.log('VillagerBehaviour: Initialized with simplified behavior (advanced systems disabled)');
     }
@@ -149,6 +146,18 @@ export class VillagerBehaviour {
         villager.currentTask = null;
         villager.taskTimer = 0;
         
+        // Add metadata for RTS UI
+        if (villager.mesh) {
+            villager.mesh.metadata = {
+                entityId: this.villagers.length,
+                entityType: 'Villager',
+                health: villager.health,
+                maxHealth: 100,
+                state: villager.state,
+                infected: villager.infected
+            };
+        }
+        
         // Find an available home
         const availableHome = this.homeLocations.find(home => !home.assigned);
         if (availableHome) {
@@ -165,30 +174,42 @@ export class VillagerBehaviour {
         return villager;
     }
     
+    // Helper method to update villager metadata for UI
+    updateVillagerMetadata(villager) {
+        if (villager.mesh && villager.mesh.metadata) {
+            villager.mesh.metadata.health = villager.health;
+            villager.mesh.metadata.state = villager.state;
+            villager.mesh.metadata.infected = villager.infected;
+        }
+    }
+    
     addMovementObserver(villager) {
-        let walkTime = 0;
-        villager.updateObserver = this.scene.onBeforeRenderObservable.add(() => {
-            if (!villager.mesh || !villager.physics) return;
+        // PERFORMANCE FIX: Initialize walk time on villager object instead of per-agent observer
+        // Movement updates are now handled in updateVillagerMovement() called from main loop
+        villager.walkTime = 0;
+    }
+    
+    updateVillagerMovement(villager, deltaTime) {
+        if (!villager.mesh || !villager.physics) return;
+        
+        // Force upright orientation
+        villager.mesh.rotation.x = 0;
+        villager.mesh.rotation.z = 0;
+        
+        // Ensure proper ground contact
+        const groundHeight = BowlCreator.getTerrainHeight(villager.mesh.position.x, villager.mesh.position.z);
+        if (groundHeight !== null) {
+            const targetHeight = groundHeight + 0.9;
             
-            // Force upright orientation
-            villager.mesh.rotation.x = 0;
-            villager.mesh.rotation.z = 0;
-            
-            // Ensure proper ground contact
-            const groundHeight = BowlCreator.getTerrainHeight(villager.mesh.position.x, villager.mesh.position.z);
-            if (groundHeight !== null) {
-                const targetHeight = groundHeight + 0.9;
-                
-                // Add walking bounce when moving
-                if (villager.state === this.STATES.MOVING_TO_TARGET || villager.state === this.STATES.WANDERING) {
-                    walkTime += this.scene.getEngine().getDeltaTime() * 0.001;
-                    const bounce = Math.sin(walkTime * 10) * 0.1;
-                    villager.mesh.position.y = targetHeight + bounce;
-                } else {
-                    villager.mesh.position.y = targetHeight;
-                }
+            // Add walking bounce when moving
+            if (villager.state === this.STATES.MOVING_TO_TARGET || villager.state === this.STATES.WANDERING) {
+                villager.walkTime += deltaTime;
+                const bounce = Math.sin(villager.walkTime * 10) * 0.1;
+                villager.mesh.position.y = targetHeight + bounce;
+            } else {
+                villager.mesh.position.y = targetHeight;
             }
-        });
+        }
     }
     
     decideNextAction(villager) {
@@ -232,6 +253,7 @@ export class VillagerBehaviour {
         const distance = BABYLON.Vector3.Distance(villager.mesh.position, villager.home.position);
         if (distance < 2) {
             villager.state = this.STATES.INSIDE_HOME;
+            this.updateVillagerMetadata(villager);
             if (villager.mesh) {
                 villager.mesh.visibility = 0;
             }
@@ -249,11 +271,13 @@ export class VillagerBehaviour {
         }
         
         villager.state = this.STATES.IDLE;
+        this.updateVillagerMetadata(villager);
         this.startWandering(villager);
     }
     
     startWandering(villager) {
         villager.state = this.STATES.WANDERING;
+        this.updateVillagerMetadata(villager);
         
         // Pick a random nearby point
         const angle = Math.random() * Math.PI * 2;
@@ -269,6 +293,7 @@ export class VillagerBehaviour {
     
     startIdling(villager) {
         villager.state = this.STATES.IDLE;
+        this.updateVillagerMetadata(villager);
         villager.target = null;
         
         if (villager.physics && villager.physics.body) {
@@ -281,6 +306,7 @@ export class VillagerBehaviour {
     moveToTarget(villager, targetPosition) {
         villager.target = targetPosition;
         villager.state = this.STATES.MOVING_TO_TARGET;
+        this.updateVillagerMetadata(villager);
     }
     
     updateVillagers(deltaTime) {
@@ -296,6 +322,9 @@ export class VillagerBehaviour {
             } else if (villager.state === this.STATES.WANDERING && villager.target) {
                 this.updateMovement(villager, deltaTime);
             }
+            
+            // PERFORMANCE FIX: Update movement (ground contact, rotation, bounce) in main loop
+            this.updateVillagerMovement(villager, deltaTime);
         }
     }
     
@@ -349,13 +378,7 @@ export class VillagerBehaviour {
     }
     
     dispose() {
-        // Clean up observers
-        for (const villager of this.villagers) {
-            if (villager.updateObserver) {
-                this.scene.onBeforeRenderObservable.remove(villager.updateObserver);
-            }
-        }
-        
+        // PERFORMANCE FIX: No per-villager observers to clean up anymore
         this.villagers = [];
     }
 }

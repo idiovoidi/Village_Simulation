@@ -48,11 +48,12 @@ export class WaterSimulation {
             // Apply material
             this.waterMesh.material = waterMaterial;
 
-            // Add wave animation
-            this.scene.registerBeforeRender(() => {
-                this.time += this.scene.getEngine().getDeltaTime() * 0.001;
-                this.updateWaterWaves();
-            });
+            // PERFORMANCE FIX: Disabled duplicate render loop
+            // Updates are handled by WaterSimulation.update() called from main loop
+            // this.scene.registerBeforeRender(() => {
+            //     this.time += this.scene.getEngine().getDeltaTime() * 0.001;
+            //     this.updateWaterWaves();
+            // });
 
             return true;
         } catch (error) {
@@ -96,5 +97,12 @@ export class WaterSimulation {
             Math.sin(x * 0.02 + time) * 0.8 +
             Math.cos(z * 0.02 + time * 0.5) * 0.8 +
             Math.sin((x + z) * 0.015 + time * 0.7) * 0.5;
+    }
+    
+    // PERFORMANCE FIX: Added update method to be called from main loop
+    update(deltaTime) {
+        if (!this.waterMesh) return;
+        this.time += deltaTime;
+        this.updateWaterWaves();
     }
 } 

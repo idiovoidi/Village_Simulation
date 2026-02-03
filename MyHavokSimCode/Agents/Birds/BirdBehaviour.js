@@ -30,11 +30,12 @@ export class BirdBehaviour {
             });
         }
 
-        // Start update loop
-        this.scene.registerBeforeRender(() => {
-            const deltaTime = this.scene.getEngine().getDeltaTime() * 0.001;
-            this.updateBirds(deltaTime);
-        });
+        // PERFORMANCE FIX: Disabled duplicate render loop
+        // Updates are handled by BirdBehaviour.update() called from main loop
+        // this.scene.registerBeforeRender(() => {
+        //     const deltaTime = this.scene.getEngine().getDeltaTime() * 0.001;
+        //     this.updateBirds(deltaTime);
+        // });
     }
 
     updateBirds(deltaTime) {

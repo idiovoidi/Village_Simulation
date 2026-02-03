@@ -11,7 +11,9 @@ export class CloudSystem {
 
     init() {
         this.createClouds();
-        this.scene.registerBeforeRender(() => this.updateClouds());
+        // PERFORMANCE FIX: Disabled duplicate render loop
+        // Updates are handled by CloudSystem.update() called from main loop
+        // this.scene.registerBeforeRender(() => this.updateClouds());
     }
 
     createClouds() {
@@ -156,5 +158,10 @@ export class CloudSystem {
             }
         });
         this.clouds = [];
+    }
+    
+    // PERFORMANCE FIX: Added update method to be called from main loop
+    update(deltaTime) {
+        this.updateClouds();
     }
 } 

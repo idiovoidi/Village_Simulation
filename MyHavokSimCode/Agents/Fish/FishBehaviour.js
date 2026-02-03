@@ -26,11 +26,12 @@ export class FishBehaviour {
             });
         }
 
-        // Start update loop
-        this.scene.registerBeforeRender(() => {
-            const deltaTime = this.scene.getEngine().getDeltaTime() * 0.001;
-            this.updateFishes(deltaTime);
-        });
+        // PERFORMANCE FIX: Disabled duplicate render loop
+        // Updates are handled by FishBehaviour.update() called from main loop
+        // this.scene.registerBeforeRender(() => {
+        //     const deltaTime = this.scene.getEngine().getDeltaTime() * 0.001;
+        //     this.updateFishes(deltaTime);
+        // });
     }
 
     updateFishes(deltaTime) {

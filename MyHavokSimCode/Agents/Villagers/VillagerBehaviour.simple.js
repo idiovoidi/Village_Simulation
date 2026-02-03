@@ -51,11 +51,8 @@ export class VillagerBehaviour {
             return angle;
         };
         
-        // Initialize update loop
-        this.scene.onBeforeRenderObservable.add(() => {
-            const deltaTime = this.scene.getEngine().getDeltaTime() * 0.001;
-            this.updateVillagers(deltaTime);
-        });
+        // PERFORMANCE FIX: Removed duplicate render loop
+        // Updates are now handled by the main update() method called from BehavioralSim
         
         console.log('VillagerBehaviour: Initialized with simplified behavior (advanced systems disabled)');
     }
@@ -166,29 +163,32 @@ export class VillagerBehaviour {
     }
     
     addMovementObserver(villager) {
-        let walkTime = 0;
-        villager.updateObserver = this.scene.onBeforeRenderObservable.add(() => {
-            if (!villager.mesh || !villager.physics) return;
+        // PERFORMANCE FIX: Initialize walk time on villager object instead of per-agent observer
+        // Movement updates are now handled in updateVillagerMovement() called from main loop
+        villager.walkTime = 0;
+    }
+    
+    updateVillagerMovement(villager, deltaTime) {
+        if (!villager.mesh || !villager.physics) return;
+        
+        // Force upright orientation
+        villager.mesh.rotation.x = 0;
+        villager.mesh.rotation.z = 0;
+        
+        // Ensure proper ground contact
+        const groundHeight = BowlCreator.getTerrainHeight(villager.mesh.position.x, villager.mesh.position.z);
+        if (groundHeight !== null) {
+            const targetHeight = groundHeight + 0.9;
             
-            // Force upright orientation
-            villager.mesh.rotation.x = 0;
-            villager.mesh.rotation.z = 0;
-            
-            // Ensure proper ground contact
-            const groundHeight = BowlCreator.getTerrainHeight(villager.mesh.position.x, villager.mesh.position.z);
-            if (groundHeight !== null) {
-                const targetHeight = groundHeight + 0.9;
-                
-                // Add walking bounce when moving
-                if (villager.state === this.STATES.MOVING_TO_TARGET || villager.state === this.STATES.WANDERING) {
-                    walkTime += this.scene.getEngine().getDeltaTime() * 0.001;
-                    const bounce = Math.sin(walkTime * 10) * 0.1;
-                    villager.mesh.position.y = targetHeight + bounce;
-                } else {
-                    villager.mesh.position.y = targetHeight;
-                }
+            // Add walking bounce when moving
+            if (villager.state === this.STATES.MOVING_TO_TARGET || villager.state === this.STATES.WANDERING) {
+                villager.walkTime += deltaTime;
+                const bounce = Math.sin(villager.walkTime * 10) * 0.1;
+                villager.mesh.position.y = targetHeight + bounce;
+            } else {
+                villager.mesh.position.y = targetHeight;
             }
-        });
+        }
     }
     
     decideNextAction(villager) {
@@ -296,6 +296,9 @@ export class VillagerBehaviour {
             } else if (villager.state === this.STATES.WANDERING && villager.target) {
                 this.updateMovement(villager, deltaTime);
             }
+            
+            // PERFORMANCE FIX: Update movement (ground contact, rotation, bounce) in main loop
+            this.updateVillagerMovement(villager, deltaTime);
         }
     }
     

@@ -13,6 +13,7 @@ import { DogBehaviour } from './Agents/Dogs/DogBehaviour.js';
 import { LevelConfig } from './LevelSystem/LevelConfig.js';
 import { LevelSelector } from './LevelSystem/LevelSelector.js';
 import { WorldClock } from './UI/WorldClock.js';
+import { RTSIntegrationHelper } from './UI/RTSIntegrationHelper.js';
 import { VillageEngine } from './NewVillageEngine.js';
 import { VillagerBehaviour } from './Agents/Villagers/VillagerBehaviour.js';
 import { BoatAgent } from './Agents/Boats/BoatAgent.js';
@@ -139,6 +140,15 @@ export class LeoScene {
         console.warn("Cannot initialize WorldClock: scene is not available");
       }
 
+      // Initialize RTS UI
+      if (this.scene) {
+        this.rtsUI = new RTSIntegrationHelper(this.scene);
+        this.rtsUI.initialize();
+        console.log("RTS UI initialized successfully");
+      } else {
+        console.warn("Cannot initialize RTS UI: scene is not available");
+      }
+
       // Initialize level selector
       this.levelSelector = new LevelSelector(this.scene, (levelId) => this.loadLevel(levelId));
 
@@ -163,14 +173,58 @@ export class LeoScene {
             this.gameTime = 0;
         }
 
+        // PERFORMANCE FIX: Consolidated system updates in main loop
+        // Update all agent systems
+        if (this.villagerSystem && this.villagerSystem.update) {
+            this.villagerSystem.update(deltaTime);
+        }
+        if (this.zombieSystem && this.zombieSystem.update) {
+            this.zombieSystem.update(deltaTime);
+        }
+        if (this.fishSystem && this.fishSystem.update) {
+            this.fishSystem.update(deltaTime);
+        }
+        if (this.birdSystem && this.birdSystem.update) {
+            this.birdSystem.update(deltaTime);
+        }
+        if (this.dogSystem && this.dogSystem.update) {
+            this.dogSystem.update(deltaTime);
+        }
+        
+        // Update environment systems
+        if (this.waterSim && this.waterSim.update) {
+            this.waterSim.update(deltaTime);
+        }
+        if (this.cloudSystem && this.cloudSystem.update) {
+            this.cloudSystem.update(deltaTime);
+        }
+        if (this.cloudSystem) {
+            this.cloudSystem.setTimeOfDay(this.gameTime / 60); // Convert minutes to hours
+        }
+        
+        // Update behavioral sim (if it has update method)
+        if (this.behavioralSim && this.behavioralSim.updateBehaviorsOptimized) {
+            this.behavioralSim.updateBehaviorsOptimized();
+        }
+
         // Update world clock with current game time
         if (this.worldClock) {
             this.worldClock.updateTime(this.gameTime);
         }
 
-        // Update cloud system with current time
-        if (this.cloudSystem) {
-            this.cloudSystem.setTimeOfDay(this.gameTime / 60); // Convert minutes to hours
+        // Update RTS UI
+        if (this.rtsUI) {
+            this.rtsUI.update();
+            this.rtsUI.updateTimeFromMinutes(this.gameTime);
+            
+            // Update resource counts
+            const villagerCount = this.villagerSystem?.villagers?.length || 0;
+            const zombieCount = this.zombieSystem?.zombies?.length || 0;
+            const otherCount = (this.fishSystem?.fishes?.length || 0) + 
+                              (this.birdSystem?.birds?.length || 0) + 
+                              (this.dogSystem?.dogs?.length || 0);
+            
+            this.rtsUI.updateResources(villagerCount, zombieCount, otherCount);
         }
 
         this.scene.render();

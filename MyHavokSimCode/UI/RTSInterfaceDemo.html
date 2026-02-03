@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RTS Interface Demo</title>
+    <style>
+        html, body {
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+        #instructions {
+            position: absolute;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 1000;
+            pointer-events: none;
+        }
+        #instructions h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+        }
+        #instructions ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        #instructions li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+    <div id="instructions">
+        <h3>RTS Interface Demo</h3>
+        <ul>
+            <li>Click on any sphere to select it</li>
+            <li>View entity info in the bottom bar</li>
+            <li>Watch resources and time in the top bar</li>
+            <li>Click empty space to deselect</li>
+        </ul>
+    </div>
+
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+    
+    <script type="module">
+        // This is a demo - in production, import from compiled TypeScript
+        // For now, we'll create a simplified version in JavaScript
+        
+        const canvas = document.getElementById('renderCanvas');
+        const engine = new BABYLON.Engine(canvas, true);
+        
+        const createScene = () => {
+            const scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color3(0.1, 0.1, 0.15);
+            
+            // Camera
+            const camera = new BABYLON.ArcRotateCamera(
+                'camera',
+                -Math.PI / 2,
+                Math.PI / 3,
+                50,
+                BABYLON.Vector3.Zero(),
+                scene
+            );
+            camera.attachControl(canvas, true);
+            camera.lowerRadiusLimit = 20;
+            camera.upperRadiusLimit = 100;
+            
+            // Light
+            const light = new BABYLON.HemisphericLight(
+                'light',
+                new BABYLON.Vector3(0, 1, 0),
+                scene
+            );
+            light.intensity = 0.7;
+            
+            // Ground
+            const ground = BABYLON.MeshBuilder.CreateGround(
+                'ground',
+                { width: 100, height: 100 },
+                scene
+            );
+            const groundMat = new BABYLON.StandardMaterial('groundMat', scene);
+            groundMat.diffuseColor = new BABYLON.Color3(0.2, 0.3, 0.2);
+            ground.material = groundMat;
+            
+            // Create demo entities
+            const entityTypes = [
+                { name: 'Villager', color: new BABYLON.Color3(0.3, 0.6, 1), health: 100 },
+                { name: 'Zombie', color: new BABYLON.Color3(0.8, 0.2, 0.2), health: 80 },
+                { name: 'Dog', color: new BABYLON.Color3(0.6, 0.4, 0.2), health: 60 },
+            ];
+            
+            const entities = [];
+            let entityId = 1;
+            
+            for (let i = 0; i < 15; i++) {
+                const type = entityTypes[i % entityTypes.length];
+                const sphere = BABYLON.MeshBuilder.CreateSphere(
+                    `${type.name}_${entityId}`,
+                    { diameter: 2 },
+                    scene
+                );
+                
+                // Random position
+                sphere.position.x = (Math.random() - 0.5) * 40;
+                sphere.position.y = 1;
+                sphere.position.z = (Math.random() - 0.5) * 40;
+                
+                // Material
+                const mat = new BABYLON.StandardMaterial(`mat_${entityId}`, scene);
+                mat.diffuseColor = type.color;
+                sphere.material = mat;
+                
+                // Metadata for UI
+                sphere.metadata = {
+                    entityId: entityId,
+                    entityType: type.name,
+                    health: type.health,
+                    maxHealth: type.health,
+                    state: ['Idle', 'Moving', 'Working'][Math.floor(Math.random() * 3)],
+                };
+                
+                entities.push({
+                    mesh: sphere,
+                    velocity: new BABYLON.Vector3(
+                        (Math.random() - 0.5) * 2,
+                        0,
+                        (Math.random() - 0.5) * 2
+                    ),
+                });
+                
+                entityId++;
+            }
+            
+            // Simple RTS UI (inline version for demo)
+            const advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI('UI', true, scene);
+            
+            // Top Bar
+            const topBar = new BABYLON.GUI.Rectangle('topBar');
+            topBar.height = '60px';
+            topBar.width = '100%';
+            topBar.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
+            topBar.background = '#1a1a1aee';
+            topBar.thickness = 0;
+            advancedTexture.addControl(topBar);
+            
+            // Resources text
+            const resourceText = new BABYLON.GUI.TextBlock();
+            resourceText.text = 'Villagers: 5 | Zombies: 5 | Dogs: 5';
+            resourceText.fontSize = '16px';
+            resourceText.color = '#e0e0e0';
+            resourceText.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+            resourceText.paddingLeft = '20px';
+            topBar.addControl(resourceText);
+            
+            // Time text
+            const timeText = new BABYLON.GUI.TextBlock();
+            timeText.text = 'Time: 12:00';
+            timeText.fontSize = '18px';
+            timeText.color = '#4a9eff';
+            timeText.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+            topBar.addControl(timeText);
+            
+            // FPS text
+            const fpsText = new BABYLON.GUI.TextBlock();
+            fpsText.text = 'FPS: 60';
+            fpsText.fontSize = '16px';
+            fpsText.color = '#e0e0e0';
+            fpsText.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+            fpsText.paddingRight = '20px';
+            topBar.addControl(fpsText);
+            
+            // Bottom Bar
+            const bottomBar = new BABYLON.GUI.Rectangle('bottomBar');
+            bottomBar.height = '200px';
+            bottomBar.width = '100%';
+            bottomBar.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+            bottomBar.background = '#1a1a1aee';
+            bottomBar.thickness = 0;
+            advancedTexture.addControl(bottomBar);
+            
+            // Selection panel
+            const selectionPanel = new BABYLON.GUI.StackPanel('selectionPanel');
+            selectionPanel.isVertical = true;
+            selectionPanel.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+            selectionPanel.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
+            selectionPanel.paddingLeft = '20px';
+            selectionPanel.paddingTop = '20px';
+            selectionPanel.width = '400px';
+            bottomBar.addControl(selectionPanel);
+            
+            const noSelectionText = new BABYLON.GUI.TextBlock();
+            noSelectionText.text = 'No entity selected - Click on a sphere';
+            noSelectionText.fontSize = '14px';
+            noSelectionText.color = '#888888';
+            noSelectionText.height = '30px';
+            noSelectionText.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+            selectionPanel.addControl(noSelectionText);
+            
+            // Selection handling
+            let selectedMesh = null;
+            
+            const updateSelection = (mesh) => {
+                // Clear previous selection
+                if (selectedMesh && selectedMesh.material) {
+                    selectedMesh.material.emissiveColor = new BABYLON.Color3(0, 0, 0);
+                }
+                
+                selectedMesh = mesh;
+                selectionPanel.clearControls();
+                
+                if (!mesh || !mesh.metadata) {
+                    selectionPanel.addControl(noSelectionText);
+                    return;
+                }
+                
+                // Highlight selected mesh
+                if (mesh.material) {
+                    mesh.material.emissiveColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+                }
+                
+                const meta = mesh.metadata;
+                
+                // Entity name
+                const nameText = new BABYLON.GUI.TextBlock();
+                nameText.text = mesh.name;
+                nameText.fontSize = '20px';
+                nameText.color = '#4a9eff';
+                nameText.fontWeight = 'bold';
+                nameText.height = '30px';
+                nameText.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+                selectionPanel.addControl(nameText);
+                
+                // Entity type
+                const typeText = new BABYLON.GUI.TextBlock();
+                typeText.text = `Type: ${meta.entityType}`;
+                typeText.fontSize = '14px';
+                typeText.color = '#e0e0e0';
+                typeText.height = '30px';
+                typeText.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+                selectionPanel.addControl(typeText);
+                
+                // Health bar
+                const healthContainer = new BABYLON.GUI.Rectangle();
+                healthContainer.height = '30px';
+                healthContainer.width = '300px';
+                healthContainer.thickness = 0;
+                selectionPanel.addControl(healthContainer);
+                
+                const healthBg = new BABYLON.GUI.Rectangle();
+                healthBg.height = '20px';
+                healthBg.width = '100%';
+                healthBg.background = '#333333';
+                healthBg.thickness = 1;
+                healthBg.color = '#666666';
+                healthContainer.addControl(healthBg);
+                
+                const healthPercent = (meta.health / meta.maxHealth) * 100;
+                const healthFill = new BABYLON.GUI.Rectangle();
+                healthFill.height = '20px';
+                healthFill.width = `${healthPercent}%`;
+                healthFill.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+                healthFill.background = healthPercent > 66 ? '#4caf50' : healthPercent > 33 ? '#ff9800' : '#f44336';
+                healthFill.thickness = 0;
+                healthContainer.addControl(healthFill);
+                
+                const healthText = new BABYLON.GUI.TextBlock();
+                healthText.text = `${meta.health}/${meta.maxHealth}`;
+                healthText.fontSize = '12px';
+                healthText.color = '#ffffff';
+                healthContainer.addControl(healthText);
+                
+                // State
+                const stateText = new BABYLON.GUI.TextBlock();
+                stateText.text = `State: ${meta.state}`;
+                stateText.fontSize = '14px';
+                stateText.color = '#e0e0e0';
+                stateText.height = '30px';
+                stateText.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+                selectionPanel.addControl(stateText);
+                
+                // Position
+                const posText = new BABYLON.GUI.TextBlock();
+                posText.text = `Position: (${mesh.position.x.toFixed(1)}, ${mesh.position.y.toFixed(1)}, ${mesh.position.z.toFixed(1)})`;
+                posText.fontSize = '12px';
+                posText.color = '#aaaaaa';
+                posText.height = '30px';
+                posText.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+                selectionPanel.addControl(posText);
+            };
+            
+            // Click handling
+            scene.onPointerObservable.add((pointerInfo) => {
+                if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERDOWN) {
+                    const pickResult = scene.pick(scene.pointerX, scene.pointerY);
+                    if (pickResult.hit && pickResult.pickedMesh && pickResult.pickedMesh.metadata) {
+                        updateSelection(pickResult.pickedMesh);
+                    } else if (pickResult.pickedMesh !== ground) {
+                        updateSelection(null);
+                    }
+                }
+            });
+            
+            // Animation loop
+            let time = 0;
+            scene.registerBeforeRender(() => {
+                time += engine.getDeltaTime() / 1000;
+                
+                // Update FPS
+                fpsText.text = `FPS: ${Math.round(engine.getFps())}`;
+                
+                // Update time
+                const hours = Math.floor((time * 2) % 24);
+                const minutes = Math.floor((time * 120) % 60);
+                timeText.text = `Time: ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                
+                // Move entities
+                entities.forEach(entity => {
+                    entity.mesh.position.addInPlace(entity.velocity.scale(0.016));
+                    
+                    // Bounce off boundaries
+                    if (Math.abs(entity.mesh.position.x) > 45) {
+                        entity.velocity.x *= -1;
+                    }
+                    if (Math.abs(entity.mesh.position.z) > 45) {
+                        entity.velocity.z *= -1;
+                    }
+                    
+                    // Update metadata
+                    if (entity.mesh.metadata) {
+                        entity.mesh.metadata.health = Math.max(
+                            0,
+                            entity.mesh.metadata.health - 0.01
+                        );
+                    }
+                });
+                
+                // Update selected entity display
+                if (selectedMesh) {
+                    updateSelection(selectedMesh);
+                }
+            });
+            
+            // Hide instructions after 5 seconds
+            setTimeout(() => {
+                document.getElementById('instructions').style.opacity = '0';
+                document.getElementById('instructions').style.transition = 'opacity 1s';
+            }, 5000);
+            
+            return scene;
+        };
+        
+        const scene = createScene();
+        
+        engine.runRenderLoop(() => {
+            scene.render();
+        });
+        
+        window.addEventListener('resize', () => {
+            engine.resize();
+        });
+    </script>
+</body>
+</html>

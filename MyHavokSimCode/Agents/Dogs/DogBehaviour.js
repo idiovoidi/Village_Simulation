@@ -14,10 +14,11 @@ export class DogBehaviour {
             this.createDog();
         }
 
-        // Register the update loop
-        this.scene.onBeforeRenderObservable.add(() => {
-            this.update();
-        });
+        // PERFORMANCE FIX: Disabled duplicate render loop
+        // Updates are handled by DogBehaviour.update() called from main loop
+        // this.scene.onBeforeRenderObservable.add(() => {
+        //     this.update();
+        // });
     }
 
     createDog() {

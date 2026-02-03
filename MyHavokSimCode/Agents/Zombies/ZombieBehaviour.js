@@ -40,11 +40,12 @@ export class ZombieBehaviour {
         // Create zombie agents
         this.createZombies(count, options);
         
-        // Register update loop
-        this.scene.registerBeforeRender(() => {
-            const deltaTime = this.scene.getEngine().getDeltaTime() * 0.001;
-            this.update(deltaTime);
-        });
+        // PERFORMANCE FIX: Disabled duplicate render loop
+        // Updates are handled by ZombieBehaviour.update() called from main loop
+        // this.scene.registerBeforeRender(() => {
+        //     const deltaTime = this.scene.getEngine().getDeltaTime() * 0.001;
+        //     this.update(deltaTime);
+        // });
     }
 
     createZombies(count, options = {}) {
@@ -278,6 +279,18 @@ export class ZombieBehaviour {
             lurgeChance: this.config.lurge.chance,
             lurgeDuration: this.config.lurge.duration
         });
+        
+        // Add metadata for RTS UI
+        if (zombie.mesh) {
+            zombie.mesh.metadata = {
+                entityId: this.zombies.length,
+                entityType: 'Zombie',
+                health: zombie.health || 80,
+                maxHealth: 80,
+                state: zombie.state || 'idle',
+                groupId: targetGroupId
+            };
+        }
         
         this.zombies.push(zombie);
         return zombie;

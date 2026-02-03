@@ -67,8 +67,9 @@ export class BehavioralSim {
             // Initialize dinosaur
             this.initializeDinosaur();
 
-            // Start behavior update loop with optimization support
-            this.scene.registerBeforeRender(() => this.updateBehaviorsOptimized());
+            // PERFORMANCE FIX: Disabled duplicate render loop
+            // Updates are handled by the main render loop in Havokimport.js
+            // this.scene.registerBeforeRender(() => this.updateBehaviorsOptimized());
 
             // Return this for chaining
             return this;
@@ -592,10 +593,11 @@ export class BehavioralSim {
             });
         }
 
-        // Start zombie behavior loop
-        this.scene.onBeforeRenderObservable.add(() => {
-            this.updateZombies();
-        });
+        // PERFORMANCE FIX: Disabled duplicate zombie behavior loop
+        // Zombies are updated through their own ZombieBehaviour system
+        // this.scene.onBeforeRenderObservable.add(() => {
+        //     this.updateZombies();
+        // });
     }
 
     updateZombies() {

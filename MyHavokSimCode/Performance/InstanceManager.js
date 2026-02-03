@@ -136,9 +136,9 @@ export class InstanceManager {
         if (this.hardwareSupport.supportsInstancing) {
             this.hardwareSupport.maxInstancedAttributes = gl.getParameter(gl.MAX_VERTEX_ATTRIBS) || 16;
             
-            // Estimate maximum instance buffer size (conservative estimate)
-            const maxBufferSize = gl.getParameter(gl.MAX_ARRAY_BUFFER_SIZE) || 268435456; // 256MB default
-            this.hardwareSupport.maxInstanceBufferSize = Math.floor(maxBufferSize / 1024); // Convert to reasonable units
+            // Use a conservative estimate for max instance buffer size
+            // WebGL doesn't expose MAX_ARRAY_BUFFER_SIZE, so we use a safe default
+            this.hardwareSupport.maxInstanceBufferSize = 256 * 1024; // 256MB in KB
         }
         
         console.log('Hardware instancing capabilities:', this.hardwareSupport);

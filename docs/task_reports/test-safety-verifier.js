@@ -4,7 +4,7 @@
  * Test script for SafetyVerifier functionality
  */
 
-const { SafetyVerifier, Logger, ConfigManager } = require('../cleanup-orchestrator.js');
+const { SafetyVerifier, Logger, ConfigManager } = require('../../cleanup-orchestrator.js');
 
 async function testSafetyVerifier() {
   console.log('Testing SafetyVerifier functionality...\n');

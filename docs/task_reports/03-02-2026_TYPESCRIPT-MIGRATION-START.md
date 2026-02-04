@@ -4,7 +4,7 @@
 ## Why
 Begin gradual TypeScript migration to improve type safety and developer experience without breaking the game.
 
-## Files Converted (11 total)
+## Files Converted (15 total)
 
 ### Utilities (2)
 1. **NavMeshHelper.ts** - Navigation pathfinding utility
@@ -24,6 +24,12 @@ Begin gradual TypeScript migration to improve type safety and developer experien
 9. **ZombieModel.ts** - Zombie visual model with attack/suspicious animations
 10. **VillagerModel.ts** - Villager visual model with walk/work/greet animations
 11. **HouseModel.ts** - Building model with chimney particle effects
+
+### Behavior Classes (4)
+12. **BirdBehaviour.ts** - Flocking AI with separation/alignment/cohesion
+13. **FishBehaviour.ts** - Schooling behavior with underwater movement
+14. **DogBehaviour.ts** - Wandering AI with physics-based movement
+15. **DinosaurBehaviour.ts** - Large creature AI with roaring animations
 
 ## TypeScript Improvements
 
@@ -86,6 +92,33 @@ getPosition(): BABYLON.Vector3 | null
 
 ## TypeScript Features Added
 
+### Behavior Classes
+All behavior classes now have:
+- **Interface extensions** for models with behavior properties (e.g., `DogWithBehavior`)
+- **Private methods** for internal logic (flocking, pathfinding, AI decisions)
+- **Type-safe arrays** for managing multiple agents
+- **Explicit return types** on all methods
+
+### BirdBehaviour.ts
+- `Bird` interface with model, velocity, target, speed
+- Flocking algorithms: separation, alignment, cohesion, boundary forces
+- Type-safe neighbor queries and force calculations
+
+### FishBehaviour.ts
+- `Fish` interface with schooling properties
+- Underwater movement with depth constraints
+- Type-safe schooling behavior with timers
+
+### DogBehaviour.ts
+- `DogWithBehavior` interface extending DogModel
+- Physics-based wandering with terrain following
+- Rest/wander state machine with typed properties
+
+### DinosaurBehaviour.ts
+- `DinosaurWithBehavior` interface with roar timing
+- Large creature physics with stronger forces
+- Roar animation system with typed mesh references
+
 ### ZombieModel.ts
 - Typed state machine: `type ZombieState = 'idle' | 'attacking' | 'suspicious' | 'pursuing'`
 - Structured interfaces for arms/legs: `ZombieArms`, `ZombieLegs`
@@ -112,9 +145,11 @@ getPosition(): BABYLON.Vector3 | null
 - System managers
 
 ## Progress
-- **11 files converted** to TypeScript
+- **15 files converted** to TypeScript
 - **0 breaking changes** introduced
 - **100% backward compatible** with existing code
+- **Vite + HMR enabled** for instant TypeScript transpilation
+- **F5 launch configured** for seamless development
 - **Ready for gradual adoption** across codebase
 
 ## Notes

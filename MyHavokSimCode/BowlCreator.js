@@ -128,10 +128,13 @@ export class BowlCreator {
 
     createBowl(bowlRadius = 200, bowlDepth = 40, maxSegments = 128) {
         return new Promise((resolve) => {
+            // Use lower initial detail for faster loading
+            const initialSegments = Math.min(64, maxSegments);
+            
             const ground = new BABYLON.Mesh("bowl", this.scene);
             const vertexData = new BABYLON.VertexData();
             
-            const {positions, indices, uvs, normals, colors} = this.generateAdaptiveTerrainData(bowlRadius, bowlDepth, maxSegments);
+            const {positions, indices, uvs, normals, colors} = this.generateAdaptiveTerrainData(bowlRadius, bowlDepth, initialSegments);
             
             vertexData.positions = positions;
             vertexData.indices = indices;

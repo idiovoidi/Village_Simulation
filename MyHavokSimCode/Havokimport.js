@@ -103,6 +103,36 @@ export class LeoScene {
     this.init();
   }
 
+  updateLoadingProgress(message, percent) {
+    // Update loading screen if it exists
+    const loadingScreen = document.getElementById('loadingScreen');
+    if (loadingScreen && loadingScreen.style.display !== 'none') {
+      const messageEl = loadingScreen.querySelector('p');
+      if (messageEl) {
+        messageEl.textContent = message;
+      }
+      
+      // Add progress bar if it doesn't exist
+      let progressBar = loadingScreen.querySelector('.progress-bar');
+      if (!progressBar) {
+        const progressContainer = document.createElement('div');
+        progressContainer.className = 'progress-container';
+        progressContainer.style.cssText = 'width: 300px; height: 20px; background: rgba(255,255,255,0.2); border-radius: 10px; margin-top: 20px; overflow: hidden;';
+        
+        progressBar = document.createElement('div');
+        progressBar.className = 'progress-bar';
+        progressBar.style.cssText = 'height: 100%; background: linear-gradient(90deg, #4CAF50, #45a049); transition: width 0.3s ease; width: 0%;';
+        
+        progressContainer.appendChild(progressBar);
+        loadingScreen.appendChild(progressContainer);
+      }
+      
+      progressBar.style.width = `${percent}%`;
+    }
+    
+    console.log(`Loading: ${message} (${percent}%)`);
+  }
+
   async init() {
     try {
       // Initialize the new village engine
@@ -112,6 +142,13 @@ export class LeoScene {
       // Store reference to the Babylon.js engine for backward compatibility
       this.engine = this.villageEngine.engine;
       this.scene = this.villageEngine.scene;
+      
+      // Preload textures in parallel with scene setup
+      this.updateLoadingProgress("Loading assets...", 5);
+      const { AssetManager } = await import('../assets/AssetManager.js');
+      AssetManager.preloadTextures(this.scene).catch(err => {
+        console.warn("Some textures failed to preload:", err);
+      });
       
       // Set up camera
       const camera = new BABYLON.ArcRotateCamera(
@@ -244,6 +281,7 @@ export class LeoScene {
   async loadLevel(level) {
     try {
       console.log("Loading level:", level);
+      this.updateLoadingProgress("Preparing scene...", 10);
       
       // Dispose of existing systems
       this.disposeCurrentSystems();
@@ -256,6 +294,7 @@ export class LeoScene {
       // Initialize Havok physics if not already done
       if (!this.scene.getPhysicsEngine()) {
         try {
+          this.updateLoadingProgress("Loading physics engine...", 20);
           const havokInstance = await HavokPhysics();
           console.log("Loaded Havok Physics module");
           
@@ -289,6 +328,7 @@ export class LeoScene {
 
       // Create bowl creator with proper scene reference
       try {
+        this.updateLoadingProgress("Generating terrain...", 40);
         const bowlCreator = new BowlCreator(this.scene);
         await bowlCreator.createBowl(level.bowlRadius, level.bowlDepth);
         console.log("Bowl created successfully");
@@ -299,6 +339,7 @@ export class LeoScene {
 
       // Create core systems that are always present
       try {
+        this.updateLoadingProgress("Initializing core systems...", 60);
         this.vortexBall = new VortexBall(this.scene);
         this.behavioralSim = new BehavioralSim(this.scene);
         console.log("Core systems initialized");
@@ -308,47 +349,103 @@ export class LeoScene {
       }
 
       // Initialize configured systems with better error handling
+      this.updateLoadingProgress("Spawning agents...", 70);
       await this.initializeSystems(level);
 
+      this.updateLoadingProgress("Finalizing...", 95);
+      
+      // Defer non-critical systems to after initial load
+      setTimeout(() => this.initializeDeferredSystems(level), 100);
+      
       console.log("Level loaded successfully");
+      this.updateLoadingProgress("Ready!", 100);
       return Promise.resolve();
 
     } catch (error) {
       console.error("Error loading level:", error);
+      this.updateLoadingProgress("Error loading level", 0);
       return Promise.reject(error);
     }
   }
 
+  updateLoadingProgress(message, percent) {
+    // Update loading screen if it exists
+    const loadingScreen = document.getElementById('loadingScreen');
+    if (loadingScreen && loadingScreen.style.display !== 'none') {
+      const messageEl = loadingScreen.querySelector('p');
+      if (messageEl) {
+        messageEl.textContent = message;
+      }
+      
+      // Add progress bar if it doesn't exist
+      let progressBar = loadingScreen.querySelector('.progress-bar');
+      if (!progressBar) {
+        const progressContainer = document.createElement('div');
+        progressContainer.className = 'progress-container';
+        progressContainer.style.cssText = 'width: 300px; height: 20px; background: rgba(255,255,255,0.2); border-radius: 10px; margin-top: 20px; overflow: hidden;';
+        
+        progressBar = document.createElement('div');
+        progressBar.className = 'progress-bar';
+        progressBar.style.cssText = 'height: 100%; background: linear-gradient(90deg, #4CAF50, #45a049); transition: width 0.3s ease; width: 0%;';
+        
+        progressContainer.appendChild(progressBar);
+        loadingScreen.appendChild(progressContainer);
+      }
+      
+      progressBar.style.width = `${percent}%`;
+    }
+    
+    console.log(`Loading: ${message} (${percent}%)`);
+  }
+
+  async initializeDeferredSystems(level) {
+    console.log("Initializing deferred systems...");
+    
+    // Initialize clouds in background if needed
+    if (level.hasClouds && !this.cloudSystem) {
+      try {
+        const { CloudSystem } = await import('./CloudSystem.js');
+        this.cloudSystem = new CloudSystem(this.scene);
+        console.log("Cloud system initialized (deferred)");
+      } catch (error) {
+        console.warn("Failed to initialize cloud system:", error);
+      }
+    }
+  }
+
   async initializeSystems(level) {
-    const promises = [];
-    const systems = [];
+    const criticalSystems = [];
+    const deferredSystems = [];
 
     console.log("Initializing systems for level:", level.name || "Unknown");
+
+    // Separate critical and deferred systems
+    const deferredSystemNames = ['cloudSystem']; // Systems that can load after initial render
 
     // Collect all systems that need to be initialized
     for (const [key, config] of Object.entries(SYSTEM_CONFIGS)) {
       if (level[config.condition]) {
         console.log(`  - Initializing system group: ${key} (${config.condition})`);
 
+        // Skip clouds - they're deferred
+        if (key === 'clouds') {
+          continue;
+        }
+
         // Initialize main systems
         for (const system of config.systems) {
-          promises.push((async () => {
-            try {
-              console.log(`    - Creating system: ${system.name}`);
-              
-              // Prepare constructor arguments
-              const constructorArgs = system.constructorArgs ? 
-                system.constructorArgs(this.scene, this) : 
-                [this.scene];
+          const systemInfo = {
+            name: system.name,
+            class: system.class,
+            constructorArgs: system.constructorArgs,
+            initialize: system.initialize
+          };
 
-              // Create system instance
-              this[system.name] = new system.class(...constructorArgs);
-              systems.push({ name: system.name, system: this[system.name], initialize: system.initialize });
-              
-            } catch (error) {
-              console.error(`Error creating ${system.name}:`, error);
-            }
-          })());
+          if (deferredSystemNames.includes(system.name)) {
+            deferredSystems.push(systemInfo);
+          } else {
+            criticalSystems.push(systemInfo);
+          }
         }
 
         // Add dependent systems if they exist
@@ -358,23 +455,18 @@ export class LeoScene {
               console.log(`  - Initializing dependent system group: ${dep.condition}`);
               
               for (const system of dep.systems) {
-                promises.push((async () => {
-                  try {
-                    console.log(`    - Creating dependent system: ${system.name}`);
-                    
-                    // Prepare constructor arguments
-                    const constructorArgs = system.constructorArgs ? 
-                      system.constructorArgs(this.scene, this) : 
-                      [this.scene];
+                const systemInfo = {
+                  name: system.name,
+                  class: system.class,
+                  constructorArgs: system.constructorArgs,
+                  initialize: system.initialize
+                };
 
-                    // Create system instance
-                    this[system.name] = new system.class(...constructorArgs);
-                    systems.push({ name: system.name, system: this[system.name], initialize: system.initialize });
-                    
-                  } catch (error) {
-                    console.error(`Error creating dependent system ${system.name}:`, error);
-                  }
-                })());
+                if (deferredSystemNames.includes(system.name)) {
+                  deferredSystems.push(systemInfo);
+                } else {
+                  criticalSystems.push(systemInfo);
+                }
               }
             }
           }
@@ -382,20 +474,33 @@ export class LeoScene {
       }
     }
 
-    // Wait for all system creation to complete
-    await Promise.all(promises);
+    // Create and initialize critical systems in parallel batches
+    const batchSize = 3; // Process 3 systems at a time
+    for (let i = 0; i < criticalSystems.length; i += batchSize) {
+      const batch = criticalSystems.slice(i, i + batchSize);
+      
+      await Promise.all(batch.map(async (systemInfo) => {
+        try {
+          console.log(`    - Creating system: ${systemInfo.name}`);
+          
+          // Prepare constructor arguments
+          const constructorArgs = systemInfo.constructorArgs ? 
+            systemInfo.constructorArgs(this.scene, this) : 
+            [this.scene];
 
-    // Now initialize all created systems sequentially
-    for (const { name, system, initialize } of systems) {
-      try {
-        console.log(`Initializing system: ${name}`);
-        if (initialize) {
-          await initialize(system, level);
+          // Create system instance
+          this[systemInfo.name] = new systemInfo.class(...constructorArgs);
+          
+          // Initialize immediately
+          if (systemInfo.initialize) {
+            await systemInfo.initialize(this[systemInfo.name], level);
+          }
+          
+          console.log(`System ${systemInfo.name} initialized successfully`);
+        } catch (error) {
+          console.error(`Error creating/initializing ${systemInfo.name}:`, error);
         }
-        console.log(`System ${name} initialized successfully`);
-      } catch (error) {
-        console.error(`Error initializing ${name}:`, error);
-      }
+      }));
     }
 
     // After all systems are initialized, link them

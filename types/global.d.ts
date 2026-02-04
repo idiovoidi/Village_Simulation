@@ -1,9 +1,27 @@
-// Minimal ambient declarations for global libraries used in the project
-// Keep these loose initially; we can refine types incrementally.
+// Global type declarations for libraries loaded via CDN
+// These are loaded in index.html and available globally
 
-declare const BABYLON: any;
+/// <reference types="@babylonjs/core" />
+/// <reference types="@babylonjs/gui" />
 
-declare const HavokPhysics: any;
+declare global {
+    // Declare BABYLON as available globally with full types
+    const BABYLON: typeof import('@babylonjs/core') & {
+        GUI: typeof import('@babylonjs/gui');
+    };
+    
+    const HavokPhysics: any;
+    
+    interface Window {
+        BABYLON: typeof import('@babylonjs/core') & {
+            GUI: typeof import('@babylonjs/gui');
+        };
+        HavokPhysics: any;
+        BowlCreator: {
+            getTerrainHeight: (x: number, z: number) => number;
+        };
+    }
+}
 
 declare module '*.png' {
   const value: string;
@@ -24,3 +42,5 @@ declare module '*.svg' {
   const value: string;
   export default value;
 }
+
+export {};

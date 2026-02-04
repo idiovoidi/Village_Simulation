@@ -16,22 +16,30 @@
     
     "allowJs": true,
     "checkJs": false,
-    "declaration": true,
-    "declarationMap": true,
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
     "sourceMap": true,
     
-    "outDir": "./dist",
-    "rootDir": "./MyHavokSimCode",
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    
     "baseUrl": "./",
     "paths": {
       "@core/*": ["MyHavokSimCode/core/*"],
       "@agents/*": ["MyHavokSimCode/Agents/*"],
       "@systems/*": ["MyHavokSimCode/systems/*"]
-    }
+    },
+    "typeRoots": ["./node_modules/@types", "./types"]
   },
   "include": [
-    "MyHavokSimCode/**/*",
-    "assets/AssetManager.js"
+    "MyHavokSimCode/**/*.ts",
+    "MyHavokSimCode/**/*.js",
+    "assets/**/*.ts",
+    "types/**/*.d.ts"
+  ],
+  "files": [
+    "types/index.d.ts"
   ],
   "exclude": [
     "node_modules",
@@ -39,6 +47,8 @@
     "coverage",
     "docs",
     "memory-bank",
+    "ecs-rebuild",
+    "MyHavokSimCode/Performance/tests/**",
     "**/*.test.ts",
     "**/*.test.js",
     "test-*.js",

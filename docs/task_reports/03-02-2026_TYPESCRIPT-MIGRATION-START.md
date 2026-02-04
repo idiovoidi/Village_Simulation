@@ -4,7 +4,7 @@
 ## Why
 Begin gradual TypeScript migration to improve type safety and developer experience without breaking the game.
 
-## Files Converted (8 total)
+## Files Converted (11 total)
 
 ### Utilities (2)
 1. **NavMeshHelper.ts** - Navigation pathfinding utility
@@ -16,11 +16,14 @@ Begin gradual TypeScript migration to improve type safety and developer experien
 ### Configuration (1)
 4. **LevelConfig.ts** - Level definitions with typed interfaces
 
-### Model Classes (4)
+### Model Classes (7)
 5. **BirdModel.ts** - Bird visual model with wing animations
 6. **FishModel.ts** - Fish visual model with tail wagging
 7. **DogModel.ts** - Dog visual model with walking animations
 8. **DinosaurModel.ts** - Dinosaur visual model with complex animations
+9. **ZombieModel.ts** - Zombie visual model with attack/suspicious animations
+10. **VillagerModel.ts** - Villager visual model with walk/work/greet animations
+11. **HouseModel.ts** - Building model with chimney particle effects
 
 ## TypeScript Improvements
 
@@ -81,15 +84,35 @@ getPosition(): BABYLON.Vector3 | null
 4. Gradually update imports to use `.ts` versions
 5. Delete `.js` after verification
 
+## TypeScript Features Added
+
+### ZombieModel.ts
+- Typed state machine: `type ZombieState = 'idle' | 'attacking' | 'suspicious' | 'pursuing'`
+- Structured interfaces for arms/legs: `ZombieArms`, `ZombieLegs`
+- Animation group typing: `ZombieAnimationGroups`
+- Null-safe limb access with optional chaining
+
+### VillagerModel.ts
+- Complete body parts interface: `VillagerParts` with all limbs
+- Typed animation groups: `VillagerAnimationGroups` (idle, walk, work, greet)
+- Return type for `createVillager`: `VillagerObject` interface
+- Type-safe animation playback with `keyof VillagerAnimationGroups`
+
+### HouseModel.ts
+- House variant types: `type HouseVariant = 'basic' | 'small' | 'large'`
+- Dimensions interface: `HouseDimensions` with all measurements
+- Typed particle system arrays
+- Private methods for component creation
+
 ## Next Candidates
-- ZombieModel.js - Zombie visual model
-- HouseModel.js - Building model
+- BoatAgent.js - Water navigation agent
 - Error handler utilities
 - Simple behavior classes
 - Configuration utilities
+- System managers
 
 ## Progress
-- **8 files converted** to TypeScript
+- **11 files converted** to TypeScript
 - **0 breaking changes** introduced
 - **100% backward compatible** with existing code
 - **Ready for gradual adoption** across codebase

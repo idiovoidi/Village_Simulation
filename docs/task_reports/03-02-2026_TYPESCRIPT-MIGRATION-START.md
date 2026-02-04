@@ -79,10 +79,10 @@ getPosition(): BABYLON.Vector3 | null
 
 ## Migration Strategy
 1. Convert low-stakes files first (utilities, models)
-2. Keep both `.js` and `.ts` versions during transition
+2. Keep both `.js` and `.ts` versions - `.ts` for type checking, `.js` for runtime
 3. No breaking changes - full backward compatibility
-4. Gradually update imports to use `.ts` versions
-5. Delete `.js` after verification
+4. TypeScript files provide IntelliSense and compile-time checking
+5. Eventually add build step to transpile `.ts` to `.js` automatically
 
 ## TypeScript Features Added
 
@@ -120,5 +120,8 @@ getPosition(): BABYLON.Vector3 | null
 ## Notes
 - TypeScript v5.7.2 in devDependencies
 - Using global BABYLON types from `@babylonjs/core`
-- No build step required - `.ts` files work directly
+- No build step currently - both `.js` and `.ts` coexist
+- `.ts` files provide type checking and IntelliSense during development
+- `.js` files are what actually run in the browser
 - All conversions maintain exact same functionality
+- Future: Add build step to auto-transpile `.ts` → `.js`

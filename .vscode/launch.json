@@ -4,7 +4,21 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "🚀 Village Sim (F5 Ready)",
+      "name": "⚡ Vite + HMR (F5 Ready)",
+      "program": "${workspaceFolder}/launch-vite.js",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PORT": "3000"
+      },
+      "console": "integratedTerminal",
+      "skipFiles": [
+        "<node_internals>/**"
+      ]
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "🚀 Village Sim (Old Server)",
       "program": "${workspaceFolder}/launch-with-browser.js",
       "cwd": "${workspaceFolder}",
       "env": {
@@ -18,11 +32,11 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "🔧 Dev Server (F5 Ready)",
+      "name": "🔧 Dev Server (Old)",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
         "run",
-        "dev"
+        "dev:old"
       ],
       "cwd": "${workspaceFolder}",
       "env": {

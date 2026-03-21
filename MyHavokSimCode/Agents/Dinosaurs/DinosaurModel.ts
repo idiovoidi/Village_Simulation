@@ -20,7 +20,7 @@ export class DinosaurModel {
 
     create(position: BABYLON.Vector3): BABYLON.Mesh {
         // Create main body
-        const body = BABYLON.MeshBuilder.CreateBox("dinoBody", {
+        const body = BABYLON.MeshBuilder.CreateBox('dinoBody', {
             width: 1.2 * this.scale,
             height: 1.5 * this.scale,
             depth: 2.5 * this.scale
@@ -28,7 +28,7 @@ export class DinosaurModel {
         body.position = position;
 
         // Create head
-        const head = BABYLON.MeshBuilder.CreateBox("dinoHead", {
+        const head = BABYLON.MeshBuilder.CreateBox('dinoHead', {
             width: 0.8 * this.scale,
             height: 0.8 * this.scale,
             depth: 1.2 * this.scale
@@ -39,7 +39,7 @@ export class DinosaurModel {
         this.head = head;
 
         // Create jaw (lower part of head)
-        const jaw = BABYLON.MeshBuilder.CreateBox("dinoJaw", {
+        const jaw = BABYLON.MeshBuilder.CreateBox('dinoJaw', {
             width: 0.7 * this.scale,
             height: 0.4 * this.scale,
             depth: 1.0 * this.scale
@@ -59,7 +59,7 @@ export class DinosaurModel {
 
         this.legs = [];
         legPositions.forEach((pos, index) => {
-            const leg = BABYLON.MeshBuilder.CreateBox("dinoLeg" + index, {
+            const leg = BABYLON.MeshBuilder.CreateBox(`dinoLeg${index}`, {
                 width: 0.3 * this.scale,
                 height: 1.2 * this.scale,
                 depth: 0.3 * this.scale
@@ -72,7 +72,7 @@ export class DinosaurModel {
         });
 
         // Create tail
-        const tail = BABYLON.MeshBuilder.CreateBox("dinoTail", {
+        const tail = BABYLON.MeshBuilder.CreateBox('dinoTail', {
             width: 0.5 * this.scale,
             height: 0.5 * this.scale,
             depth: 2.0 * this.scale
@@ -83,10 +83,10 @@ export class DinosaurModel {
         this.tail = tail;
 
         // Materials
-        const bodyMaterial = new BABYLON.StandardMaterial("dinoBodyMat", this.scene);
+        const bodyMaterial = new BABYLON.StandardMaterial('dinoBodyMat', this.scene);
         bodyMaterial.diffuseColor = new BABYLON.Color3(0.2, 0.5, 0.2); // Green color
-        
-        const darkMaterial = new BABYLON.StandardMaterial("dinoDarkMat", this.scene);
+
+        const darkMaterial = new BABYLON.StandardMaterial('dinoDarkMat', this.scene);
         darkMaterial.diffuseColor = new BABYLON.Color3(0.15, 0.4, 0.15); // Darker green
 
         // Apply materials
@@ -111,13 +111,13 @@ export class DinosaurModel {
     startWalking(): void {
         if (!this.isRunning) {
             this.isRunning = true;
-            
+
             // Animate legs
             this.legs.forEach((leg, index) => {
                 const phase = (index % 2) * Math.PI;
                 const animation = new BABYLON.Animation(
-                    "dinoLegWalk" + index,
-                    "rotation.x",
+                    `dinoLegWalk${index}`,
+                    'rotation.x',
                     30,
                     BABYLON.Animation.ANIMATIONTYPE_FLOAT,
                     BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
@@ -127,7 +127,7 @@ export class DinosaurModel {
                 for (let frame = 0; frame <= 30; frame++) {
                     const angle = (frame / 30) * Math.PI * 2 + phase;
                     keys.push({
-                        frame: frame,
+                        frame,
                         value: Math.sin(angle) * 0.4 // Larger leg movement
                     });
                 }
@@ -139,8 +139,8 @@ export class DinosaurModel {
             // Tail swaying animation
             if (this.tail) {
                 const tailAnimation = new BABYLON.Animation(
-                    "dinoTailSway",
-                    "rotation.y",
+                    'dinoTailSway',
+                    'rotation.y',
                     30,
                     BABYLON.Animation.ANIMATIONTYPE_FLOAT,
                     BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
@@ -158,8 +158,8 @@ export class DinosaurModel {
             // Head bobbing animation
             if (this.head) {
                 const headAnimation = new BABYLON.Animation(
-                    "dinoHeadBob",
-                    "rotation.x",
+                    'dinoHeadBob',
+                    'rotation.x',
                     30,
                     BABYLON.Animation.ANIMATIONTYPE_FLOAT,
                     BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
@@ -184,12 +184,12 @@ export class DinosaurModel {
                 this.scene.stopAnimation(leg);
                 leg.rotation.x = 0;
             });
-            
+
             if (this.tail) {
                 this.scene.stopAnimation(this.tail);
                 this.tail.rotation.y = 0;
             }
-            
+
             if (this.head) {
                 this.scene.stopAnimation(this.head);
                 this.head.rotation.x = 0;

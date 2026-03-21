@@ -7,7 +7,7 @@ export class ZombieBehaviour {
         this.scene = scene;
         this.zombies = [];
         this.villagerSystem = null; // Will be set by the main scene
-        
+
         // Configuration parameters with defaults
         this.config = {
             wanderRadius: options.wanderRadius || 80,
@@ -39,7 +39,7 @@ export class ZombieBehaviour {
     initialize(count, options = {}) {
         // Create zombie agents
         this.createZombies(count, options);
-        
+
         // PERFORMANCE FIX: Disabled duplicate render loop
         // Updates are handled by ZombieBehaviour.update() called from main loop
         // this.scene.registerBeforeRender(() => {
@@ -51,17 +51,17 @@ export class ZombieBehaviour {
     createZombies(count, options = {}) {
         // Create zombies in groups
         const groupCount = Math.ceil(count / 3);
-        
+
         for (let g = 0; g < groupCount; g++) {
             const groupPos = this._getRandomPosition();
-            
+
             // Determine group size (2-4 zombies per group)
             const groupSize = Math.min(
                 count - this.zombies.length,
-                this.config.grouping.groupMinSize + 
-                Math.floor(Math.random() * (this.config.grouping.groupMaxSize - this.config.grouping.groupMinSize))
+                this.config.grouping.groupMinSize
+                + Math.floor(Math.random() * (this.config.grouping.groupMaxSize - this.config.grouping.groupMinSize))
             );
-            
+
             // Create zombies for this group
             for (let i = 0; i < groupSize; i++) {
                 // Create position with slight offset from group center
@@ -75,7 +75,7 @@ export class ZombieBehaviour {
 
                 // Create zombie agent with shared configuration
                 const zombie = new ZombieAgent(this.scene, {
-                    position: position,
+                    position,
                     initialState: 'idle',
                     groupId: g,
                     minSpeed: this.config.speed.min,
@@ -85,12 +85,12 @@ export class ZombieBehaviour {
                     lurgeDuration: this.config.lurge.duration,
                     swayAmount: 0.2 + Math.random() * 0.2 // Vary the shamble amount
                 });
-                
+
                 // Add to our managed zombies collection
                 this.zombies.push(zombie);
             }
         }
-        
+
         return this.zombies;
     }
 
@@ -99,53 +99,53 @@ export class ZombieBehaviour {
         this.zombies.forEach(zombie => {
             // Let zombie handle its own behavior update
             zombie.update(deltaTime);
-            
+
             // Add group behavior influence
             this._updateGroupBehavior(zombie, deltaTime);
-            
+
             // Check for player detection
             this._checkPlayerDetection(zombie);
         });
     }
-    
+
     _updateGroupBehavior(zombie, deltaTime) {
         // Find group mates
-        const groupMates = this.zombies.filter(z => 
+        const groupMates = this.zombies.filter(z =>
             z.groupId === zombie.groupId && z !== zombie
         );
-        
+
         if (groupMates.length === 0) return;
-        
+
         // Calculate group center
         const groupCenter = new BABYLON.Vector3(0, 0, 0);
         groupMates.forEach(mate => {
             groupCenter.addInPlace(mate.model.mesh.position);
         });
         groupCenter.scaleInPlace(1 / groupMates.length);
-        
+
         // Determine if zombie should move toward group
         const toGroup = groupCenter.subtract(zombie.model.mesh.position);
         const groupDist = toGroup.length();
-        
+
         // Only apply cohesion if zombie is too far from group
         if (groupDist > this.config.grouping.cohesionDistance) {
             // Check if zombie is pursuing player
             const isPursuing = zombie.state === 'pursuing';
             const cohesionWeight = isPursuing ? 0.3 : 0.6; // Less cohesion when pursuing
-            
+
             // Calculate a new target that includes group cohesion
             const currentTarget = zombie.target.clone();
             const groupTarget = groupCenter.clone();
-            
+
             // Blend current target with group cohesion
             const blendedTarget = currentTarget.scale(1 - cohesionWeight).add(
                 groupTarget.scale(cohesionWeight)
             );
-            
+
             // Set new target
             zombie.setTarget(blendedTarget);
         }
-        
+
         // Add separation behavior to prevent clumping
         const separationDistance = 3; // Minimum distance between zombies
         groupMates.forEach(mate => {
@@ -160,11 +160,11 @@ export class ZombieBehaviour {
         // State influence - zombies can influence each other
         // If one zombie is pursuing, others nearby might join
         if (zombie.state === 'idle') {
-            const pursuingNeighbor = groupMates.find(mate => 
-                mate.state === 'pursuing' && 
-                BABYLON.Vector3.Distance(mate.model.mesh.position, zombie.model.mesh.position) < 15
+            const pursuingNeighbor = groupMates.find(mate =>
+                mate.state === 'pursuing'
+                && BABYLON.Vector3.Distance(mate.model.mesh.position, zombie.model.mesh.position) < 15
             );
-            
+
             if (pursuingNeighbor && Math.random() < 0.03 * deltaTime * 60) { // 3% chance per second
                 zombie.setState('pursuing');
             }
@@ -183,7 +183,7 @@ export class ZombieBehaviour {
             }
         }
     }
-    
+
     _checkPlayerDetection(zombie) {
         // Check if zombie should detect the player
         if (zombie.state === 'idle') {
@@ -222,30 +222,30 @@ export class ZombieBehaviour {
         if (typeof BowlCreator.getTerrainHeight === 'function') {
             return BowlCreator.getTerrainHeight(x, z);
         }
-        
+
         // Fallback to simple bowl shape
         const distFromCenter = Math.sqrt(x * x + z * z);
         const bowlDepth = 25;
-        
+
         // Bowl shape with some variation
         let height = -Math.pow(distFromCenter / this.config.wanderRadius, 1.2) * bowlDepth;
-        height += Math.sin(x/20) * Math.cos(z/20) * 2;
-        
+        height += Math.sin(x / 20) * Math.cos(z / 20) * 2;
+
         return Math.max(
-            this.config.terrainBounds.minHeight, 
+            this.config.terrainBounds.minHeight,
             Math.min(this.config.terrainBounds.maxHeight, height)
         );
     }
-    
+
     getZombieCount() {
         return this.zombies.length;
     }
-    
+
     addZombie(position) {
         // Find a group with the fewest members
         let targetGroupId = 0;
         let minGroupSize = Infinity;
-        
+
         // Count zombies in each group
         const groupCounts = {};
         this.zombies.forEach(zombie => {
@@ -254,7 +254,7 @@ export class ZombieBehaviour {
             }
             groupCounts[zombie.groupId]++;
         });
-        
+
         // Find smallest group
         Object.entries(groupCounts).forEach(([groupId, count]) => {
             if (count < minGroupSize) {
@@ -262,12 +262,12 @@ export class ZombieBehaviour {
                 targetGroupId = parseInt(groupId);
             }
         });
-        
+
         // If all groups are large, create a new group
         if (minGroupSize >= this.config.grouping.groupMaxSize) {
             targetGroupId = Object.keys(groupCounts).length;
         }
-        
+
         // Create new zombie
         const zombie = new ZombieAgent(this.scene, {
             position: position || this._getRandomPosition(),
@@ -279,7 +279,7 @@ export class ZombieBehaviour {
             lurgeChance: this.config.lurge.chance,
             lurgeDuration: this.config.lurge.duration
         });
-        
+
         // Add metadata for RTS UI
         if (zombie.mesh) {
             zombie.mesh.metadata = {
@@ -291,11 +291,11 @@ export class ZombieBehaviour {
                 groupId: targetGroupId
             };
         }
-        
+
         this.zombies.push(zombie);
         return zombie;
     }
-    
+
     removeZombie(index) {
         if (index >= 0 && index < this.zombies.length) {
             const zombie = this.zombies[index];
@@ -305,15 +305,15 @@ export class ZombieBehaviour {
         }
         return false;
     }
-    
+
     dispose() {
         // Clean up all zombies
         this.zombies.forEach(zombie => {
             zombie.dispose();
         });
         this.zombies = [];
-        
+
         // Clear scene before render observable
         this.scene.onBeforeRenderObservable.clear();
     }
-} 
+}

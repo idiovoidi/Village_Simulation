@@ -7,24 +7,24 @@ export class ResourceCleanupSystem {
     constructor(scene, memoryManager = null) {
         this.scene = scene;
         this.memoryManager = memoryManager;
-        
+
         // Resource tracking
         this.resourceRegistry = new Map();
         this.disposalQueue = new Map();
         this.leakDetector = new Map();
-        
+
         // Cleanup scheduling
         this.cleanupTimer = null;
         this.cleanupInterval = 15000; // 15 seconds
         this.isActive = false;
-        
+
         // Cleanup strategies
         this.cleanupStrategies = new Map();
         this.initializeCleanupStrategies();
-        
+
         // Resource lifecycle tracking
         this.resourceLifecycles = new Map();
-        
+
         // Statistics
         this.stats = {
             resourcesTracked: 0,
@@ -34,7 +34,7 @@ export class ResourceCleanupSystem {
             memoryReclaimed: 0,
             averageResourceLifetime: 0
         };
-        
+
         // Configuration
         this.config = {
             maxResourceAge: 300000, // 5 minutes
@@ -43,7 +43,7 @@ export class ResourceCleanupSystem {
             emergencyCleanupThreshold: 0.95,
             resourceSizeThreshold: 1024 * 1024 // 1MB - large resources get priority cleanup
         };
-        
+
         console.log('ResourceCleanupSystem initialized');
     }
 
@@ -54,17 +54,15 @@ export class ResourceCleanupSystem {
         // Mesh cleanup strategy
         this.cleanupStrategies.set('mesh', {
             priority: 1,
-            canDispose: (resource) => {
-                return resource && !resource.isDisposed() && 
-                       this.getResourceReferenceCount(resource) === 0;
-            },
-            dispose: (resource) => {
+            canDispose: resource => resource && !resource.isDisposed()
+                       && this.getResourceReferenceCount(resource) === 0,
+            dispose: resource => {
                 if (resource.material && resource.material !== this.scene.defaultMaterial) {
                     this.scheduleResourceDisposal(resource.material, 'material');
                 }
                 resource.dispose();
             },
-            estimateSize: (resource) => {
+            estimateSize: resource => {
                 const positions = resource.getVerticesData?.(BABYLON.VertexBuffer.PositionKind);
                 const indices = resource.getIndices?.();
                 let size = 0;
@@ -73,18 +71,16 @@ export class ResourceCleanupSystem {
                 return size || 1024;
             }
         });
-        
+
         // Texture cleanup strategy
         this.cleanupStrategies.set('texture', {
             priority: 2,
-            canDispose: (resource) => {
-                return resource && !resource.isDisposed() && 
-                       this.getResourceReferenceCount(resource) === 0;
-            },
-            dispose: (resource) => {
+            canDispose: resource => resource && !resource.isDisposed()
+                       && this.getResourceReferenceCount(resource) === 0,
+            dispose: resource => {
                 resource.dispose();
             },
-            estimateSize: (resource) => {
+            estimateSize: resource => {
                 const size = resource.getSize?.();
                 if (size) {
                     return size.width * size.height * 4; // RGBA
@@ -92,16 +88,14 @@ export class ResourceCleanupSystem {
                 return 4096; // Default estimate
             }
         });
-        
+
         // Material cleanup strategy
         this.cleanupStrategies.set('material', {
             priority: 3,
-            canDispose: (resource) => {
-                return resource && !resource.isDisposed() && 
-                       resource !== this.scene.defaultMaterial &&
-                       this.getResourceReferenceCount(resource) === 0;
-            },
-            dispose: (resource) => {
+            canDispose: resource => resource && !resource.isDisposed()
+                       && resource !== this.scene.defaultMaterial
+                       && this.getResourceReferenceCount(resource) === 0,
+            dispose: resource => {
                 // Dispose associated textures if they're not shared
                 if (resource.diffuseTexture) {
                     this.scheduleResourceDisposal(resource.diffuseTexture, 'texture');
@@ -114,35 +108,31 @@ export class ResourceCleanupSystem {
                 }
                 resource.dispose();
             },
-            estimateSize: (resource) => 1024 // Materials are relatively small
+            estimateSize: resource => 1024 // Materials are relatively small
         });
-        
+
         // Animation cleanup strategy
         this.cleanupStrategies.set('animation', {
             priority: 4,
-            canDispose: (resource) => {
-                return resource && !resource.isDisposed &&
-                       this.getResourceReferenceCount(resource) === 0;
-            },
-            dispose: (resource) => {
+            canDispose: resource => resource && !resource.isDisposed
+                       && this.getResourceReferenceCount(resource) === 0,
+            dispose: resource => {
                 if (resource.stop) resource.stop();
                 if (resource.dispose) resource.dispose();
             },
-            estimateSize: (resource) => 2048 // Animation data estimate
+            estimateSize: resource => 2048 // Animation data estimate
         });
-        
+
         // Particle system cleanup strategy
         this.cleanupStrategies.set('particleSystem', {
             priority: 5,
-            canDispose: (resource) => {
-                return resource && !resource.isDisposed &&
-                       this.getResourceReferenceCount(resource) === 0;
-            },
-            dispose: (resource) => {
+            canDispose: resource => resource && !resource.isDisposed
+                       && this.getResourceReferenceCount(resource) === 0,
+            dispose: resource => {
                 resource.stop();
                 resource.dispose();
             },
-            estimateSize: (resource) => resource.getCapacity?.() * 64 || 4096
+            estimateSize: resource => resource.getCapacity?.() * 64 || 4096
         });
     }
 
@@ -153,15 +143,15 @@ export class ResourceCleanupSystem {
         if (this.isActive) {
             return;
         }
-        
+
         console.log('Starting ResourceCleanupSystem...');
         this.isActive = true;
-        
+
         // Start cleanup timer
         this.cleanupTimer = setInterval(() => {
             this.performCleanupCycle();
         }, this.cleanupInterval);
-        
+
         // Perform initial cleanup
         this.performCleanupCycle();
     }
@@ -173,10 +163,10 @@ export class ResourceCleanupSystem {
         if (!this.isActive) {
             return;
         }
-        
+
         console.log('Stopping ResourceCleanupSystem...');
         this.isActive = false;
-        
+
         if (this.cleanupTimer) {
             clearInterval(this.cleanupTimer);
             this.cleanupTimer = null;
@@ -191,10 +181,10 @@ export class ResourceCleanupSystem {
             console.warn('Invalid resource or type provided for registration');
             return null;
         }
-        
+
         const resourceId = this.generateResourceId();
         const currentTime = performance.now();
-        
+
         const resourceInfo = {
             id: resourceId,
             resource,
@@ -207,7 +197,7 @@ export class ResourceCleanupSystem {
             size: this.estimateResourceSize(resource, type),
             disposed: false
         };
-        
+
         this.resourceRegistry.set(resourceId, resourceInfo);
         this.resourceLifecycles.set(resourceId, {
             created: currentTime,
@@ -215,12 +205,12 @@ export class ResourceCleanupSystem {
             lastAccess: currentTime,
             disposed: null
         });
-        
+
         this.stats.resourcesTracked++;
-        
+
         // Check for potential leaks
         this.checkForResourceLeaks(type);
-        
+
         return resourceId;
     }
 
@@ -232,7 +222,7 @@ export class ResourceCleanupSystem {
         if (!resourceInfo) {
             return false;
         }
-        
+
         // Update lifecycle
         const lifecycle = this.resourceLifecycles.get(resourceId);
         if (lifecycle) {
@@ -240,12 +230,12 @@ export class ResourceCleanupSystem {
             const lifetime = lifecycle.disposed - lifecycle.created;
             this.updateAverageLifetime(lifetime);
         }
-        
+
         // Remove from tracking
         this.resourceRegistry.delete(resourceId);
         this.resourceLifecycles.delete(resourceId);
         this.disposalQueue.delete(resourceId);
-        
+
         return true;
     }
 
@@ -257,11 +247,11 @@ export class ResourceCleanupSystem {
         if (!resourceInfo) {
             return false;
         }
-        
+
         resourceInfo.referenceCount++;
         resourceInfo.lastAccessed = performance.now();
         resourceInfo.accessCount++;
-        
+
         // Update lifecycle tracking
         const lifecycle = this.resourceLifecycles.get(resourceId);
         if (lifecycle) {
@@ -270,7 +260,7 @@ export class ResourceCleanupSystem {
             }
             lifecycle.lastAccess = performance.now();
         }
-        
+
         return true;
     }
 
@@ -282,14 +272,14 @@ export class ResourceCleanupSystem {
         if (!resourceInfo) {
             return false;
         }
-        
+
         resourceInfo.referenceCount = Math.max(0, resourceInfo.referenceCount - 1);
-        
+
         // Schedule for disposal if no references
         if (resourceInfo.referenceCount === 0) {
             this.scheduleResourceDisposal(resourceInfo.resource, resourceInfo.type, 5000); // 5 second delay
         }
-        
+
         return true;
     }
 
@@ -305,13 +295,13 @@ export class ResourceCleanupSystem {
                 break;
             }
         }
-        
+
         if (!resourceId) {
             // Resource not tracked, dispose immediately if possible
             this.disposeResourceDirect(resource, type);
             return;
         }
-        
+
         const disposalTime = performance.now() + delay;
         this.disposalQueue.set(resourceId, {
             scheduledAt: performance.now(),
@@ -328,11 +318,11 @@ export class ResourceCleanupSystem {
         const startTime = performance.now();
         let disposedCount = 0;
         let memoryReclaimed = 0;
-        
+
         // Process disposal queue
         const currentTime = performance.now();
         const toDispose = [];
-        
+
         for (const [resourceId, disposalInfo] of this.disposalQueue) {
             if (currentTime >= disposalInfo.disposeAt) {
                 const resourceInfo = this.resourceRegistry.get(resourceId);
@@ -341,10 +331,10 @@ export class ResourceCleanupSystem {
                 }
             }
         }
-        
+
         // Sort by priority (higher priority first)
         toDispose.sort((a, b) => b.disposalInfo.priority - a.disposalInfo.priority);
-        
+
         // Dispose resources
         for (const { resourceId, resourceInfo, disposalInfo } of toDispose) {
             try {
@@ -352,11 +342,11 @@ export class ResourceCleanupSystem {
                     this.disposeResource(resourceInfo.resource, resourceInfo.type);
                     memoryReclaimed += resourceInfo.size;
                     disposedCount++;
-                    
+
                     // Mark as disposed
                     resourceInfo.disposed = true;
                     this.disposalQueue.delete(resourceId);
-                    
+
                     // Update lifecycle
                     const lifecycle = this.resourceLifecycles.get(resourceId);
                     if (lifecycle) {
@@ -368,20 +358,20 @@ export class ResourceCleanupSystem {
                 this.disposalQueue.delete(resourceId); // Remove from queue to prevent retry
             }
         }
-        
+
         // Check for aged resources
         this.cleanupAgedResources();
-        
+
         // Update statistics
         this.stats.resourcesDisposed += disposedCount;
         this.stats.cleanupCycles++;
         this.stats.memoryReclaimed += memoryReclaimed;
-        
+
         const duration = performance.now() - startTime;
-        
+
         if (disposedCount > 0) {
-            console.log(`Cleanup cycle: ${disposedCount} resources disposed, ` +
-                       `${this.formatBytes(memoryReclaimed)} reclaimed in ${duration.toFixed(2)}ms`);
+            console.log(`Cleanup cycle: ${disposedCount} resources disposed, `
+                       + `${this.formatBytes(memoryReclaimed)} reclaimed in ${duration.toFixed(2)}ms`);
         }
     }
 
@@ -391,13 +381,13 @@ export class ResourceCleanupSystem {
     cleanupAgedResources() {
         const currentTime = performance.now();
         const maxAge = this.config.maxResourceAge;
-        
+
         for (const [resourceId, resourceInfo] of this.resourceRegistry) {
             if (resourceInfo.disposed) continue;
-            
+
             const age = currentTime - resourceInfo.lastAccessed;
             const hasNoReferences = resourceInfo.referenceCount === 0;
-            
+
             if (hasNoReferences && age > maxAge) {
                 this.scheduleResourceDisposal(resourceInfo.resource, resourceInfo.type);
             }
@@ -410,11 +400,11 @@ export class ResourceCleanupSystem {
     checkForResourceLeaks(type) {
         const resourcesOfType = Array.from(this.resourceRegistry.values())
             .filter(info => info.type === type && !info.disposed);
-        
+
         if (resourcesOfType.length > this.config.leakDetectionThreshold) {
             console.warn(`Potential memory leak detected: ${resourcesOfType.length} ${type} resources tracked`);
             this.stats.leaksDetected++;
-            
+
             // Store leak information
             this.leakDetector.set(type, {
                 count: resourcesOfType.length,
@@ -444,11 +434,11 @@ export class ResourceCleanupSystem {
         if (strategy && strategy.canDispose) {
             return strategy.canDispose(resource);
         }
-        
+
         // Default check
-        return resource && 
-               (!resource.isDisposed || !resource.isDisposed()) &&
-               this.getResourceReferenceCount(resource) === 0;
+        return resource
+               && (!resource.isDisposed || !resource.isDisposed())
+               && this.getResourceReferenceCount(resource) === 0;
     }
 
     /**
@@ -468,7 +458,7 @@ export class ResourceCleanupSystem {
      */
     disposeResourceDirect(resource, type) {
         if (!resource) return;
-        
+
         try {
             if (resource.dispose && typeof resource.dispose === 'function') {
                 resource.dispose();
@@ -488,7 +478,7 @@ export class ResourceCleanupSystem {
         if (strategy && strategy.estimateSize) {
             return strategy.estimateSize(resource);
         }
-        
+
         // Default size estimates
         switch (type) {
             case 'mesh': return 8192;
@@ -505,13 +495,13 @@ export class ResourceCleanupSystem {
     getDisposalPriority(resource, type) {
         const strategy = this.cleanupStrategies.get(type);
         let basePriority = strategy ? strategy.priority : 10;
-        
+
         // Increase priority for large resources
         const size = this.estimateResourceSize(resource, type);
         if (size > this.config.resourceSizeThreshold) {
             basePriority += 5;
         }
-        
+
         // Increase priority based on age
         const resourceInfo = this.findResourceInfo(resource);
         if (resourceInfo) {
@@ -520,7 +510,7 @@ export class ResourceCleanupSystem {
                 basePriority += 3;
             }
         }
-        
+
         return basePriority;
     }
 
@@ -541,36 +531,36 @@ export class ResourceCleanupSystem {
      */
     triggerAggressiveCleanup() {
         console.log('Triggering aggressive resource cleanup...');
-        
+
         const resourcesToDispose = [];
-        
+
         // Find all unreferenced resources
         for (const [resourceId, resourceInfo] of this.resourceRegistry) {
             if (!resourceInfo.disposed && resourceInfo.referenceCount === 0) {
                 resourcesToDispose.push({ resourceId, resourceInfo });
             }
         }
-        
+
         // Sort by size (largest first) and age (oldest first)
         resourcesToDispose.sort((a, b) => {
             const sizeDiff = b.resourceInfo.size - a.resourceInfo.size;
             if (sizeDiff !== 0) return sizeDiff;
-            
+
             const ageDiff = a.resourceInfo.lastAccessed - b.resourceInfo.lastAccessed;
             return ageDiff;
         });
-        
+
         // Dispose resources
         let disposedCount = 0;
         let memoryReclaimed = 0;
-        
+
         for (const { resourceId, resourceInfo } of resourcesToDispose) {
             try {
                 if (this.canDisposeResource(resourceInfo.resource, resourceInfo.type)) {
                     this.disposeResource(resourceInfo.resource, resourceInfo.type);
                     memoryReclaimed += resourceInfo.size;
                     disposedCount++;
-                    
+
                     resourceInfo.disposed = true;
                     this.disposalQueue.delete(resourceId);
                 }
@@ -578,9 +568,9 @@ export class ResourceCleanupSystem {
                 console.error(`Aggressive cleanup error for resource ${resourceId}:`, error);
             }
         }
-        
-        console.log(`Aggressive cleanup completed: ${disposedCount} resources disposed, ` +
-                   `${this.formatBytes(memoryReclaimed)} reclaimed`);
+
+        console.log(`Aggressive cleanup completed: ${disposedCount} resources disposed, `
+                   + `${this.formatBytes(memoryReclaimed)} reclaimed`);
     }
 
     /**
@@ -589,14 +579,14 @@ export class ResourceCleanupSystem {
     getStatistics() {
         const resourcesByType = {};
         const disposalQueueByType = {};
-        
+
         // Count resources by type
         for (const resourceInfo of this.resourceRegistry.values()) {
-            const type = resourceInfo.type;
+            const { type } = resourceInfo;
             if (!resourcesByType[type]) {
                 resourcesByType[type] = { active: 0, disposed: 0, totalSize: 0 };
             }
-            
+
             if (resourceInfo.disposed) {
                 resourcesByType[type].disposed++;
             } else {
@@ -604,13 +594,13 @@ export class ResourceCleanupSystem {
                 resourcesByType[type].totalSize += resourceInfo.size;
             }
         }
-        
+
         // Count disposal queue by type
         for (const [resourceId, disposalInfo] of this.disposalQueue) {
-            const type = disposalInfo.type;
+            const { type } = disposalInfo;
             disposalQueueByType[type] = (disposalQueueByType[type] || 0) + 1;
         }
-        
+
         return {
             isActive: this.isActive,
             resourcesByType,
@@ -628,7 +618,7 @@ export class ResourceCleanupSystem {
     updateAverageLifetime(lifetime) {
         const currentAvg = this.stats.averageResourceLifetime;
         const count = this.stats.resourcesDisposed;
-        
+
         if (count === 0) {
             this.stats.averageResourceLifetime = lifetime;
         } else {
@@ -648,12 +638,12 @@ export class ResourceCleanupSystem {
      */
     formatBytes(bytes) {
         if (bytes === 0) return '0 B';
-        
+
         const k = 1024;
         const sizes = ['B', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
-        
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+
+        return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
     }
 
     /**
@@ -668,7 +658,7 @@ export class ResourceCleanupSystem {
      */
     setCleanupInterval(intervalMs) {
         this.cleanupInterval = Math.max(5000, intervalMs);
-        
+
         if (this.isActive) {
             this.stop();
             this.start();
@@ -680,9 +670,9 @@ export class ResourceCleanupSystem {
      */
     dispose() {
         console.log('Disposing ResourceCleanupSystem...');
-        
+
         this.stop();
-        
+
         // Dispose all tracked resources
         for (const [resourceId, resourceInfo] of this.resourceRegistry) {
             if (!resourceInfo.disposed) {
@@ -693,14 +683,14 @@ export class ResourceCleanupSystem {
                 }
             }
         }
-        
+
         // Clear all data structures
         this.resourceRegistry.clear();
         this.disposalQueue.clear();
         this.leakDetector.clear();
         this.resourceLifecycles.clear();
         this.cleanupStrategies.clear();
-        
+
         console.log('ResourceCleanupSystem disposed');
     }
 }

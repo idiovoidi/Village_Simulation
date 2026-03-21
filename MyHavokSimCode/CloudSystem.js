@@ -19,14 +19,14 @@ export class CloudSystem {
     createClouds() {
         for (let i = 0; i < this.cloudCount; i++) {
             const cloudMesh = this.createCloudMesh();
-            
+
             // Random starting position
             cloudMesh.position = this.getRandomPosition();
-            
+
             // Random scale for variety
             const scale = 0.8 + Math.random() * 0.4;
             cloudMesh.scaling = new BABYLON.Vector3(scale, scale * 0.6, scale);
-            
+
             // Random rotation
             cloudMesh.rotation.y = Math.random() * Math.PI * 2;
 
@@ -46,10 +46,10 @@ export class CloudSystem {
 
     createCloudMesh() {
         // Create cloud from multiple spheres
-        const cloud = new BABYLON.TransformNode("cloud", this.scene);
+        const cloud = new BABYLON.TransformNode('cloud', this.scene);
         const segments = 3 + Math.floor(Math.random() * 3);
         const materials = [];
-        
+
         for (let i = 0; i < segments; i++) {
             const sphere = BABYLON.MeshBuilder.CreateSphere(`cloudPart${i}`, {
                 diameter: 10 + Math.random() * 5,
@@ -69,13 +69,13 @@ export class CloudSystem {
             sphere.parent = cloud;
 
             // Create cloud material
-            const cloudMaterial = new BABYLON.StandardMaterial("cloudMat", this.scene);
+            const cloudMaterial = new BABYLON.StandardMaterial('cloudMat', this.scene);
             cloudMaterial.diffuseColor = new BABYLON.Color3(1, 1, 1);
             cloudMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
             cloudMaterial.emissiveColor = new BABYLON.Color3(0.5, 0.5, 0.5);
             cloudMaterial.alpha = 0.8;
             sphere.material = cloudMaterial;
-            
+
             // Store material reference
             materials.push(cloudMaterial);
         }
@@ -159,9 +159,9 @@ export class CloudSystem {
         });
         this.clouds = [];
     }
-    
+
     // PERFORMANCE FIX: Added update method to be called from main loop
     update(deltaTime) {
         this.updateClouds();
     }
-} 
+}

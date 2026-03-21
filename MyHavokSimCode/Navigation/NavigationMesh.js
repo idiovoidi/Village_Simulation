@@ -35,7 +35,7 @@ export class NavigationMesh {
     }
 
     async waitForRecast() {
-        return new Promise((resolve) => {
+        return new Promise(resolve => {
             const checkRecast = () => {
                 if (typeof Recast !== 'undefined' && Recast.RECAST_WASM_URL) {
                     resolve();
@@ -71,7 +71,7 @@ export class NavigationMesh {
                 const node = new BABYLON.TransformNode(`pathNode_${x}_${z}`, this.scene);
                 node.position = new BABYLON.Vector3(x * 5, this.getHeightAtPoint(x, z), z * 5);
                 this.pathNodes.push(node);
-                
+
                 // Visualize nodes in debug mode
                 if (this.debugVisualization) {
                     const sphere = BABYLON.MeshBuilder.CreateSphere(`nodeVis_${x}_${z}`, {
@@ -85,14 +85,14 @@ export class NavigationMesh {
 
         // Create navigation mesh geometry
         const navigationMeshData = this.createNavigationMeshGeometry();
-        this.navigationMesh = new BABYLON.Mesh("navigationMesh", this.scene);
+        this.navigationMesh = new BABYLON.Mesh('navigationMesh', this.scene);
         this.navigationMesh.setVerticesData(BABYLON.VertexBuffer.PositionKind, navigationMeshData.positions);
         this.navigationMesh.setIndices(navigationMeshData.indices);
 
         // Make navigation mesh invisible but keep it for pathfinding
         this.navigationMesh.isVisible = this.debugVisualization;
         if (this.debugVisualization) {
-            const debugMaterial = new BABYLON.StandardMaterial("navMeshMat", this.scene);
+            const debugMaterial = new BABYLON.StandardMaterial('navMeshMat', this.scene);
             debugMaterial.wireframe = true;
             debugMaterial.emissiveColor = new BABYLON.Color3(0, 1, 0);
             this.navigationMesh.material = debugMaterial;
@@ -110,7 +110,7 @@ export class NavigationMesh {
             for (let j = i + 1; j < this.pathNodes.length; j++) {
                 const node1 = this.pathNodes[i];
                 const node2 = this.pathNodes[j];
-                
+
                 // Check if nodes are neighbors (within reasonable distance)
                 const distance = BABYLON.Vector3.Distance(node1.position, node2.position);
                 if (distance <= 15) { // Adjust this threshold as needed
@@ -150,7 +150,7 @@ export class NavigationMesh {
 
         return {
             positions: new Float32Array(positions),
-            indices: indices
+            indices
         };
     }
 
@@ -228,4 +228,4 @@ export class NavigationMesh {
             this.navigationPlugin.dispose();
         }
     }
-} 
+}

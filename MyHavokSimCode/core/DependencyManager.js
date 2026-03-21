@@ -17,7 +17,7 @@ class DependencyManager {
         try {
             const fs = await import('fs').then(m => m.promises);
             const path = await import('path');
-            
+
             // Create backup directory if it doesn't exist
             const backupPath = path.join(this.backupDir, this.backupTimestamp);
             await fs.mkdir(backupPath, { recursive: true });
@@ -26,7 +26,7 @@ class DependencyManager {
             try {
                 const packageJson = await fs.readFile('package.json', 'utf8');
                 await fs.writeFile(
-                    path.join(backupPath, 'package.json'), 
+                    path.join(backupPath, 'package.json'),
                     packageJson
                 );
                 console.log('✓ Backed up package.json');
@@ -38,7 +38,7 @@ class DependencyManager {
             try {
                 const lockFile = await fs.readFile('pnpm-lock.yaml', 'utf8');
                 await fs.writeFile(
-                    path.join(backupPath, 'pnpm-lock.yaml'), 
+                    path.join(backupPath, 'pnpm-lock.yaml'),
                     lockFile
                 );
                 console.log('✓ Backed up pnpm-lock.yaml');
@@ -52,7 +52,7 @@ class DependencyManager {
                 createdAt: new Date().toISOString(),
                 originalVersions: await this.getCurrentVersions()
             };
-            
+
             await fs.writeFile(
                 path.join(backupPath, 'backup-metadata.json'),
                 JSON.stringify(metadata, null, 2)
@@ -74,7 +74,7 @@ class DependencyManager {
         try {
             const fs = await import('fs').then(m => m.promises);
             const packageJson = JSON.parse(await fs.readFile('package.json', 'utf8'));
-            
+
             return {
                 dependencies: packageJson.dependencies || {},
                 devDependencies: packageJson.devDependencies || {}
@@ -95,18 +95,18 @@ class DependencyManager {
         // Remove version prefixes (^, ~, etc.)
         const cleanVersion1 = version1.replace(/^[\^~>=<]/, '');
         const cleanVersion2 = version2.replace(/^[\^~>=<]/, '');
-        
+
         const parts1 = cleanVersion1.split('.').map(Number);
         const parts2 = cleanVersion2.split('.').map(Number);
-        
+
         for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
             const part1 = parts1[i] || 0;
             const part2 = parts2[i] || 0;
-            
+
             if (part1 < part2) return -1;
             if (part1 > part2) return 1;
         }
-        
+
         return 0;
     }
 
@@ -125,7 +125,7 @@ class DependencyManager {
 
         try {
             const currentVersions = await this.getCurrentVersions();
-            
+
             // Check for major version changes in Babylon.js packages
             const babylonPackages = [
                 '@babylonjs/core',
@@ -138,19 +138,19 @@ class DependencyManager {
             for (const pkg of babylonPackages) {
                 const currentVersion = currentVersions.dependencies[pkg];
                 const newVersion = newVersions.dependencies?.[pkg];
-                
+
                 if (currentVersion && newVersion) {
                     const comparison = this.compareVersions(currentVersion, newVersion);
-                    
+
                     if (comparison < 0) {
                         // Check for major version changes
                         const currentMajor = parseInt(currentVersion.replace(/^[\^~>=<]/, '').split('.')[0]);
                         const newMajor = parseInt(newVersion.replace(/^[\^~>=<]/, '').split('.')[0]);
-                        
+
                         if (newMajor > currentMajor) {
                             results.warnings.push(
-                                `Major version upgrade for ${pkg}: ${currentVersion} → ${newVersion}. ` +
-                                `This may introduce breaking changes.`
+                                `Major version upgrade for ${pkg}: ${currentVersion} → ${newVersion}. `
+                                + `This may introduce breaking changes.`
                             );
                         }
                     }
@@ -161,8 +161,8 @@ class DependencyManager {
             if (newVersions.dependencies?.['@babylonjs/havok']) {
                 const havokVersion = newVersions.dependencies['@babylonjs/havok'];
                 results.warnings.push(
-                    `Havok physics version: ${havokVersion}. ` +
-                    `Ensure compatibility with updated Babylon.js core.`
+                    `Havok physics version: ${havokVersion}. `
+                    + `Ensure compatibility with updated Babylon.js core.`
                 );
             }
 
@@ -184,7 +184,7 @@ class DependencyManager {
         try {
             const fs = await import('fs').then(m => m.promises);
             const path = await import('path');
-            
+
             // Find backup to restore
             let backupPath;
             if (backupTimestamp) {
@@ -201,11 +201,11 @@ class DependencyManager {
 
             // Verify backup exists
             await fs.access(backupPath);
-            
+
             // Restore package.json
             try {
                 const packageJsonBackup = await fs.readFile(
-                    path.join(backupPath, 'package.json'), 
+                    path.join(backupPath, 'package.json'),
                     'utf8'
                 );
                 await fs.writeFile('package.json', packageJsonBackup);
@@ -217,7 +217,7 @@ class DependencyManager {
             // Restore pnpm-lock.yaml
             try {
                 const lockFileBackup = await fs.readFile(
-                    path.join(backupPath, 'pnpm-lock.yaml'), 
+                    path.join(backupPath, 'pnpm-lock.yaml'),
                     'utf8'
                 );
                 await fs.writeFile('pnpm-lock.yaml', lockFileBackup);
@@ -228,7 +228,7 @@ class DependencyManager {
 
             console.log(`✓ Rollback completed from backup: ${backupPath}`);
             console.log('⚠ Run "pnpm install" to restore node_modules');
-            
+
             return true;
         } catch (error) {
             console.error('✗ Rollback failed:', error);
@@ -244,10 +244,10 @@ class DependencyManager {
         try {
             const fs = await import('fs').then(m => m.promises);
             const path = await import('path');
-            
+
             const backups = await fs.readdir(this.backupDir);
             const backupInfo = [];
-            
+
             for (const backup of backups) {
                 try {
                     const metadataPath = path.join(this.backupDir, backup, 'backup-metadata.json');
@@ -266,7 +266,7 @@ class DependencyManager {
                     });
                 }
             }
-            
+
             return backupInfo.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
         } catch (error) {
             console.error('✗ Failed to list backups:', error);
@@ -283,7 +283,7 @@ class DependencyManager {
         try {
             const fs = await import('fs').then(m => m.promises);
             const packageJson = JSON.parse(await fs.readFile('package.json', 'utf8'));
-            
+
             // Update dependencies
             if (newVersions.dependencies) {
                 packageJson.dependencies = {
@@ -291,7 +291,7 @@ class DependencyManager {
                     ...newVersions.dependencies
                 };
             }
-            
+
             // Update devDependencies
             if (newVersions.devDependencies) {
                 packageJson.devDependencies = {
@@ -299,10 +299,10 @@ class DependencyManager {
                     ...newVersions.devDependencies
                 };
             }
-            
+
             await fs.writeFile('package.json', JSON.stringify(packageJson, null, 2));
             console.log('✓ Updated package.json');
-            
+
             return true;
         } catch (error) {
             console.error('✗ Failed to update package.json:', error);

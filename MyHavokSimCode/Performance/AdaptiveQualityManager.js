@@ -1,6 +1,6 @@
 /**
  * AdaptiveQualityManager - Manages dynamic quality adjustments based on performance metrics
- * 
+ *
  * This class provides:
  * - Quality preset system (low, medium, high, ultra)
  * - Dynamic quality adjustment based on performance metrics
@@ -17,20 +17,20 @@ export class AdaptiveQualityManager {
         this.hardwareDetector = hardwareDetector || new HardwareDetector();
         this.qualitySettings = qualitySettings || new QualitySettings();
         this.transitionSystem = new QualityTransitionSystem(scene);
-        
+
         // Quality state
         this.currentQualityLevel = 75; // 0-100 scale
         this.currentPreset = 'medium';
         this.targetQualityLevel = 75;
         this.isTransitioning = false;
-        
+
         // Dynamic adjustment settings
         this.dynamicAdjustmentEnabled = true;
         this.lastAdjustmentTime = 0;
         this.adjustmentCooldown = 2000; // 2 seconds between adjustments
         this.adjustmentHistory = [];
         this.maxHistorySize = 10;
-        
+
         // Performance targets for dynamic adjustment
         this.performanceTargets = {
             minFPS: 30,
@@ -39,24 +39,24 @@ export class AdaptiveQualityManager {
             memoryThreshold: 80, // Percentage
             stabilityWindow: 5 // Number of samples to consider for stability
         };
-        
+
         // Quality presets definition
         this.qualityPresets = this.initializeQualityPresets();
-        
+
         // Transition settings (legacy - now handled by QualityTransitionSystem)
         this.transitionSettings = {
             duration: 1000,
             easing: 'easeInOutQuad',
             preset: 'smooth'
         };
-        
+
         // Callbacks
         this.qualityChangeCallbacks = [];
         this.transitionCallbacks = [];
-        
+
         console.log('AdaptiveQualityManager initialized');
     }
-    
+
     /**
      * Initialize quality presets with comprehensive settings
      */
@@ -212,22 +212,22 @@ export class AdaptiveQualityManager {
             }
         };
     }
-    
+
     /**
      * Initialize the adaptive quality manager
      */
     async initialize() {
         try {
             console.log('Initializing AdaptiveQualityManager...');
-            
+
             // Load saved settings first
             await this.loadSavedSettings();
-            
+
             // Detect hardware capabilities if not already done
             if (!this.hardwareDetector.isDetectionComplete()) {
                 await this.hardwareDetector.detectCapabilities();
             }
-            
+
             // If no saved settings, set initial quality based on hardware
             if (!this.qualitySettings.getCurrentSettings()) {
                 this.setInitialQualityFromHardware();
@@ -236,41 +236,40 @@ export class AdaptiveQualityManager {
                 // Apply loaded settings
                 this.applyLoadedSettings();
             }
-            
+
             console.log(`AdaptiveQualityManager initialized with quality level: ${this.currentQualityLevel} (${this.currentPreset})`);
-            
         } catch (error) {
             console.error('Failed to initialize AdaptiveQualityManager:', error);
             // Fall back to medium quality
             this.setQualityLevel(50);
         }
     }
-    
+
     /**
      * Set initial quality level based on detected hardware capabilities
      */
     setInitialQualityFromHardware() {
         const capabilities = this.hardwareDetector.getCapabilities();
         const performanceTier = this.hardwareDetector.getPerformanceTier();
-        
+
         if (!capabilities) {
             console.warn('No hardware capabilities detected, using medium quality');
             this.setQualityLevel(50);
             return;
         }
-        
+
         // Map performance tier to quality level
         const tierMapping = {
             'low': 25,
             'medium': 50,
             'high': 75
         };
-        
+
         const recommendedLevel = tierMapping[performanceTier] || 50;
-        
+
         // Fine-tune based on specific capabilities
         let adjustedLevel = recommendedLevel;
-        
+
         // Adjust based on estimated FPS
         const estimatedFPS = capabilities.performance?.estimatedFPS || 30;
         if (estimatedFPS >= 60) {
@@ -278,7 +277,7 @@ export class AdaptiveQualityManager {
         } else if (estimatedFPS < 30) {
             adjustedLevel = Math.max(25, adjustedLevel - 15);
         }
-        
+
         // Adjust based on memory
         const availableMemory = capabilities.memory?.estimatedAvailableMemory || 0;
         const memoryGB = availableMemory / (1024 * 1024 * 1024);
@@ -287,26 +286,26 @@ export class AdaptiveQualityManager {
         } else if (memoryGB >= 4) {
             adjustedLevel = Math.min(100, adjustedLevel + 10);
         }
-        
+
         this.setQualityLevel(adjustedLevel);
-        
+
         console.log(`Hardware-based quality recommendation: ${adjustedLevel} (tier: ${performanceTier}, FPS: ${estimatedFPS}, Memory: ${memoryGB.toFixed(1)}GB)`);
     }
-    
+
     /**
      * Set quality level (0-100 scale)
      */
     setQualityLevel(level, smooth = false) {
         // Clamp level to valid range
         level = Math.max(0, Math.min(100, level));
-        
+
         if (level === this.currentQualityLevel) {
             return; // No change needed
         }
-        
+
         const oldLevel = this.currentQualityLevel;
         const oldPreset = this.currentPreset;
-        
+
         if (smooth && Math.abs(level - this.currentQualityLevel) > 5) {
             // Use smooth transition for significant changes
             this.startQualityTransitionNew(this.currentQualityLevel, level);
@@ -315,19 +314,19 @@ export class AdaptiveQualityManager {
             this.currentQualityLevel = level;
             this.targetQualityLevel = level;
             this.currentPreset = this.getPresetForLevel(level);
-            
+
             // Notify callbacks
             this.notifyQualityChange(oldLevel, level, oldPreset, this.currentPreset);
         }
-        
+
         console.log(`Quality level changed from ${oldLevel} to ${level} (${oldPreset} → ${this.currentPreset})`);
-        
+
         // Auto-save settings when quality changes
         this.saveCurrentSettings().catch(error => {
             console.warn('Failed to auto-save settings after quality change:', error);
         });
     }
-    
+
     /**
      * Apply a quality preset
      */
@@ -335,11 +334,11 @@ export class AdaptiveQualityManager {
         if (!this.qualityPresets[presetName]) {
             throw new Error(`Unknown quality preset: ${presetName}`);
         }
-        
+
         const preset = this.qualityPresets[presetName];
         this.setQualityLevel(preset.level, true);
     }
-    
+
     /**
      * Get the preset name for a given quality level
      */
@@ -349,14 +348,14 @@ export class AdaptiveQualityManager {
         else if (level <= 85) return 'high';
         else return 'ultra';
     }
-    
+
     /**
      * Get current quality settings based on current level
      */
     getCurrentQualitySettings() {
         const basePreset = this.getPresetForLevel(this.currentQualityLevel);
         const settings = JSON.parse(JSON.stringify(this.qualityPresets[basePreset]));
-        
+
         // Interpolate settings based on exact level within preset range
         const levelRanges = {
             'low': [0, 30],
@@ -364,16 +363,16 @@ export class AdaptiveQualityManager {
             'high': [61, 85],
             'ultra': [86, 100]
         };
-        
+
         const [minLevel, maxLevel] = levelRanges[basePreset];
         const normalizedLevel = (this.currentQualityLevel - minLevel) / (maxLevel - minLevel);
-        
+
         // Apply level-based scaling to certain settings
         this.scaleQualitySettings(settings, normalizedLevel);
-        
+
         return settings;
     }
-    
+
     /**
      * Scale quality settings based on normalized level within preset range
      */
@@ -384,27 +383,27 @@ export class AdaptiveQualityManager {
             settings.rendering.maxDrawCalls = Math.floor(settings.rendering.maxDrawCalls * (0.8 + 0.4 * normalizedLevel));
             settings.rendering.particleCount *= (0.8 + 0.4 * normalizedLevel);
         }
-        
+
         // Scale AI settings
         if (settings.ai) {
             settings.ai.maxActiveAgents = Math.floor(settings.ai.maxActiveAgents * (0.8 + 0.4 * normalizedLevel));
             settings.ai.updateFrequency *= (0.8 + 0.4 * normalizedLevel);
             settings.ai.visionRange *= (0.9 + 0.2 * normalizedLevel);
         }
-        
+
         // Scale physics settings
         if (settings.physics) {
             settings.physics.maxActiveBodies = Math.floor(settings.physics.maxActiveBodies * (0.8 + 0.4 * normalizedLevel));
             settings.physics.updateFrequency *= (0.8 + 0.4 * normalizedLevel);
         }
-        
+
         // Scale effects settings
         if (settings.effects) {
             settings.effects.cloudDetail *= (0.8 + 0.4 * normalizedLevel);
             settings.effects.waterQuality *= (0.8 + 0.4 * normalizedLevel);
         }
     }
-    
+
     /**
      * Adjust quality based on performance metrics
      */
@@ -412,37 +411,37 @@ export class AdaptiveQualityManager {
         if (!this.dynamicAdjustmentEnabled) {
             return;
         }
-        
+
         const currentTime = performance.now();
-        
+
         // Check cooldown
         if (currentTime - this.lastAdjustmentTime < this.adjustmentCooldown) {
             return;
         }
-        
+
         // Analyze performance metrics
         const performanceAnalysis = this.analyzePerformanceMetrics(metrics);
-        
+
         if (!performanceAnalysis.needsAdjustment) {
             return;
         }
-        
+
         // Calculate quality adjustment
         const adjustment = this.calculateQualityAdjustment(performanceAnalysis);
-        
+
         if (Math.abs(adjustment) < 2) {
             return; // Too small to matter
         }
-        
+
         // Apply adjustment
         const newLevel = Math.max(10, Math.min(100, this.currentQualityLevel + adjustment));
-        
+
         // Record adjustment in history
         this.adjustmentHistory.push({
             timestamp: currentTime,
             oldLevel: this.currentQualityLevel,
-            newLevel: newLevel,
-            adjustment: adjustment,
+            newLevel,
+            adjustment,
             reason: performanceAnalysis.reason,
             metrics: {
                 fps: metrics.frameRate?.current || 0,
@@ -450,19 +449,19 @@ export class AdaptiveQualityManager {
                 memory: metrics.memory?.percentage || 0
             }
         });
-        
+
         // Maintain history size
         if (this.adjustmentHistory.length > this.maxHistorySize) {
             this.adjustmentHistory.shift();
         }
-        
+
         // Apply the new quality level
         this.setQualityLevel(newLevel, true);
         this.lastAdjustmentTime = currentTime;
-        
+
         console.log(`Dynamic quality adjustment: ${this.currentQualityLevel} → ${newLevel} (${performanceAnalysis.reason})`);
     }
-    
+
     /**
      * Analyze performance metrics to determine if adjustment is needed
      */
@@ -473,11 +472,11 @@ export class AdaptiveQualityManager {
             severity: 0, // -1 to 1, negative means reduce quality, positive means increase
             confidence: 0 // 0 to 1
         };
-        
+
         // Check FPS performance
         const currentFPS = metrics.frameRate?.current || 0;
         const averageFPS = metrics.frameRate?.average || currentFPS;
-        
+
         if (averageFPS < this.performanceTargets.minFPS) {
             analysis.needsAdjustment = true;
             analysis.reason = 'low_fps';
@@ -494,7 +493,7 @@ export class AdaptiveQualityManager {
             analysis.severity = 0.3; // Increase quality moderately
             analysis.confidence = 0.4;
         }
-        
+
         // Check memory usage
         const memoryPercentage = metrics.memory?.percentage || 0;
         if (memoryPercentage > this.performanceTargets.memoryThreshold) {
@@ -503,7 +502,7 @@ export class AdaptiveQualityManager {
             analysis.severity = Math.min(analysis.severity, -0.6); // Reduce quality
             analysis.confidence = Math.max(analysis.confidence, 0.7);
         }
-        
+
         // Check frame time consistency
         const frameTime = metrics.frameRate?.frameTime || 0;
         if (frameTime > this.performanceTargets.maxFrameTime * 1.5) {
@@ -512,10 +511,10 @@ export class AdaptiveQualityManager {
             analysis.severity = Math.min(analysis.severity, -0.5);
             analysis.confidence = Math.max(analysis.confidence, 0.6);
         }
-        
+
         return analysis;
     }
-    
+
     /**
      * Calculate quality level adjustment based on performance analysis
      */
@@ -523,20 +522,20 @@ export class AdaptiveQualityManager {
         if (!analysis.needsAdjustment) {
             return 0;
         }
-        
+
         // Base adjustment based on severity and confidence
         let adjustment = analysis.severity * analysis.confidence * 20; // Scale to quality level range
-        
+
         // Apply dampening based on recent adjustments
         const recentAdjustments = this.adjustmentHistory.filter(
             adj => performance.now() - adj.timestamp < 10000 // Last 10 seconds
         );
-        
+
         if (recentAdjustments.length > 2) {
             // Reduce adjustment if we've been adjusting frequently
             adjustment *= 0.5;
         }
-        
+
         // Prevent oscillation by checking recent adjustment direction
         if (recentAdjustments.length > 0) {
             const lastAdjustment = recentAdjustments[recentAdjustments.length - 1];
@@ -545,10 +544,10 @@ export class AdaptiveQualityManager {
                 adjustment *= 0.7;
             }
         }
-        
+
         return Math.round(adjustment);
     }
-    
+
     /**
      * Enable or disable dynamic quality adjustment
      */
@@ -556,7 +555,7 @@ export class AdaptiveQualityManager {
         this.dynamicAdjustmentEnabled = enabled;
         console.log(`Dynamic quality adjustment ${enabled ? 'enabled' : 'disabled'}`);
     }
-    
+
     /**
      * Set performance targets for dynamic adjustment
      */
@@ -564,21 +563,21 @@ export class AdaptiveQualityManager {
         this.performanceTargets = { ...this.performanceTargets, ...targets };
         console.log('Performance targets updated:', this.performanceTargets);
     }
-    
+
     /**
      * Get current quality level
      */
     getCurrentQualityLevel() {
         return this.currentQualityLevel;
     }
-    
+
     /**
      * Get current preset name
      */
     getCurrentPreset() {
         return this.currentPreset;
     }
-    
+
     /**
      * Get available quality presets
      */
@@ -588,14 +587,14 @@ export class AdaptiveQualityManager {
             ...this.qualityPresets[key]
         }));
     }
-    
+
     /**
      * Get adjustment history
      */
     getAdjustmentHistory() {
         return [...this.adjustmentHistory];
     }
-    
+
     /**
      * Register quality change callback
      */
@@ -604,7 +603,7 @@ export class AdaptiveQualityManager {
             this.qualityChangeCallbacks.push(callback);
         }
     }
-    
+
     /**
      * Remove quality change callback
      */
@@ -614,7 +613,7 @@ export class AdaptiveQualityManager {
             this.qualityChangeCallbacks.splice(index, 1);
         }
     }
-    
+
     /**
      * Register transition callback
      */
@@ -623,7 +622,7 @@ export class AdaptiveQualityManager {
             this.transitionCallbacks.push(callback);
         }
     }
-    
+
     /**
      * Remove transition callback
      */
@@ -633,7 +632,7 @@ export class AdaptiveQualityManager {
             this.transitionCallbacks.splice(index, 1);
         }
     }
-    
+
     /**
      * Notify quality change callbacks
      */
@@ -646,7 +645,7 @@ export class AdaptiveQualityManager {
             settings: this.getCurrentQualitySettings(),
             timestamp: performance.now()
         };
-        
+
         this.qualityChangeCallbacks.forEach(callback => {
             try {
                 callback(changeData);
@@ -655,7 +654,7 @@ export class AdaptiveQualityManager {
             }
         });
     }
-    
+
     /**
      * Notify transition callbacks
      */
@@ -668,20 +667,20 @@ export class AdaptiveQualityManager {
             }
         });
     }
-    
+
     /**
      * Start a smooth quality transition using the new transition system
      */
     startQualityTransitionNew(fromLevel, toLevel) {
         // Cancel any existing quality transition
         this.transitionSystem.cancelTransition('qualityLevel');
-        
+
         this.targetQualityLevel = toLevel;
-        
+
         // Determine transition preset based on change magnitude
         let preset = 'smooth';
         const changeMagnitude = Math.abs(toLevel - fromLevel);
-        
+
         if (changeMagnitude > 30) {
             preset = 'dramatic';
         } else if (changeMagnitude > 15) {
@@ -689,22 +688,22 @@ export class AdaptiveQualityManager {
         } else {
             preset = 'fast';
         }
-        
+
         // Set up transition callbacks
         this.transitionSystem.onSystemTransition('qualityLevel', (event, transition) => {
             if (event === 'progress') {
                 // Update current quality level during transition
                 const oldLevel = this.currentQualityLevel;
                 const oldPreset = this.currentPreset;
-                
+
                 this.currentQualityLevel = Math.round(transition.currentValue);
                 this.currentPreset = this.getPresetForLevel(this.currentQualityLevel);
-                
+
                 // Notify if preset changed
                 if (this.currentPreset !== oldPreset) {
                     this.notifyQualityChange(oldLevel, this.currentQualityLevel, oldPreset, this.currentPreset);
                 }
-                
+
                 // Notify transition progress
                 this.notifyTransitionCallbacks('progress', {
                     progress: transition.progress,
@@ -712,23 +711,21 @@ export class AdaptiveQualityManager {
                     fromLevel: transition.fromValue,
                     toLevel: transition.toValue
                 });
-                
             } else if (event === 'complete') {
                 // Ensure final values are set
                 const oldLevel = this.currentQualityLevel;
                 const oldPreset = this.currentPreset;
-                
+
                 this.currentQualityLevel = toLevel;
                 this.currentPreset = this.getPresetForLevel(toLevel);
                 this.isTransitioning = false;
-                
+
                 // Final notification
                 this.notifyQualityChange(oldLevel, this.currentQualityLevel, oldPreset, this.currentPreset);
                 this.notifyTransitionCallbacks('complete', {
                     finalLevel: this.currentQualityLevel,
                     finalPreset: this.currentPreset
                 });
-                
             } else if (event === 'cancel') {
                 this.isTransitioning = false;
                 this.notifyTransitionCallbacks('cancel', {
@@ -737,18 +734,18 @@ export class AdaptiveQualityManager {
                 });
             }
         });
-        
+
         // Start the transition
         this.isTransitioning = true;
         this.transitionSystem.startTransition('qualityLevel', fromLevel, toLevel, {
-            preset: preset,
+            preset,
             duration: this.transitionSettings.duration,
             easing: this.transitionSettings.easing
         });
-        
+
         console.log(`Starting quality transition: ${fromLevel} → ${toLevel} (preset: ${preset})`);
     }
-    
+
     /**
      * Update quality transitions (delegates to QualityTransitionSystem)
      */
@@ -757,7 +754,7 @@ export class AdaptiveQualityManager {
         // Keep for backward compatibility but delegate to the new system
         this.transitionSystem.updateAllTransitions();
     }
-    
+
     /**
      * Complete quality transition (delegates to QualityTransitionSystem)
      */
@@ -773,7 +770,7 @@ export class AdaptiveQualityManager {
             this.isTransitioning = false;
         }
     }
-    
+
     /**
      * Cancel current quality transition (delegates to QualityTransitionSystem)
      */
@@ -783,7 +780,7 @@ export class AdaptiveQualityManager {
             this.isTransitioning = false;
         }
     }
-    
+
     /**
      * Apply easing function to transition progress
      */
@@ -791,46 +788,46 @@ export class AdaptiveQualityManager {
         switch (easingType) {
             case 'linear':
                 return progress;
-                
+
             case 'easeInQuad':
                 return progress * progress;
-                
+
             case 'easeOutQuad':
                 return progress * (2 - progress);
-                
+
             case 'easeInOutQuad':
-                return progress < 0.5 
-                    ? 2 * progress * progress 
+                return progress < 0.5
+                    ? 2 * progress * progress
                     : -1 + (4 - 2 * progress) * progress;
-                    
+
             case 'easeInCubic':
                 return progress * progress * progress;
-                
+
             case 'easeOutCubic':
                 return (--progress) * progress * progress + 1;
-                
+
             case 'easeInOutCubic':
-                return progress < 0.5 
-                    ? 4 * progress * progress * progress 
+                return progress < 0.5
+                    ? 4 * progress * progress * progress
                     : (progress - 1) * (2 * progress - 2) * (2 * progress - 2) + 1;
-                    
+
             case 'easeInSine':
                 return 1 - Math.cos(progress * Math.PI / 2);
-                
+
             case 'easeOutSine':
                 return Math.sin(progress * Math.PI / 2);
-                
+
             case 'easeInOutSine':
                 return -(Math.cos(Math.PI * progress) - 1) / 2;
-                
+
             default:
                 // Default to easeInOutQuad
-                return progress < 0.5 
-                    ? 2 * progress * progress 
+                return progress < 0.5
+                    ? 2 * progress * progress
                     : -1 + (4 - 2 * progress) * progress;
         }
     }
-    
+
     /**
      * Set transition settings
      */
@@ -838,7 +835,7 @@ export class AdaptiveQualityManager {
         this.transitionSettings = { ...this.transitionSettings, ...settings };
         console.log('Transition settings updated:', this.transitionSettings);
     }
-    
+
     /**
      * Check if currently transitioning
      */
@@ -846,7 +843,7 @@ export class AdaptiveQualityManager {
         const status = this.transitionSystem.getTransitionStatus('qualityLevel');
         return status !== null && !status.completed && !status.cancelled;
     }
-    
+
     /**
      * Get transition progress (0-1)
      */
@@ -854,28 +851,28 @@ export class AdaptiveQualityManager {
         const status = this.transitionSystem.getTransitionStatus('qualityLevel');
         return status ? status.progress : 1;
     }
-    
+
     /**
      * Get detailed transition status
      */
     getTransitionStatus() {
         return this.transitionSystem.getTransitionStatus('qualityLevel');
     }
-    
+
     /**
      * Configure transition visual feedback
      */
     configureTransitionFeedback(settings) {
         this.transitionSystem.configureVisualFeedback(settings);
     }
-    
+
     /**
      * Add custom transition preset
      */
     addTransitionPreset(name, preset) {
         this.transitionSystem.addTransitionPreset(name, preset);
     }
-    
+
     /**
      * Create a custom quality preset
      */
@@ -883,7 +880,7 @@ export class AdaptiveQualityManager {
         if (this.qualityPresets[name]) {
             console.warn(`Preset '${name}' already exists, overwriting`);
         }
-        
+
         // Validate settings structure
         const requiredSections = ['rendering', 'ai', 'physics', 'effects'];
         for (const section of requiredSections) {
@@ -891,21 +888,21 @@ export class AdaptiveQualityManager {
                 throw new Error(`Custom preset must include '${section}' section`);
             }
         }
-        
+
         // Ensure level is set
         if (typeof settings.level !== 'number' || settings.level < 0 || settings.level > 100) {
             throw new Error('Custom preset must have a valid level (0-100)');
         }
-        
+
         this.qualityPresets[name] = {
             name: settings.name || name,
             description: settings.description || `Custom preset: ${name}`,
             ...settings
         };
-        
+
         console.log(`Custom preset '${name}' created with level ${settings.level}`);
     }
-    
+
     /**
      * Remove a custom preset
      */
@@ -915,15 +912,15 @@ export class AdaptiveQualityManager {
         if (builtInPresets.includes(name)) {
             throw new Error(`Cannot remove built-in preset: ${name}`);
         }
-        
+
         if (!this.qualityPresets[name]) {
             throw new Error(`Preset '${name}' does not exist`);
         }
-        
+
         delete this.qualityPresets[name];
         console.log(`Custom preset '${name}' removed`);
     }
-    
+
     /**
      * Get quality manager status
      */
@@ -942,7 +939,7 @@ export class AdaptiveQualityManager {
             performanceTier: this.hardwareDetector.getPerformanceTier()
         };
     }
-    
+
     /**
      * Reset to default state
      */
@@ -953,10 +950,10 @@ export class AdaptiveQualityManager {
         this.targetQualityLevel = 75;
         this.adjustmentHistory = [];
         this.lastAdjustmentTime = 0;
-        
+
         console.log('AdaptiveQualityManager reset to default state');
     }
-    
+
     /**
      * Load saved settings from storage
      */
@@ -972,7 +969,7 @@ export class AdaptiveQualityManager {
         }
         return false;
     }
-    
+
     /**
      * Apply loaded settings to current state
      */
@@ -981,35 +978,35 @@ export class AdaptiveQualityManager {
         if (!settings || !settings.general) {
             return;
         }
-        
+
         // Apply general settings
         this.currentQualityLevel = settings.general.qualityLevel || 75;
         this.currentPreset = settings.general.preset || 'medium';
         this.targetQualityLevel = this.currentQualityLevel;
         this.dynamicAdjustmentEnabled = settings.general.adaptiveQualityEnabled !== false;
-        
+
         // Apply performance targets
         if (settings.general.targetFPS) {
             this.performanceTargets.targetFPS = settings.general.targetFPS;
             this.performanceTargets.maxFrameTime = 1000 / settings.general.targetFPS;
         }
-        
+
         console.log(`Applied loaded settings: level=${this.currentQualityLevel}, preset=${this.currentPreset}`);
     }
-    
+
     /**
      * Save current settings to storage
      */
     async saveCurrentSettings() {
         try {
             const currentSettings = this.qualitySettings.getCurrentSettings() || this.qualitySettings.defaultSettings;
-            
+
             // Update general settings with current state
             currentSettings.general.qualityLevel = this.currentQualityLevel;
             currentSettings.general.preset = this.currentPreset;
             currentSettings.general.adaptiveQualityEnabled = this.dynamicAdjustmentEnabled;
             currentSettings.general.targetFPS = this.performanceTargets.targetFPS;
-            
+
             // Update quality-specific settings based on current preset
             const qualitySettings = this.getCurrentQualitySettings();
             if (qualitySettings.rendering) {
@@ -1024,17 +1021,16 @@ export class AdaptiveQualityManager {
             if (qualitySettings.effects) {
                 currentSettings.effects = { ...currentSettings.effects, ...qualitySettings.effects };
             }
-            
+
             await this.qualitySettings.saveSettings(currentSettings);
             console.log('Current settings saved successfully');
             return true;
-            
         } catch (error) {
             console.error('Failed to save current settings:', error);
             return false;
         }
     }
-    
+
     /**
      * Get comprehensive quality settings for all systems
      */
@@ -1043,10 +1039,10 @@ export class AdaptiveQualityManager {
         if (!settings) {
             return this.getCurrentQualitySettings(); // Fallback to preset-based settings
         }
-        
+
         // Merge current preset settings with saved comprehensive settings
         const presetSettings = this.getCurrentQualitySettings();
-        
+
         return {
             level: this.currentQualityLevel,
             preset: this.currentPreset,
@@ -1059,14 +1055,14 @@ export class AdaptiveQualityManager {
             debug: settings.debug || {}
         };
     }
-    
+
     /**
      * Update and save a specific setting
      */
     async updateSetting(path, value) {
         try {
             this.qualitySettings.updateSetting(path, value);
-            
+
             // If it's a general setting that affects our state, update accordingly
             if (path.startsWith('general.')) {
                 const settingName = path.split('.')[1];
@@ -1085,24 +1081,23 @@ export class AdaptiveQualityManager {
                         break;
                 }
             }
-            
+
             await this.qualitySettings.saveSettings();
             console.log(`Setting updated and saved: ${path} = ${value}`);
             return true;
-            
         } catch (error) {
             console.error(`Failed to update setting ${path}:`, error);
             return false;
         }
     }
-    
+
     /**
      * Export current settings
      */
     exportSettings() {
         return this.qualitySettings.exportSettings();
     }
-    
+
     /**
      * Import settings from JSON
      */
@@ -1119,24 +1114,24 @@ export class AdaptiveQualityManager {
             return false;
         }
     }
-    
+
     /**
      * Reset settings to defaults
      */
     async resetToDefaults() {
         this.qualitySettings.resetToDefaults();
         await this.qualitySettings.saveSettings();
-        
+
         // Reset our state
         this.currentQualityLevel = 75;
         this.currentPreset = 'medium';
         this.targetQualityLevel = 75;
         this.dynamicAdjustmentEnabled = true;
         this.adjustmentHistory = [];
-        
+
         console.log('Settings reset to defaults');
     }
-    
+
     /**
      * Create a custom preset from current settings
      */
@@ -1146,36 +1141,36 @@ export class AdaptiveQualityManager {
         console.log(`Custom preset '${name}' created`);
         return preset;
     }
-    
+
     /**
      * Dispose of the adaptive quality manager
      */
     dispose() {
         console.log('Disposing AdaptiveQualityManager...');
-        
+
         // Save current settings before disposing
         this.saveCurrentSettings().catch(error => {
             console.warn('Failed to save settings during disposal:', error);
         });
-        
+
         // Cancel any ongoing transition and dispose transition system
         this.cancelQualityTransition();
         if (this.transitionSystem) {
             this.transitionSystem.dispose();
         }
-        
+
         // Clear callbacks
         this.qualityChangeCallbacks = [];
         this.transitionCallbacks = [];
-        
+
         // Clear history
         this.adjustmentHistory = [];
-        
+
         // Reset hardware detector if we own it
         if (this.hardwareDetector) {
             this.hardwareDetector.reset();
         }
-        
+
         console.log('AdaptiveQualityManager disposed');
     }
 }

@@ -20,22 +20,22 @@ class SimpleTestFramework {
         const previousDescribe = this.currentDescribe;
         this.currentDescribe = name;
         this.describes.push(name);
-        
+
         console.log(`\n📋 ${name}`);
-        
+
         try {
             fn();
         } catch (error) {
             console.error(`❌ Error in describe block "${name}":`, error.message);
             this.results.errors.push({ describe: name, error: error.message });
         }
-        
+
         this.currentDescribe = previousDescribe;
     }
 
     test(name, fn) {
         const fullName = this.currentDescribe ? `${this.currentDescribe} > ${name}` : name;
-        
+
         try {
             fn();
             console.log(`  ✅ ${name}`);
@@ -68,12 +68,12 @@ class SimpleTestFramework {
 
     expect(actual) {
         return {
-            toBe: (expected) => {
+            toBe: expected => {
                 if (actual !== expected) {
                     throw new Error(`Expected ${actual} to be ${expected}`);
                 }
             },
-            toEqual: (expected) => {
+            toEqual: expected => {
                 if (JSON.stringify(actual) !== JSON.stringify(expected)) {
                     throw new Error(`Expected ${JSON.stringify(actual)} to equal ${JSON.stringify(expected)}`);
                 }
@@ -103,18 +103,18 @@ class SimpleTestFramework {
                     throw new Error('Expected function to have been called');
                 }
             },
-            toBeLessThan: (expected) => {
+            toBeLessThan: expected => {
                 if (actual >= expected) {
                     throw new Error(`Expected ${actual} to be less than ${expected}`);
                 }
             },
-            toBeLessThanOrEqual: (expected) => {
+            toBeLessThanOrEqual: expected => {
                 if (actual > expected) {
                     throw new Error(`Expected ${actual} to be less than or equal to ${expected}`);
                 }
             },
             not: {
-                toBe: (expected) => {
+                toBe: expected => {
                     if (actual === expected) {
                         throw new Error(`Expected ${actual} not to be ${expected}`);
                     }
@@ -139,7 +139,7 @@ class SimpleTestFramework {
     jest = {
         spyOn: (obj, method) => {
             const original = obj[method];
-            const spy = function(...args) {
+            const spy = function (...args) {
                 spy.called = true;
                 spy.callCount = (spy.callCount || 0) + 1;
                 spy.lastArgs = args;
@@ -153,20 +153,20 @@ class SimpleTestFramework {
     };
 
     printResults() {
-        console.log('\n' + '='.repeat(50));
+        console.log(`\n${'='.repeat(50)}`);
         console.log('📊 Test Results');
         console.log('='.repeat(50));
         console.log(`✅ Passed: ${this.results.passed}`);
         console.log(`❌ Failed: ${this.results.failed}`);
         console.log(`📊 Total: ${this.results.passed + this.results.failed}`);
-        
+
         if (this.results.errors.length > 0) {
             console.log('\n🔍 Error Details:');
             this.results.errors.forEach((error, index) => {
                 console.log(`${index + 1}. ${error.test || error.describe}: ${error.error}`);
             });
         }
-        
+
         const success = this.results.failed === 0;
         console.log(`\n${success ? '🎉 All tests passed!' : '💥 Some tests failed!'}`);
         return success;
@@ -212,20 +212,18 @@ class MockDOM {
                 this.eventListeners.set(key, handler);
             },
             removeEventListener: () => {},
-            appendChild: (child) => {
+            appendChild: child => {
                 element.children.push(child);
                 child.parentNode = element;
             },
-            removeChild: (child) => {
+            removeChild: child => {
                 const index = element.children.indexOf(child);
                 if (index > -1) {
                     element.children.splice(index, 1);
                     child.parentNode = null;
                 }
             },
-            querySelector: (selector) => {
-                return element.children[0] || null;
-            },
+            querySelector: selector => element.children[0] || null,
             querySelectorAll: () => [],
             getBoundingClientRect: () => ({
                 width: 300,
@@ -304,7 +302,7 @@ class PerformanceDashboard {
         this.isVisible = false;
         this.updateInterval = null;
         this.updateFrequency = 30;
-        
+
         this.chartData = {
             frameRate: [],
             memory: [],
@@ -312,34 +310,34 @@ class PerformanceDashboard {
             agents: []
         };
         this.maxDataPoints = 100;
-        
+
         this.widgetConfigs = {
             frameRate: {
                 title: 'Frame Rate',
                 unit: 'FPS',
-                format: (value) => Math.round(value),
+                format: value => Math.round(value),
                 thresholds: { critical: 15, warning: 30, good: 45 }
             },
             memory: {
                 title: 'Memory Usage',
                 unit: '%',
-                format: (value) => Math.round(value),
+                format: value => Math.round(value),
                 thresholds: { critical: 90, warning: 75, good: 60 }
             },
             cpu: {
                 title: 'CPU Usage',
                 unit: '%',
-                format: (value) => Math.round(value),
+                format: value => Math.round(value),
                 thresholds: { critical: 90, warning: 75, good: 60 }
             },
             agents: {
                 title: 'Agent Count',
                 unit: '',
-                format: (value) => Math.round(value),
+                format: value => Math.round(value),
                 thresholds: { critical: 1000, warning: 500, good: 100 }
             }
         };
-        
+
         this.initialize();
     }
 
@@ -348,12 +346,12 @@ class PerformanceDashboard {
             console.error(`Dashboard container '${this.containerId}' not found`);
             return;
         }
-        
+
         this.createWidgets();
         this.createCharts();
-        
+
         if (this.performanceMonitor) {
-            this.performanceMonitor.onMetricsUpdate((metrics) => {
+            this.performanceMonitor.onMetricsUpdate(metrics => {
                 this.updateMetrics(metrics);
             });
         }
@@ -396,14 +394,14 @@ class PerformanceDashboard {
         Object.keys(this.chartData).forEach(key => {
             this.chartData[key] = [];
         });
-        
+
         this.charts.forEach(chart => chart.reset());
         this.widgets.forEach(widget => widget.reset());
     }
 
     startUpdating() {
         if (this.updateInterval) return;
-        
+
         const intervalMs = 1000 / this.updateFrequency;
         this.updateInterval = setInterval(() => {
             if (this.performanceMonitor && this.isVisible) {
@@ -426,31 +424,31 @@ class PerformanceDashboard {
         if (!this.isVisible || !metrics) {
             return;
         }
-        
+
         const values = {
             frameRate: metrics.frameRate?.current || 0,
             memory: metrics.memory?.used || 0,
             cpu: metrics.cpu?.utilization || 0,
             agents: metrics.agents?.count || 0
         };
-        
+
         Object.keys(values).forEach(metricType => {
             const widget = this.widgets.get(metricType);
             if (widget) {
                 widget.updateValue(values[metricType]);
             }
         });
-        
+
         const timestamp = metrics.timestamp || performance.now();
         Object.keys(values).forEach(metricType => {
             const data = this.chartData[metricType];
             data.push({ timestamp, value: values[metricType] });
-            
+
             if (data.length > this.maxDataPoints) {
                 data.shift();
             }
         });
-        
+
         Object.keys(values).forEach(metricType => {
             const chart = this.charts.get(metricType);
             if (chart) {
@@ -461,7 +459,7 @@ class PerformanceDashboard {
 
     setUpdateFrequency(frequency) {
         this.updateFrequency = Math.max(1, Math.min(60, frequency));
-        
+
         if (this.updateInterval) {
             this.stopUpdating();
             this.startUpdating();
@@ -490,8 +488,8 @@ class MetricWidget {
     }
 
     getStatus(value) {
-        const thresholds = this.config.thresholds;
-        
+        const { thresholds } = this.config;
+
         if (this.metricType === 'frameRate') {
             if (value < thresholds.critical) return 'critical';
             if (value < thresholds.warning) return 'warning';
@@ -540,8 +538,8 @@ class PerformanceChart {
 // Setup mock DOM
 const mockDOM = new MockDOM();
 global.document = {
-    getElementById: (id) => mockDOM.getElementById(id),
-    createElement: (tag) => mockDOM.createElement(tag),
+    getElementById: id => mockDOM.getElementById(id),
+    createElement: tag => mockDOM.createElement(tag),
     head: { appendChild: () => {} },
     addEventListener: () => {},
     removeEventListener: () => {}
@@ -686,7 +684,7 @@ describe('PerformanceDashboard', () => {
     describe('Reset Functionality', () => {
         test('should reset all data', () => {
             dashboard.show();
-            
+
             dashboard.updateMetrics({
                 timestamp: performance.now(),
                 frameRate: { current: 45 },

@@ -29,7 +29,7 @@ export class PrecisionTimer {
         if (!this.isRunning) {
             throw new Error('Timer is not running');
         }
-        
+
         this.endTime = performance.now();
         this.isRunning = false;
         return this.getElapsed();
@@ -65,12 +65,12 @@ export class PrecisionTimer {
  * Function timing decorator
  */
 export function timed(name, profiler = null) {
-    return function(target, propertyKey, descriptor) {
+    return function (target, propertyKey, descriptor) {
         const originalMethod = descriptor.value;
-        
-        descriptor.value = function(...args) {
+
+        descriptor.value = function (...args) {
             const timerName = name || `${target.constructor.name}.${propertyKey}`;
-            
+
             if (profiler && profiler.timeFunction) {
                 // Use provided profiler
                 return profiler.timeFunction(timerName, originalMethod.bind(this), ...args);
@@ -79,7 +79,7 @@ export function timed(name, profiler = null) {
                 const timer = new PrecisionTimer().start();
                 try {
                     const result = originalMethod.apply(this, args);
-                    
+
                     // Handle async functions
                     if (result && typeof result.then === 'function') {
                         return result.finally(() => {
@@ -87,7 +87,7 @@ export function timed(name, profiler = null) {
                             console.log(`${timerName}: ${elapsed.toFixed(2)}ms`);
                         });
                     }
-                    
+
                     const elapsed = timer.stop();
                     console.log(`${timerName}: ${elapsed.toFixed(2)}ms`);
                     return result;
@@ -97,7 +97,7 @@ export function timed(name, profiler = null) {
                 }
             }
         };
-        
+
         return descriptor;
     };
 }
@@ -106,12 +106,12 @@ export function timed(name, profiler = null) {
  * Async function timing decorator
  */
 export function timedAsync(name, profiler = null) {
-    return function(target, propertyKey, descriptor) {
+    return function (target, propertyKey, descriptor) {
         const originalMethod = descriptor.value;
-        
-        descriptor.value = async function(...args) {
+
+        descriptor.value = async function (...args) {
             const timerName = name || `${target.constructor.name}.${propertyKey}`;
-            
+
             if (profiler && profiler.timeAsyncFunction) {
                 return await profiler.timeAsyncFunction(timerName, originalMethod.bind(this), ...args);
             } else {
@@ -127,7 +127,7 @@ export function timedAsync(name, profiler = null) {
                 }
             }
         };
-        
+
         return descriptor;
     };
 }
@@ -149,7 +149,7 @@ export class BatchTimer {
             console.warn(`Timer "${name}" is already running`);
             return;
         }
-        
+
         this.activeTimers.set(name, performance.now());
     }
 
@@ -161,18 +161,18 @@ export class BatchTimer {
             console.warn(`Timer "${name}" was not started`);
             return 0;
         }
-        
+
         const startTime = this.activeTimers.get(name);
         const elapsed = performance.now() - startTime;
-        
+
         this.activeTimers.delete(name);
-        
+
         // Store timing
         if (!this.timings.has(name)) {
             this.timings.set(name, []);
         }
         this.timings.get(name).push(elapsed);
-        
+
         return elapsed;
     }
 
@@ -184,10 +184,10 @@ export class BatchTimer {
         if (!times || times.length === 0) {
             return null;
         }
-        
+
         const sorted = [...times].sort((a, b) => a - b);
         const sum = times.reduce((a, b) => a + b, 0);
-        
+
         return {
             name,
             count: times.length,
@@ -224,7 +224,7 @@ export class BatchTimer {
      */
     generateReport() {
         const stats = this.getAllStats();
-        
+
         return {
             totalOperations: stats.length,
             totalMeasurements: stats.reduce((sum, stat) => sum + stat.count, 0),
@@ -257,31 +257,30 @@ export class PerformanceBenchmark {
         this.iterations = Math.min(iterations, this.maxIterations);
         this.times = [];
         this.totalTime = 0;
-        
+
         console.log(`Running benchmark "${this.name}" with ${this.iterations} iterations...`);
-        
+
         for (let i = 0; i < this.iterations; i++) {
             const timer = new PrecisionTimer().start();
-            
+
             try {
                 const result = fn();
-                
+
                 // Handle async functions
                 if (result && typeof result.then === 'function') {
                     await result;
                 }
-                
+
                 const elapsed = timer.stop();
                 this.times.push(elapsed);
                 this.totalTime += elapsed;
-                
             } catch (error) {
                 timer.stop();
                 console.error(`Benchmark iteration ${i} failed:`, error);
                 throw error;
             }
         }
-        
+
         return this.getResults();
     }
 
@@ -292,10 +291,10 @@ export class PerformanceBenchmark {
         if (this.times.length === 0) {
             return null;
         }
-        
+
         const sorted = [...this.times].sort((a, b) => a - b);
         const average = this.totalTime / this.times.length;
-        
+
         return {
             name: this.name,
             iterations: this.iterations,
@@ -351,18 +350,18 @@ export class FrameRateMeasurer {
         if (!this.isRunning) {
             return;
         }
-        
+
         const currentTime = performance.now();
         const frameTime = currentTime - this.lastFrameTime;
-        
+
         this.frameCount++;
         this.frameTimes.push(frameTime);
-        
+
         // Maintain sample size
         if (this.frameTimes.length > this.maxSamples) {
             this.frameTimes.shift();
         }
-        
+
         this.lastFrameTime = currentTime;
     }
 
@@ -379,10 +378,10 @@ export class FrameRateMeasurer {
                 frameCount: this.frameCount
             };
         }
-        
+
         const averageFrameTime = this.frameTimes.reduce((a, b) => a + b, 0) / this.frameTimes.length;
         const fps = 1000 / averageFrameTime;
-        
+
         return {
             fps: Math.round(fps * 100) / 100,
             averageFrameTime: Math.round(averageFrameTime * 100) / 100,
@@ -417,9 +416,9 @@ export class MemoryTracker {
      */
     snapshot(label = null) {
         const timestamp = performance.now();
-        
+
         if (this.hasMemoryAPI) {
-            const memory = performance.memory;
+            const { memory } = performance;
             const snapshot = {
                 timestamp,
                 label,
@@ -427,14 +426,14 @@ export class MemoryTracker {
                 total: memory.totalJSHeapSize,
                 limit: memory.jsHeapSizeLimit
             };
-            
+
             this.snapshots.push(snapshot);
-            
+
             // Maintain snapshot limit
             if (this.snapshots.length > this.maxSnapshots) {
                 this.snapshots.shift();
             }
-            
+
             return snapshot;
         } else {
             return {
@@ -455,7 +454,7 @@ export class MemoryTracker {
         if (!snapshot1 || !snapshot2) {
             return null;
         }
-        
+
         return {
             timeDiff: snapshot2.timestamp - snapshot1.timestamp,
             usedDiff: snapshot2.used - snapshot1.used,
@@ -470,12 +469,12 @@ export class MemoryTracker {
      */
     formatBytes(bytes) {
         if (bytes === 0) return '0 B';
-        
+
         const k = 1024;
         const sizes = ['B', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(Math.abs(bytes)) / Math.log(k));
-        
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+
+        return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
     }
 
     /**
@@ -504,7 +503,7 @@ export const TimingUtils = {
         const timer = new PrecisionTimer().start();
         const result = fn(...args);
         const elapsed = timer.stop();
-        
+
         return {
             result,
             elapsed,
@@ -519,7 +518,7 @@ export const TimingUtils = {
         const timer = new PrecisionTimer().start();
         const result = await fn(...args);
         const elapsed = timer.stop();
-        
+
         return {
             result,
             elapsed,
@@ -532,7 +531,7 @@ export const TimingUtils = {
      */
     throttle(fn, delay) {
         let lastCall = 0;
-        return function(...args) {
+        return function (...args) {
             const now = performance.now();
             if (now - lastCall >= delay) {
                 lastCall = now;
@@ -546,7 +545,7 @@ export const TimingUtils = {
      */
     debounce(fn, delay) {
         let timeoutId;
-        return function(...args) {
+        return function (...args) {
             clearTimeout(timeoutId);
             timeoutId = setTimeout(() => fn.apply(this, args), delay);
         };

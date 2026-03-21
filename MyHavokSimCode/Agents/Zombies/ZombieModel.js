@@ -10,11 +10,11 @@ export class ZombieModel {
 
     create(position) {
         // Create zombie container
-        this.mesh = new BABYLON.TransformNode("zombie", this.scene);
+        this.mesh = new BABYLON.TransformNode('zombie', this.scene);
         this.mesh.position = position;
 
         // Create torso
-        const torso = BABYLON.MeshBuilder.CreateCapsule("zombieTorso", {
+        const torso = BABYLON.MeshBuilder.CreateCapsule('zombieTorso', {
             radius: 0.5,
             height: 1.5,
             tessellation: 16
@@ -23,7 +23,7 @@ export class ZombieModel {
         torso.position.y = 1.5;
 
         // Create head
-        const head = BABYLON.MeshBuilder.CreateSphere("zombieHead", {
+        const head = BABYLON.MeshBuilder.CreateSphere('zombieHead', {
             diameter: 0.8,
             segments: 16
         }, this.scene);
@@ -32,7 +32,7 @@ export class ZombieModel {
         head.position.z = 0.1;
 
         // Create neck
-        const neck = BABYLON.MeshBuilder.CreateCylinder("zombieNeck", {
+        const neck = BABYLON.MeshBuilder.CreateCylinder('zombieNeck', {
             height: 0.3,
             diameter: 0.3,
             tessellation: 16
@@ -41,23 +41,23 @@ export class ZombieModel {
         neck.position.y = 2.2;
 
         // Create arms with proper joints
-        this.arms.left = this.createArm("left", -0.6);
-        this.arms.right = this.createArm("right", 0.6);
+        this.arms.left = this.createArm('left', -0.6);
+        this.arms.right = this.createArm('right', 0.6);
 
         // Create legs with proper joints
-        this.legs.left = this.createLeg("left", -0.3);
-        this.legs.right = this.createLeg("right", 0.3);
+        this.legs.left = this.createLeg('left', -0.3);
+        this.legs.right = this.createLeg('right', 0.3);
 
         // Create animations now that arms/legs are created
         this.createAnimations(head);
 
         // Create zombie material for skin
-        const zombieSkinMaterial = new BABYLON.StandardMaterial("zombieSkinMat", this.scene);
+        const zombieSkinMaterial = new BABYLON.StandardMaterial('zombieSkinMat', this.scene);
         zombieSkinMaterial.diffuseColor = new BABYLON.Color3(0.5, 0.6, 0.4); // Sickly green-gray
         zombieSkinMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
 
         // Create tattered clothing material
-        const clothingMaterial = new BABYLON.StandardMaterial("zombieClothingMat", this.scene);
+        const clothingMaterial = new BABYLON.StandardMaterial('zombieClothingMat', this.scene);
         clothingMaterial.diffuseColor = new BABYLON.Color3(0.3, 0.2, 0.1); // Drab brown
 
         // Apply clothing material to torso
@@ -65,7 +65,7 @@ export class ZombieModel {
 
         // Add tattered patches to torso
         for (let i = 0; i < 5; i++) {
-            const patch = BABYLON.MeshBuilder.CreateBox("patch", {
+            const patch = BABYLON.MeshBuilder.CreateBox('patch', {
                 height: 0.4,
                 width: 0.4,
                 depth: 0.1
@@ -81,20 +81,20 @@ export class ZombieModel {
         }
 
         // Create glowing eyes material
-        const eyeMaterial = new BABYLON.StandardMaterial("zombieEyeMat", this.scene);
+        const eyeMaterial = new BABYLON.StandardMaterial('zombieEyeMat', this.scene);
         eyeMaterial.emissiveColor = new BABYLON.Color3(0.8, 0.1, 0.1); // Faint red glow
 
         // Create eyes
-        const leftEye = BABYLON.MeshBuilder.CreateSphere("leftEye", { diameter: 0.1 }, this.scene);
+        const leftEye = BABYLON.MeshBuilder.CreateSphere('leftEye', { diameter: 0.1 }, this.scene);
         leftEye.parent = head;
         leftEye.position = new BABYLON.Vector3(-0.2, 0.1, 0.35);
         leftEye.material = eyeMaterial;
 
-        const rightEye = BABYLON.MeshBuilder.CreateSphere("rightEye", { diameter: 0.1 }, this.scene);
+        const rightEye = BABYLON.MeshBuilder.CreateSphere('rightEye', { diameter: 0.1 }, this.scene);
         rightEye.parent = head;
         rightEye.position = new BABYLON.Vector3(0.2, 0.1, 0.35);
         rightEye.material = eyeMaterial;
-        
+
         // Apply materials
         head.material = zombieSkinMaterial;
         neck.material = zombieSkinMaterial;
@@ -111,19 +111,19 @@ export class ZombieModel {
 
     createAnimations(head) {
         // Attack animation (right arm swipe)
-        const attackAnimation = new BABYLON.Animation("attackAnimation", "rotation.x", 30, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+        const attackAnimation = new BABYLON.Animation('attackAnimation', 'rotation.x', 30, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
         const attackKeys = [];
         attackKeys.push({ frame: 0, value: 0 });
         attackKeys.push({ frame: 10, value: -Math.PI / 2 });
         attackKeys.push({ frame: 20, value: 0 });
         attackAnimation.setKeys(attackKeys);
 
-        const attackGroup = new BABYLON.AnimationGroup("attack");
+        const attackGroup = new BABYLON.AnimationGroup('attack');
         attackGroup.addTargetedAnimation(attackAnimation, this.arms.right);
         this.animationGroups.attack = attackGroup;
 
         // Suspicious animation (head turning)
-        const suspiciousAnimation = new BABYLON.Animation("suspiciousAnimation", "rotation.y", 30, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
+        const suspiciousAnimation = new BABYLON.Animation('suspiciousAnimation', 'rotation.y', 30, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
         const suspiciousKeys = [];
         suspiciousKeys.push({ frame: 0, value: 0 });
         suspiciousKeys.push({ frame: 20, value: -Math.PI / 8 });
@@ -131,7 +131,7 @@ export class ZombieModel {
         suspiciousKeys.push({ frame: 100, value: 0 });
         suspiciousAnimation.setKeys(suspiciousKeys);
 
-        const suspiciousGroup = new BABYLON.AnimationGroup("suspicious");
+        const suspiciousGroup = new BABYLON.AnimationGroup('suspicious');
         suspiciousGroup.addTargetedAnimation(suspiciousAnimation, head);
         this.animationGroups.suspicious = suspiciousGroup;
     }
@@ -255,12 +255,12 @@ export class ZombieModel {
 
         // More pronounced forward lean during lurge
         this.mesh.rotation.x = speed > 1 ? 0.4 : 0.2;
-        
+
         // More intense body sway during lurge
         this.mesh.rotation.y += Math.sin(angle * 0.5) * 0.01 * speed;
 
         // More dramatic head movement during lurge
-        const head = this.mesh.getChildMeshes().find(mesh => mesh.name === "zombieHead");
+        const head = this.mesh.getChildMeshes().find(mesh => mesh.name === 'zombieHead');
         if (head) {
             if (speed > 1) {
                 head.rotation.z = Math.sin(angle * 0.7) * 0.2;
@@ -284,29 +284,29 @@ export class ZombieModel {
         if (this.mesh) {
             this.mesh.dispose();
         }
-        
+
         // Clean up all child meshes
         this.arms.left?.dispose();
         this.arms.right?.dispose();
         this.legs.left?.dispose();
         this.legs.right?.dispose();
-        
+
         // Clean up any blood stain meshes
         this.bloodStains.forEach(stain => {
             stain.dispose();
         });
     }
-    
+
     static getTerrainHeight(x, z) {
         // Simplified height calculation as fallback
         const distFromCenter = Math.sqrt(x * x + z * z);
         const radius = 100; // Default radius
         const bowlDepth = 25; // Default depth
         let height = -Math.pow(distFromCenter / radius, 1.2) * bowlDepth;
-        
+
         // Add some variation
-        height += Math.sin(x/20) * Math.cos(z/20) * 2;
-        
+        height += Math.sin(x / 20) * Math.cos(z / 20) * 2;
+
         return Math.max(-20, Math.min(0, height)); // Clamp between -20 and 0
     }
 }

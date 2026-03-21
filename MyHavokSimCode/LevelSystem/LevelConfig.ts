@@ -40,8 +40,8 @@ interface LevelInfo {
 export class LevelConfig {
     static readonly Levels: Record<string, Level> = {
         VILLAGE: {
-            name: "Village",
-            description: "A peaceful village with houses, dogs, and a central plaza",
+            name: 'Village',
+            description: 'A peaceful village with houses, dogs, and a central plaza',
             config: {
                 bowlRadius: 100,
                 bowlDepth: 25,
@@ -63,8 +63,8 @@ export class LevelConfig {
             }
         },
         ZOMBIE_APOCALYPSE: {
-            name: "Zombie Apocalypse",
-            description: "A dark version of the village overrun by zombies",
+            name: 'Zombie Apocalypse',
+            description: 'A dark version of the village overrun by zombies',
             config: {
                 bowlRadius: 100,
                 bowlDepth: 30,
@@ -86,8 +86,8 @@ export class LevelConfig {
             }
         },
         ZOMBIE_INVASION: {
-            name: "Zombie Invasion",
-            description: "A massive zombie horde invading the countryside",
+            name: 'Zombie Invasion',
+            description: 'A massive zombie horde invading the countryside',
             config: {
                 bowlRadius: 120,
                 bowlDepth: 35,
@@ -115,8 +115,8 @@ export class LevelConfig {
             }
         },
         NATURE: {
-            name: "Nature Reserve",
-            description: "A peaceful natural environment with birds and fish",
+            name: 'Nature Reserve',
+            description: 'A peaceful natural environment with birds and fish',
             config: {
                 bowlRadius: 120,
                 bowlDepth: 20,

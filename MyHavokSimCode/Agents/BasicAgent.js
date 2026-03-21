@@ -8,7 +8,7 @@ export class BasicAgent {
         // Create root mesh for the agent
         const root = new BABYLON.TransformNode(name, this.scene);
         this.meshes.push(root);
-        
+
         // Create body parts with better proportions
         const torso = BABYLON.MeshBuilder.CreateCapsule(
             `${name}_torso`,
@@ -31,10 +31,10 @@ export class BasicAgent {
 
         // Create limbs
         const limbs = {
-            leftArm: this.createLimb(name, "leftArm", { radius: 0.15, height: 0.8 }),
-            rightArm: this.createLimb(name, "rightArm", { radius: 0.15, height: 0.8 }),
-            leftLeg: this.createLimb(name, "leftLeg", { radius: 0.2, height: 1 }),
-            rightLeg: this.createLimb(name, "rightLeg", { radius: 0.2, height: 1 })
+            leftArm: this.createLimb(name, 'leftArm', { radius: 0.15, height: 0.8 }),
+            rightArm: this.createLimb(name, 'rightArm', { radius: 0.15, height: 0.8 }),
+            leftLeg: this.createLimb(name, 'leftLeg', { radius: 0.2, height: 1 }),
+            rightLeg: this.createLimb(name, 'rightLeg', { radius: 0.2, height: 1 })
         };
 
         // Position limbs
@@ -55,7 +55,7 @@ export class BasicAgent {
             0.6 + Math.random() * 0.2,
             0.4 + Math.random() * 0.2
         );
-        
+
         const clothingColor = new BABYLON.Color3(
             Math.random(),
             Math.random(),
@@ -130,4 +130,4 @@ export class BasicAgent {
             this.mesh.dispose();
         }
     }
-} 
+}

@@ -87,7 +87,7 @@ export class BirdBehaviour {
         boundary: BABYLON.Vector3;
     }): BABYLON.Vector3 {
         const combined = new BABYLON.Vector3(0, 0, 0);
-        
+
         forces.separation.scaleInPlace(Config.SEPARATION_WEIGHT);
         forces.alignment.scaleInPlace(Config.ALIGNMENT_WEIGHT);
         forces.cohesion.scaleInPlace(Config.COHESION_WEIGHT);
@@ -113,7 +113,7 @@ export class BirdBehaviour {
 
         const desiredRotation = Math.atan2(bird.velocity.x, bird.velocity.z);
         bird.model.mesh.rotation.y = desiredRotation;
-        
+
         const bankAmount = this.calculateBankAmount(bird);
         bird.model.mesh.rotation.z = bankAmount * Config.BANK_AMOUNT;
     }
@@ -127,12 +127,10 @@ export class BirdBehaviour {
         return this.calculateNeighborForce(
             bird,
             this.neighborhoodRadius * Config.SEPARATION_DISTANCE_MULTIPLIER,
-            (distance, other) => {
-                return bird.model.mesh.position
-                    .subtract(other.model.mesh.position)
-                    .normalize()
-                    .scale(1 / Math.max(distance, Config.MIN_DISTANCE_DIVISOR));
-            }
+            (distance, other) => bird.model.mesh.position
+                .subtract(other.model.mesh.position)
+                .normalize()
+                .scale(1 / Math.max(distance, Config.MIN_DISTANCE_DIVISOR))
         );
     }
 
@@ -250,8 +248,8 @@ export class BirdBehaviour {
         const x = Math.cos(angle) * radius;
         const z = Math.sin(angle) * radius;
         const baseHeight = BowlCreator.getTerrainHeight(x, z);
-        const y = baseHeight + Config.SPAWN_HEIGHT_ABOVE_TERRAIN + 
-                  Math.random() * Config.SPAWN_HEIGHT_VARIATION;
+        const y = baseHeight + Config.SPAWN_HEIGHT_ABOVE_TERRAIN
+                  + Math.random() * Config.SPAWN_HEIGHT_VARIATION;
 
         return new BABYLON.Vector3(x, y, z);
     }

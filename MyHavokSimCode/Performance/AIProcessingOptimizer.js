@@ -11,23 +11,23 @@ export class AIProcessingOptimizer {
         this.scene = scene;
         this.camera = camera;
         this.performanceTracker = performanceTracker;
-        
+
         // Initialize optimization components
         this.agentScheduler = new AgentScheduler(scene, camera);
         this.behaviorOptimizer = new BehaviorOptimizer(scene);
-        
+
         // Integration state
         this.isInitialized = false;
         this.isOptimizing = true;
-        
+
         // Registered agents and their optimization data
         this.optimizedAgents = new Map(); // agentId -> optimization data
-        
+
         // Performance monitoring
         this.frameCounter = 0;
         this.lastPerformanceCheck = performance.now();
         this.performanceCheckInterval = 1000; // Check every second
-        
+
         // Optimization settings
         this.settings = {
             enableScheduling: true,
@@ -36,7 +36,7 @@ export class AIProcessingOptimizer {
             adaptiveComplexity: true,
             qualityAdjustments: true
         };
-        
+
         console.log('AIProcessingOptimizer initialized');
     }
 
@@ -77,7 +77,7 @@ export class AIProcessingOptimizer {
         // Register with performance tracker
         if (this.settings.enablePerformanceTracking) {
             this.performanceTracker.registerAgent(
-                agentId, 
+                agentId,
                 agentData.type || 'unknown',
                 agentData.position
             );
@@ -98,16 +98,16 @@ export class AIProcessingOptimizer {
         this.optimizedAgents.set(agentId, {
             id: agentId,
             originalCallback: agentData.updateCallback,
-            optimizedCallback: optimizedCallback,
+            optimizedCallback,
             behaviorType: agentData.behaviorType || 'default',
             mesh: agentData.mesh,
             lastOptimizationTime: 0,
             optimizationLevel: 1.0,
-            
+
             // Behavior optimization state
             cachedBehaviors: new Map(),
             sharedComputationGroups: new Set(),
-            
+
             // Performance state
             performanceHistory: [],
             qualityLevel: 1.0
@@ -146,7 +146,7 @@ export class AIProcessingOptimizer {
     createOptimizedUpdateCallback(agentId, originalCallback) {
         return (deltaTime, schedulingInfo) => {
             const startTime = performance.now();
-            
+
             // Start performance tracking
             let timingData = null;
             if (this.settings.enablePerformanceTracking) {
@@ -165,11 +165,11 @@ export class AIProcessingOptimizer {
                 // Apply behavior optimizations if enabled
                 let optimizedDeltaTime = deltaTime;
                 let behaviorContext = {};
-                
+
                 if (this.settings.enableBehaviorOptimization) {
                     const complexitySettings = this.behaviorOptimizer.getComplexitySettings();
                     optimizedDeltaTime = deltaTime * complexitySettings.decisionFrequency;
-                    
+
                     behaviorContext = {
                         complexityLevel: this.behaviorOptimizer.currentComplexity,
                         qualityLevel: optimizationData.qualityLevel,
@@ -190,10 +190,9 @@ export class AIProcessingOptimizer {
                 // Track successful execution
                 const executionTime = performance.now() - startTime;
                 this.trackOptimizationSuccess(agentId, executionTime, behaviorContext);
-
             } catch (error) {
                 console.error(`Error in optimized update for agent ${agentId}:`, error);
-                
+
                 // Fallback to original callback
                 try {
                     originalCallback(deltaTime, schedulingInfo);
@@ -204,7 +203,7 @@ export class AIProcessingOptimizer {
                 // End performance tracking
                 if (timingData && this.settings.enablePerformanceTracking) {
                     const result = this.performanceTracker.endAgentUpdate(timingData);
-                    
+
                     // Track budget usage
                     if (result) {
                         this.performanceTracker.trackBudgetUsage(agentId, result.duration);
@@ -220,7 +219,7 @@ export class AIProcessingOptimizer {
     processOptimizations() {
         this.frameCounter++;
         const now = performance.now();
-        
+
         // Periodic performance checks
         if (now - this.lastPerformanceCheck >= this.performanceCheckInterval) {
             this.performPerformanceOptimizations();
@@ -245,7 +244,7 @@ export class AIProcessingOptimizer {
         // Get current performance metrics
         const performanceMetrics = this.performanceTracker.getCurrentMetrics();
         const optimizationMetrics = this.performanceTracker.getOptimizationMetrics();
-        
+
         // Adjust behavior complexity based on performance
         this.behaviorOptimizer.adjustComplexityForPerformance({
             frameRate: {
@@ -256,7 +255,7 @@ export class AIProcessingOptimizer {
 
         // Check for agents that need quality adjustments
         this.checkAgentQualityAdjustments(performanceMetrics);
-        
+
         // Log optimization status periodically
         if (this.frameCounter % 300 === 0) { // Every 5 seconds at 60fps
             this.logOptimizationStatus(performanceMetrics, optimizationMetrics);
@@ -268,7 +267,7 @@ export class AIProcessingOptimizer {
      */
     checkAgentQualityAdjustments(performanceMetrics) {
         const bottleneckAgents = this.performanceTracker.getBottleneckAgents();
-        
+
         for (const agentPerf of bottleneckAgents) {
             const optimizationData = this.optimizedAgents.get(agentPerf.id);
             if (!optimizationData) continue;
@@ -276,12 +275,12 @@ export class AIProcessingOptimizer {
             // Reduce quality for bottleneck agents
             if (optimizationData.qualityLevel > 0.3) {
                 optimizationData.qualityLevel = Math.max(0.3, optimizationData.qualityLevel - 0.1);
-                
+
                 // Update scheduler priority
                 if (this.settings.enableScheduling) {
                     this.agentScheduler.setPlayerInteracting(agentPerf.id, false);
                 }
-                
+
                 console.log(`Reduced quality for bottleneck agent ${agentPerf.id} to ${optimizationData.qualityLevel}`);
             }
         }
@@ -327,7 +326,7 @@ export class AIProcessingOptimizer {
         }
 
         const results = this.behaviorOptimizer.optimizeFlockingBehavior(agents, options);
-        
+
         // Track optimization for each agent
         for (const [agentId, result] of results) {
             if (this.settings.enablePerformanceTracking) {
@@ -338,7 +337,7 @@ export class AIProcessingOptimizer {
                 });
             }
         }
-        
+
         return results;
     }
 
@@ -354,12 +353,12 @@ export class AIProcessingOptimizer {
         if (!agent) return null;
 
         const result = this.behaviorOptimizer.optimizePathfindingBehavior(
-            { id: agentId, mesh: agent.mesh }, 
-            start, 
-            end, 
+            { id: agentId, mesh: agent.mesh },
+            start,
+            end,
             options
         );
-        
+
         // Track optimization
         if (this.settings.enablePerformanceTracking) {
             this.performanceTracker.trackBehaviorOptimization(agentId, {
@@ -368,7 +367,7 @@ export class AIProcessingOptimizer {
                 complexityLevel: result.accuracy
             });
         }
-        
+
         return result;
     }
 
@@ -407,16 +406,16 @@ export class AIProcessingOptimizer {
      */
     updateSettings(newSettings) {
         this.settings = { ...this.settings, ...newSettings };
-        
+
         // Apply settings to components
         if (this.agentScheduler) {
             this.agentScheduler.setSchedulingEnabled(this.settings.enableScheduling);
         }
-        
+
         if (this.behaviorOptimizer) {
             this.behaviorOptimizer.setAdaptiveComplexity(this.settings.adaptiveComplexity);
         }
-        
+
         if (this.performanceTracker) {
             this.performanceTracker.configureQualityTriggers({
                 enabled: this.settings.qualityAdjustments
@@ -431,12 +430,12 @@ export class AIProcessingOptimizer {
         const schedulerMetrics = this.agentScheduler.getMetrics();
         const behaviorMetrics = this.behaviorOptimizer.getMetrics();
         const performanceMetrics = this.performanceTracker.getOptimizationMetrics();
-        
+
         return {
             scheduler: schedulerMetrics,
             behavior: behaviorMetrics,
             performance: performanceMetrics,
-            
+
             // Combined metrics
             totalOptimizedAgents: this.optimizedAgents.size,
             frameCounter: this.frameCounter,
@@ -454,7 +453,7 @@ export class AIProcessingOptimizer {
 
         const schedulerData = this.agentScheduler.getAgentPerformance(agentId);
         const performanceData = this.performanceTracker.getAgentOptimizationPerformance(agentId);
-        
+
         return {
             optimization: {
                 id: optimizationData.id,
@@ -488,7 +487,7 @@ export class AIProcessingOptimizer {
      */
     setOptimizationEnabled(enabled) {
         this.isOptimizing = enabled;
-        
+
         if (this.agentScheduler) {
             this.agentScheduler.setSchedulingEnabled(enabled && this.settings.enableScheduling);
         }
@@ -499,19 +498,19 @@ export class AIProcessingOptimizer {
      */
     dispose() {
         this.isOptimizing = false;
-        
+
         // Dispose of components
         if (this.agentScheduler) {
             this.agentScheduler.dispose();
         }
-        
+
         if (this.behaviorOptimizer) {
             this.behaviorOptimizer.dispose();
         }
-        
+
         // Clear optimization data
         this.optimizedAgents.clear();
-        
+
         console.log('AIProcessingOptimizer disposed');
     }
 }

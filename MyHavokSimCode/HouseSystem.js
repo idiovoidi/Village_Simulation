@@ -44,21 +44,21 @@ export class HouseSystem {
         const roofHeight = 2 + Math.random();
 
         // Create house container
-        const house = new BABYLON.TransformNode("house", this.scene);
+        const house = new BABYLON.TransformNode('house', this.scene);
         house.position = new BABYLON.Vector3(x, y, z);
         house.rotation.y = angle + Math.PI / 2; // Face perpendicular to road
 
         // Create main building
-        const building = BABYLON.MeshBuilder.CreateBox("building", {
-            width: width,
-            height: height,
-            depth: depth
+        const building = BABYLON.MeshBuilder.CreateBox('building', {
+            width,
+            height,
+            depth
         }, this.scene);
         building.parent = house;
         building.position.y = height / 2;
 
         // Create roof (pyramid)
-        const roof = BABYLON.MeshBuilder.CreateCylinder("roof", {
+        const roof = BABYLON.MeshBuilder.CreateCylinder('roof', {
             height: roofHeight,
             diameter: Math.sqrt(width * width + depth * depth),
             tessellation: 4
@@ -68,7 +68,7 @@ export class HouseSystem {
         roof.rotation.y = Math.PI / 4;
 
         // Create door
-        const door = BABYLON.MeshBuilder.CreatePlane("door", {
+        const door = BABYLON.MeshBuilder.CreatePlane('door', {
             width: 1.2,
             height: 2
         }, this.scene);
@@ -80,21 +80,21 @@ export class HouseSystem {
         this.createWindows(house, width, height, depth);
 
         // Materials
-        const buildingMat = new BABYLON.StandardMaterial("buildingMat", this.scene);
+        const buildingMat = new BABYLON.StandardMaterial('buildingMat', this.scene);
         buildingMat.diffuseColor = new BABYLON.Color3(
             0.7 + Math.random() * 0.3,
             0.7 + Math.random() * 0.3,
             0.7 + Math.random() * 0.3
         );
 
-        const roofMat = new BABYLON.StandardMaterial("roofMat", this.scene);
+        const roofMat = new BABYLON.StandardMaterial('roofMat', this.scene);
         roofMat.diffuseColor = new BABYLON.Color3(
             0.4 + Math.random() * 0.2,
             0.2 + Math.random() * 0.2,
             0.1 + Math.random() * 0.1
         );
 
-        const doorMat = new BABYLON.StandardMaterial("doorMat", this.scene);
+        const doorMat = new BABYLON.StandardMaterial('doorMat', this.scene);
         doorMat.diffuseColor = new BABYLON.Color3(0.4, 0.2, 0.1);
 
         building.material = buildingMat;
@@ -114,20 +114,20 @@ export class HouseSystem {
     }
 
     createWindows(house, width, height, depth) {
-        const windowMat = new BABYLON.StandardMaterial("windowMat", this.scene);
+        const windowMat = new BABYLON.StandardMaterial('windowMat', this.scene);
         windowMat.diffuseColor = new BABYLON.Color3(0.7, 0.8, 1);
         windowMat.alpha = 0.5;
 
         // Front windows
         const windowPositions = [
-            { x: -width/4, y: height * 0.7, z: depth/2 + 0.01 },
-            { x: width/4, y: height * 0.7, z: depth/2 + 0.01 },
-            { x: -width/4, y: height * 0.3, z: depth/2 + 0.01 },
-            { x: width/4, y: height * 0.3, z: depth/2 + 0.01 }
+            { x: -width / 4, y: height * 0.7, z: depth / 2 + 0.01 },
+            { x: width / 4, y: height * 0.7, z: depth / 2 + 0.01 },
+            { x: -width / 4, y: height * 0.3, z: depth / 2 + 0.01 },
+            { x: width / 4, y: height * 0.3, z: depth / 2 + 0.01 }
         ];
 
         windowPositions.forEach(pos => {
-            const window = BABYLON.MeshBuilder.CreatePlane("window", {
+            const window = BABYLON.MeshBuilder.CreatePlane('window', {
                 width: 1,
                 height: 1
             }, this.scene);
@@ -138,19 +138,19 @@ export class HouseSystem {
     }
 
     addChimney(house, width, height, depth, roofHeight) {
-        const chimney = BABYLON.MeshBuilder.CreateBox("chimney", {
+        const chimney = BABYLON.MeshBuilder.CreateBox('chimney', {
             width: 0.6,
             height: 2,
             depth: 0.6
         }, this.scene);
         chimney.parent = house;
         chimney.position = new BABYLON.Vector3(
-            width/4,
+            width / 4,
             height + roofHeight + 0.5,
-            depth/4
+            depth / 4
         );
 
-        const chimneyMat = new BABYLON.StandardMaterial("chimneyMat", this.scene);
+        const chimneyMat = new BABYLON.StandardMaterial('chimneyMat', this.scene);
         chimneyMat.diffuseColor = new BABYLON.Color3(0.4, 0.4, 0.4);
         chimney.material = chimneyMat;
     }
@@ -159,19 +159,19 @@ export class HouseSystem {
         // Add a small fence or bushes
         const yardDepth = 3;
         const fenceWidth = width * 1.5;
-        
-        for (let x = -fenceWidth/2; x <= fenceWidth/2; x += 1) {
+
+        for (let x = -fenceWidth / 2; x <= fenceWidth / 2; x += 1) {
             if (Math.random() > 0.3) {
-                const bush = BABYLON.MeshBuilder.CreateSphere("bush", {
+                const bush = BABYLON.MeshBuilder.CreateSphere('bush', {
                     diameter: 0.8 + Math.random() * 0.4
                 }, this.scene);
                 bush.parent = house;
-                bush.position = new BABYLON.Vector3(x, 0.4, depth/2 + yardDepth);
-                
-                const bushMat = new BABYLON.StandardMaterial("bushMat", this.scene);
+                bush.position = new BABYLON.Vector3(x, 0.4, depth / 2 + yardDepth);
+
+                const bushMat = new BABYLON.StandardMaterial('bushMat', this.scene);
                 bushMat.diffuseColor = new BABYLON.Color3(0.2, 0.4 + Math.random() * 0.2, 0.1);
                 bush.material = bushMat;
             }
         }
     }
-} 
+}

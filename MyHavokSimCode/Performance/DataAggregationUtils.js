@@ -21,13 +21,13 @@ export class DataAggregationUtils {
         };
 
         const functions = { ...defaultFunctions, ...aggregationFunctions };
-        
+
         // Group data by time windows
         const windows = new Map();
-        
+
         data.forEach(item => {
             const windowStart = Math.floor(item.timestamp / windowSizeMs) * windowSizeMs;
-            
+
             if (!windows.has(windowStart)) {
                 windows.set(windowStart, {
                     timestamp: windowStart,
@@ -36,7 +36,7 @@ export class DataAggregationUtils {
                     data: []
                 });
             }
-            
+
             windows.get(windowStart).data.push(item);
             windows.get(windowStart).count++;
         });
@@ -67,13 +67,13 @@ export class DataAggregationUtils {
      */
     static aggregateMetric(data, metricPath, aggregationFunctions) {
         const values = this.extractMetricValues(data, metricPath);
-        
+
         if (values.length === 0) {
             return this.createEmptyAggregation(aggregationFunctions);
         }
 
         const result = {};
-        
+
         aggregationFunctions.forEach(func => {
             switch (func) {
                 case 'mean':
@@ -140,14 +140,14 @@ export class DataAggregationUtils {
      */
     static extractMetricValues(data, metricPath) {
         const values = [];
-        
+
         data.forEach(item => {
             const value = this.getNestedValue(item, metricPath);
             if (typeof value === 'number' && !isNaN(value)) {
                 values.push(value);
             }
         });
-        
+
         return values;
     }
 
@@ -170,7 +170,7 @@ export class DataAggregationUtils {
                     return path.split('.').reduce((current, key) => current?.[key], obj);
             }
         }
-        
+
         return obj[path];
     }
 
@@ -191,12 +191,12 @@ export class DataAggregationUtils {
     static calculateRollingAverage(data, metricPath, windowSize) {
         const values = this.extractMetricValues(data, metricPath);
         const rollingAverages = [];
-        
+
         for (let i = 0; i < values.length; i++) {
             const start = Math.max(0, i - windowSize + 1);
             const window = values.slice(start, i + 1);
             const average = this.calculateMean(window);
-            
+
             rollingAverages.push({
                 index: i,
                 timestamp: data[i]?.timestamp,
@@ -205,7 +205,7 @@ export class DataAggregationUtils {
                 windowSize: window.length
             });
         }
-        
+
         return rollingAverages;
     }
 
@@ -301,10 +301,10 @@ export class DataAggregationUtils {
             const window = values.slice(i - windowSize, i);
             const windowMean = this.calculateMean(window);
             const windowStdDev = this.calculateStandardDeviation(window);
-            
+
             const currentValue = values[i];
             const zScore = Math.abs((currentValue - windowMean) / windowStdDev);
-            
+
             if (zScore > threshold) {
                 anomalies.push({
                     index: i,
@@ -327,7 +327,7 @@ export class DataAggregationUtils {
     static calculateCorrelation(data, metricPath1, metricPath2) {
         const values1 = this.extractMetricValues(data, metricPath1);
         const values2 = this.extractMetricValues(data, metricPath2);
-        
+
         const minLength = Math.min(values1.length, values2.length);
         if (minLength < 2) {
             return null;
@@ -335,25 +335,25 @@ export class DataAggregationUtils {
 
         const x = values1.slice(0, minLength);
         const y = values2.slice(0, minLength);
-        
+
         const meanX = this.calculateMean(x);
         const meanY = this.calculateMean(y);
-        
+
         let numerator = 0;
         let sumXSquared = 0;
         let sumYSquared = 0;
-        
+
         for (let i = 0; i < minLength; i++) {
             const deltaX = x[i] - meanX;
             const deltaY = y[i] - meanY;
-            
+
             numerator += deltaX * deltaY;
             sumXSquared += deltaX * deltaX;
             sumYSquared += deltaY * deltaY;
         }
-        
+
         const denominator = Math.sqrt(sumXSquared * sumYSquared);
-        
+
         return denominator === 0 ? 0 : numerator / denominator;
     }
 
@@ -381,10 +381,10 @@ export class DataAggregationUtils {
 
         // Analyze each metric type
         const metricTypes = ['frameRate', 'memory', 'cpu', 'agents'];
-        
+
         metricTypes.forEach(metricType => {
             const values = this.extractMetricValues(data, metricType);
-            
+
             if (values.length > 0) {
                 report.metrics[metricType] = {
                     statistics: this.aggregateMetric(data, metricType, ['mean', 'min', 'max', 'p95', 'std']),
@@ -402,7 +402,7 @@ export class DataAggregationUtils {
                 const metric1 = metricTypes[i];
                 const metric2 = metricTypes[j];
                 const correlation = this.calculateCorrelation(data, metric1, metric2);
-                
+
                 if (correlation !== null) {
                     report.correlations[`${metric1}_${metric2}`] = {
                         value: Math.round(correlation * 1000) / 1000,
@@ -426,13 +426,13 @@ export class DataAggregationUtils {
         const midpoint = Math.floor(values.length / 2);
         const firstHalf = values.slice(0, midpoint);
         const secondHalf = values.slice(midpoint);
-        
+
         const firstMean = this.calculateMean(firstHalf);
         const secondMean = this.calculateMean(secondHalf);
-        
+
         const difference = secondMean - firstMean;
         const threshold = Math.abs(firstMean) * 0.05; // 5% threshold
-        
+
         if (Math.abs(difference) < threshold) {
             return 'stable';
         } else if (difference > 0) {
@@ -470,7 +470,7 @@ export class DataAggregationUtils {
      */
     static interpretCorrelation(correlation) {
         const abs = Math.abs(correlation);
-        
+
         if (abs >= 0.8) {
             return 'very_strong';
         } else if (abs >= 0.6) {
@@ -492,9 +492,9 @@ export class DataAggregationUtils {
     static calculateMedian(values) {
         const sorted = [...values].sort((a, b) => a - b);
         const mid = Math.floor(sorted.length / 2);
-        return sorted.length % 2 === 0 ? 
-            (sorted[mid - 1] + sorted[mid]) / 2 : 
-            sorted[mid];
+        return sorted.length % 2 === 0
+            ? (sorted[mid - 1] + sorted[mid]) / 2
+            : sorted[mid];
     }
 
     static calculateVariance(values) {
@@ -510,7 +510,7 @@ export class DataAggregationUtils {
     static calculatePercentile(values, percentile) {
         const sorted = [...values].sort((a, b) => a - b);
         const index = (percentile / 100) * (sorted.length - 1);
-        
+
         if (Number.isInteger(index)) {
             return sorted[index];
         } else {

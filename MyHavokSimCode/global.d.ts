@@ -1,8 +1,8 @@
 // Global type declarations for libraries loaded via CDN
 // These are loaded in index.html and available globally
 
-/// <reference types="@babylonjs/core" />
-/// <reference types="@babylonjs/gui" />
+// / <reference types="@babylonjs/core" />
+// / <reference types="@babylonjs/gui" />
 
 // Declare BABYLON as available globally with full types
 declare const BABYLON: typeof import('@babylonjs/core') & {

@@ -8,7 +8,7 @@ export class MarketSystem {
         this.merchants = new Map();
         this.marketRadius = 25; // Market district radius
         this.stallCount = 8;    // Number of market stalls
-        
+
         // Market configuration
         this.config = {
             stallSpacing: 8,      // Distance between stalls
@@ -39,16 +39,16 @@ export class MarketSystem {
         // Calculate direction vector from market to village center
         const directionToVillage = centerPosition.subtract(marketCenter).normalize();
         this.villageDirection = Math.atan2(directionToVillage.z, directionToVillage.x);
-        
+
         // Create central marketplace
         this.createCentralPlaza(marketCenter);
-        
+
         // Create market stalls in a circular arrangement, oriented towards village
         this.createMarketStalls(marketCenter);
-        
+
         // Add decorative elements
         this.addMarketDecorations(marketCenter);
-        
+
         // Create pathways between stalls
         this.createMarketPaths(marketCenter);
     }
@@ -57,17 +57,17 @@ export class MarketSystem {
         // Create tiered plaza effect
         for (let i = 0; i < this.config.plazaTiers; i++) {
             const tierRadius = this.config.centerRadius * (1 - i * 0.15);
-            const plaza = BABYLON.MeshBuilder.CreateDisc("marketPlaza_" + i, {
+            const plaza = BABYLON.MeshBuilder.CreateDisc(`marketPlaza_${i}`, {
                 radius: tierRadius,
                 tessellation: 64
             }, this.scene);
-            
+
             plaza.position = center.clone();
             plaza.position.y = BowlCreator.getTerrainHeight(center.x, center.z) + 0.05 + (i * this.config.plazaStepHeight);
             plaza.rotation.x = Math.PI / 2;
 
             // Create plaza material with slight variation per tier
-            const plazaMaterial = new BABYLON.StandardMaterial("plazaMat_" + i, this.scene);
+            const plazaMaterial = new BABYLON.StandardMaterial(`plazaMat_${i}`, this.scene);
             plazaMaterial.diffuseColor = new BABYLON.Color3(
                 0.7 - (i * 0.05),
                 0.7 - (i * 0.05),
@@ -79,17 +79,17 @@ export class MarketSystem {
 
             // Add decorative rim for each tier
             if (i < this.config.plazaTiers - 1) {
-                const rim = BABYLON.MeshBuilder.CreateTorus("plazaRim_" + i, {
+                const rim = BABYLON.MeshBuilder.CreateTorus(`plazaRim_${i}`, {
                     diameter: tierRadius * 2,
                     thickness: 0.3,
                     tessellation: 64
                 }, this.scene);
-                
+
                 rim.position = center.clone();
                 rim.position.y = plaza.position.y + (this.config.plazaStepHeight / 2);
                 rim.rotation.x = Math.PI / 2;
 
-                const rimMaterial = new BABYLON.StandardMaterial("rimMat_" + i, this.scene);
+                const rimMaterial = new BABYLON.StandardMaterial(`rimMat_${i}`, this.scene);
                 rimMaterial.diffuseColor = new BABYLON.Color3(0.6, 0.6, 0.5);
                 rimMaterial.bumpTexture = AssetManager.getTexture('ROCK_NORMAL', this.scene);
                 rim.material = rimMaterial;
@@ -107,21 +107,21 @@ export class MarketSystem {
         // Create wider entrance path facing the village
         const entranceWidth = this.config.pathWidth * 1.5;
         const entranceLength = this.config.centerRadius * 1.2;
-        
-        const entrance = BABYLON.MeshBuilder.CreateBox("plazaEntrance", {
+
+        const entrance = BABYLON.MeshBuilder.CreateBox('plazaEntrance', {
             width: entranceWidth,
             height: 0.1,
             depth: entranceLength
         }, this.scene);
 
         entrance.position = center.clone();
-        entrance.position.x += Math.cos(this.villageDirection) * (this.config.centerRadius - entranceLength/2);
-        entrance.position.z += Math.sin(this.villageDirection) * (this.config.centerRadius - entranceLength/2);
+        entrance.position.x += Math.cos(this.villageDirection) * (this.config.centerRadius - entranceLength / 2);
+        entrance.position.z += Math.sin(this.villageDirection) * (this.config.centerRadius - entranceLength / 2);
         entrance.position.y = BowlCreator.getTerrainHeight(entrance.position.x, entrance.position.z) + 0.02;
         entrance.rotation.y = this.villageDirection;
 
         // Create entrance material
-        const entranceMaterial = new BABYLON.StandardMaterial("entranceMat", this.scene);
+        const entranceMaterial = new BABYLON.StandardMaterial('entranceMat', this.scene);
         entranceMaterial.diffuseColor = new BABYLON.Color3(0.65, 0.65, 0.55);
         entranceMaterial.bumpTexture = AssetManager.getTexture('ROCK_NORMAL', this.scene);
         entrance.material = entranceMaterial;
@@ -132,12 +132,12 @@ export class MarketSystem {
 
     createEntrancePillars(center, entranceWidth) {
         const pillarPositions = [
-            { x: entranceWidth/2 + 0.5, z: this.config.centerRadius },
-            { x: -(entranceWidth/2 + 0.5), z: this.config.centerRadius }
+            { x: entranceWidth / 2 + 0.5, z: this.config.centerRadius },
+            { x: -(entranceWidth / 2 + 0.5), z: this.config.centerRadius }
         ];
 
         pillarPositions.forEach((pos, index) => {
-            const pillar = BABYLON.MeshBuilder.CreateCylinder("entrancePillar_" + index, {
+            const pillar = BABYLON.MeshBuilder.CreateCylinder(`entrancePillar_${index}`, {
                 height: 4,
                 diameter: 1,
                 tessellation: 12
@@ -155,7 +155,7 @@ export class MarketSystem {
             );
 
             // Add pillar cap
-            const pillarCap = BABYLON.MeshBuilder.CreateCylinder("pillarCap_" + index, {
+            const pillarCap = BABYLON.MeshBuilder.CreateCylinder(`pillarCap_${index}`, {
                 height: 0.5,
                 diameter: 1.3,
                 tessellation: 12
@@ -163,7 +163,7 @@ export class MarketSystem {
             pillarCap.position = pillar.position.clone();
             pillarCap.position.y += 2;
 
-            const pillarMaterial = new BABYLON.StandardMaterial("pillarMat_" + index, this.scene);
+            const pillarMaterial = new BABYLON.StandardMaterial(`pillarMat_${index}`, this.scene);
             pillarMaterial.diffuseColor = new BABYLON.Color3(0.75, 0.75, 0.65);
             pillarMaterial.bumpTexture = AssetManager.getTexture('ROCK_NORMAL', this.scene);
             pillar.material = pillarMaterial;
@@ -173,43 +173,43 @@ export class MarketSystem {
 
     createCentralFeature(center) {
         // Create a decorative well
-        const wellBase = BABYLON.MeshBuilder.CreateCylinder("wellBase", {
+        const wellBase = BABYLON.MeshBuilder.CreateCylinder('wellBase', {
             height: 1,
             diameter: 4,
             tessellation: 32
         }, this.scene);
-        
+
         wellBase.position = center.clone();
         wellBase.position.y = BowlCreator.getTerrainHeight(center.x, center.z) + 0.5;
 
         // Create well walls
-        const wellWall = BABYLON.MeshBuilder.CreateCylinder("wellWall", {
+        const wellWall = BABYLON.MeshBuilder.CreateCylinder('wellWall', {
             height: 1.2,
             diameter: 3,
             thickness: 0.4,
             tessellation: 32
         }, this.scene);
-        
+
         wellWall.position = center.clone();
         wellWall.position.y = BowlCreator.getTerrainHeight(center.x, center.z) + 1.1;
 
         // Create well roof
-        const wellRoof = BABYLON.MeshBuilder.CreateCylinder("wellRoof", {
+        const wellRoof = BABYLON.MeshBuilder.CreateCylinder('wellRoof', {
             height: 1.5,
             diameterTop: 0.5,
             diameterBottom: 4,
             tessellation: 8
         }, this.scene);
-        
+
         wellRoof.position = center.clone();
         wellRoof.position.y = BowlCreator.getTerrainHeight(center.x, center.z) + 2.4;
 
         // Apply materials
-        const stoneMaterial = new BABYLON.StandardMaterial("wellStoneMat", this.scene);
+        const stoneMaterial = new BABYLON.StandardMaterial('wellStoneMat', this.scene);
         stoneMaterial.diffuseColor = new BABYLON.Color3(0.6, 0.6, 0.6);
         stoneMaterial.bumpTexture = AssetManager.getTexture('ROCK_NORMAL', this.scene);
-        
-        const roofMaterial = new BABYLON.StandardMaterial("wellRoofMat", this.scene);
+
+        const roofMaterial = new BABYLON.StandardMaterial('wellRoofMat', this.scene);
         roofMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.2, 0.1);
 
         wellBase.material = stoneMaterial;
@@ -221,7 +221,7 @@ export class MarketSystem {
         for (let i = 0; i < this.stallCount; i++) {
             const angle = (i / this.stallCount) * Math.PI * 2;
             const radius = this.config.centerRadius + this.config.stallSpacing;
-            
+
             const x = center.x + Math.cos(angle) * radius;
             const z = center.z + Math.sin(angle) * radius;
             const y = BowlCreator.getTerrainHeight(x, z);
@@ -233,7 +233,7 @@ export class MarketSystem {
 
     createStall(position, angle, stallType) {
         // Create stall base
-        const base = BABYLON.MeshBuilder.CreateBox("stallBase", {
+        const base = BABYLON.MeshBuilder.CreateBox('stallBase', {
             width: 4,
             height: 0.2,
             depth: 3
@@ -243,7 +243,7 @@ export class MarketSystem {
         base.rotation.y = angle;
 
         // Create counter
-        const counter = BABYLON.MeshBuilder.CreateBox("stallCounter", {
+        const counter = BABYLON.MeshBuilder.CreateBox('stallCounter', {
             width: 4,
             height: 1,
             depth: 0.4
@@ -255,7 +255,7 @@ export class MarketSystem {
         counter.rotation.y = angle;
 
         // Create roof
-        const roof = BABYLON.MeshBuilder.CreateCylinder("stallRoof", {
+        const roof = BABYLON.MeshBuilder.CreateCylinder('stallRoof', {
             height: 0.2,
             diameter: 5,
             tessellation: 8
@@ -266,7 +266,7 @@ export class MarketSystem {
 
         // Create support poles
         [-1.8, 1.8].forEach(offset => {
-            const pole = BABYLON.MeshBuilder.CreateCylinder("stallPole", {
+            const pole = BABYLON.MeshBuilder.CreateCylinder('stallPole', {
                 height: this.config.roofHeight,
                 diameter: 0.2,
                 tessellation: 8
@@ -281,13 +281,13 @@ export class MarketSystem {
         this.createDisplayItems(position, angle, stallType);
 
         // Create materials
-        const baseMaterial = new BABYLON.StandardMaterial("stallBaseMat", this.scene);
+        const baseMaterial = new BABYLON.StandardMaterial('stallBaseMat', this.scene);
         baseMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.3, 0.2);
 
-        const counterMaterial = new BABYLON.StandardMaterial("stallCounterMat", this.scene);
+        const counterMaterial = new BABYLON.StandardMaterial('stallCounterMat', this.scene);
         counterMaterial.diffuseColor = stallType.color;
 
-        const roofMaterial = new BABYLON.StandardMaterial("stallRoofMat", this.scene);
+        const roofMaterial = new BABYLON.StandardMaterial('stallRoofMat', this.scene);
         roofMaterial.diffuseColor = new BABYLON.Color3(0.3, 0.2, 0.1);
 
         base.material = baseMaterial;
@@ -297,7 +297,7 @@ export class MarketSystem {
         // Store stall reference
         this.stalls.push({
             type: stallType.type,
-            position: position,
+            position,
             meshes: [base, counter, roof],
             inventory: this.generateInventory(stallType.type)
         });
@@ -306,7 +306,7 @@ export class MarketSystem {
     createDisplayItems(position, angle, stallType) {
         const displayItems = this.getDisplayItems(stallType.type);
         const counterOffset = 1.2;
-        
+
         displayItems.forEach((item, index) => {
             const offsetX = (index - 1) * 0.8;
             const itemMesh = BABYLON.MeshBuilder.CreateBox(
@@ -328,7 +328,7 @@ export class MarketSystem {
     }
 
     getDisplayItems(stallType) {
-        switch(stallType) {
+        switch (stallType) {
             case 'FOOD':
                 return [
                     { dimensions: { height: 0.3, width: 0.3, depth: 0.3 }, color: new BABYLON.Color3(0.8, 0.2, 0.2) }, // Apple
@@ -360,12 +360,12 @@ export class MarketSystem {
 
     createMarketPaths(center) {
         // Create circular path around central plaza
-        const circularPath = BABYLON.MeshBuilder.CreateTorus("marketPath", {
+        const circularPath = BABYLON.MeshBuilder.CreateTorus('marketPath', {
             diameter: (this.config.centerRadius + this.config.stallSpacing) * 2,
             thickness: this.config.pathWidth,
             tessellation: 64
         }, this.scene);
-        
+
         circularPath.position = center.clone();
         circularPath.position.y = BowlCreator.getTerrainHeight(center.x, center.z) + 0.02;
         circularPath.rotation.x = Math.PI / 2;
@@ -374,8 +374,8 @@ export class MarketSystem {
         for (let i = 0; i < 4; i++) {
             const angle = (i / 4) * Math.PI * 2;
             const pathLength = this.marketRadius - this.config.centerRadius;
-            
-            const path = BABYLON.MeshBuilder.CreateBox("radialPath", {
+
+            const path = BABYLON.MeshBuilder.CreateBox('radialPath', {
                 width: this.config.pathWidth,
                 height: 0.1,
                 depth: pathLength
@@ -389,10 +389,10 @@ export class MarketSystem {
         }
 
         // Create path material
-        const pathMaterial = new BABYLON.StandardMaterial("pathMat", this.scene);
+        const pathMaterial = new BABYLON.StandardMaterial('pathMat', this.scene);
         pathMaterial.diffuseColor = new BABYLON.Color3(0.6, 0.6, 0.5);
         pathMaterial.bumpTexture = AssetManager.getTexture('ROCK_NORMAL', this.scene);
-        
+
         circularPath.material = pathMaterial;
     }
 
@@ -401,7 +401,7 @@ export class MarketSystem {
         for (let i = 0; i < this.stallCount; i++) {
             const angle = (i / this.stallCount) * Math.PI * 2;
             const radius = this.config.centerRadius + this.config.stallSpacing / 2;
-            
+
             const x = center.x + Math.cos(angle) * radius;
             const z = center.z + Math.sin(angle) * radius;
             const y = BowlCreator.getTerrainHeight(x, z);
@@ -415,27 +415,27 @@ export class MarketSystem {
 
     createBanner(position, angle) {
         // Create banner pole
-        const pole = BABYLON.MeshBuilder.CreateCylinder("bannerPole", {
+        const pole = BABYLON.MeshBuilder.CreateCylinder('bannerPole', {
             height: 4,
             diameter: 0.1,
             tessellation: 8
         }, this.scene);
-        
+
         pole.position = position.clone();
         pole.position.y += 2;
 
         // Create banner cloth
-        const banner = BABYLON.MeshBuilder.CreatePlane("bannerCloth", {
+        const banner = BABYLON.MeshBuilder.CreatePlane('bannerCloth', {
             width: 1,
             height: 2
         }, this.scene);
-        
+
         banner.position = position.clone();
         banner.position.y += 3;
         banner.rotation.y = angle;
 
         // Create banner material with random color
-        const bannerMaterial = new BABYLON.StandardMaterial("bannerMat", this.scene);
+        const bannerMaterial = new BABYLON.StandardMaterial('bannerMat', this.scene);
         bannerMaterial.diffuseColor = new BABYLON.Color3(
             0.5 + Math.random() * 0.5,
             0.5 + Math.random() * 0.5,
@@ -455,7 +455,7 @@ export class MarketSystem {
             for (let i = 0; i < prop.count; i++) {
                 const angle = Math.random() * Math.PI * 2;
                 const radius = this.config.centerRadius + Math.random() * this.marketRadius;
-                
+
                 const x = center.x + Math.cos(angle) * radius;
                 const z = center.z + Math.sin(angle) * radius;
                 const y = BowlCreator.getTerrainHeight(x, z);
@@ -467,21 +467,21 @@ export class MarketSystem {
 
     createProp(type, position) {
         let prop;
-        switch(type) {
+        switch (type) {
             case 'barrel':
-                prop = BABYLON.MeshBuilder.CreateCylinder("barrel", {
+                prop = BABYLON.MeshBuilder.CreateCylinder('barrel', {
                     height: 1.2,
                     diameter: 0.8,
                     tessellation: 12
                 }, this.scene);
                 break;
             case 'crate':
-                prop = BABYLON.MeshBuilder.CreateBox("crate", {
+                prop = BABYLON.MeshBuilder.CreateBox('crate', {
                     size: 0.8
                 }, this.scene);
                 break;
             case 'sack':
-                prop = BABYLON.MeshBuilder.CreateSphere("sack", {
+                prop = BABYLON.MeshBuilder.CreateSphere('sack', {
                     diameter: 0.6,
                     segments: 8
                 }, this.scene);
@@ -495,7 +495,7 @@ export class MarketSystem {
             prop.rotation.y = Math.random() * Math.PI * 2;
 
             const propMaterial = new BABYLON.StandardMaterial(`${type}Mat`, this.scene);
-            switch(type) {
+            switch (type) {
                 case 'barrel':
                     propMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.2, 0.1);
                     break;
@@ -529,7 +529,7 @@ export class MarketSystem {
     }
 
     getItemTypes(stallType) {
-        switch(stallType) {
+        switch (stallType) {
             case 'FOOD':
                 return [
                     { name: 'Bread', basePrice: 2 },
@@ -574,4 +574,4 @@ export class MarketSystem {
         this.stalls = [];
         this.merchants.clear();
     }
-} 
+}

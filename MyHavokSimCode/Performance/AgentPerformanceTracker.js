@@ -9,7 +9,7 @@ export class AgentPerformanceTracker {
         this.isTracking = false;
         this.agentProfiles = new Map(); // Agent ID -> performance data
         this.behaviorProfiles = new Map(); // Behavior type -> aggregated data
-        
+
         // Performance thresholds (in milliseconds)
         this.thresholds = {
             update: 2.0,      // Agent update should be < 2ms
@@ -17,7 +17,7 @@ export class AgentPerformanceTracker {
             pathfinding: 5.0, // Pathfinding should be < 5ms
             collision: 0.5    // Collision detection should be < 0.5ms
         };
-        
+
         // Optimization-specific thresholds
         this.optimizationThresholds = {
             schedulingDelay: 100,     // Max delay between scheduled updates (ms)
@@ -25,12 +25,12 @@ export class AgentPerformanceTracker {
             behaviorComplexity: 1.5,  // Max behavior complexity score
             memoryUsage: 50           // Max memory usage per agent (MB)
         };
-        
+
         // Statistics
         this.totalAgents = 0;
         this.activeAgents = 0;
         this.totalUpdates = 0;
-        
+
         // Optimization metrics
         this.optimizationMetrics = {
             scheduledUpdates: 0,
@@ -41,7 +41,7 @@ export class AgentPerformanceTracker {
             qualityAdjustments: 0,
             memoryOptimizations: 0
         };
-        
+
         // Performance budgets
         this.performanceBudgets = new Map(); // Agent ID -> budget data
         this.globalBudget = {
@@ -50,15 +50,15 @@ export class AgentPerformanceTracker {
             behaviorBudget: 4.0,      // 4ms for behavior processing
             remainingBudget: 16.67
         };
-        
+
         // History management
         this.maxHistorySize = 1000;
         this.performanceHistory = [];
-        
+
         // Alert system
         this.alerts = [];
         this.maxAlerts = 50;
-        
+
         // Quality adjustment triggers
         this.qualityTriggers = {
             enabled: true,
@@ -81,7 +81,7 @@ export class AgentPerformanceTracker {
 
         console.log('Starting agent performance tracking...');
         this.isTracking = true;
-        
+
         // Reset statistics
         this.agentProfiles.clear();
         this.behaviorProfiles.clear();
@@ -116,7 +116,7 @@ export class AgentPerformanceTracker {
                 type: agentType,
                 position: position ? { ...position } : null,
                 registeredAt: performance.now(),
-                
+
                 // Performance metrics
                 updateCount: 0,
                 totalUpdateTime: 0,
@@ -124,30 +124,30 @@ export class AgentPerformanceTracker {
                 minUpdateTime: Infinity,
                 maxUpdateTime: 0,
                 lastUpdateTime: 0,
-                
+
                 // Behavior tracking
                 behaviors: new Map(), // Behavior name -> metrics
                 currentBehavior: null,
                 behaviorStartTime: 0,
-                
+
                 // Pathfinding metrics
                 pathfindingCalls: 0,
                 totalPathfindingTime: 0,
                 averagePathfindingTime: 0,
-                
+
                 // Collision metrics
                 collisionChecks: 0,
                 totalCollisionTime: 0,
                 averageCollisionTime: 0,
-                
+
                 // State tracking
                 isActive: true,
                 lastActiveTime: performance.now(),
-                
+
                 // Performance flags
                 isBottleneck: false,
                 alertCount: 0,
-                
+
                 // Optimization-specific metrics
                 schedulingMetrics: {
                     scheduledUpdates: 0,
@@ -157,7 +157,7 @@ export class AgentPerformanceTracker {
                     priority: 'medium',
                     distanceCategory: 'medium'
                 },
-                
+
                 // Behavior optimization metrics
                 behaviorOptimization: {
                     cacheHits: 0,
@@ -166,7 +166,7 @@ export class AgentPerformanceTracker {
                     complexityLevel: 'medium',
                     sharedComputations: 0
                 },
-                
+
                 // Performance budget tracking
                 budget: {
                     allocated: 1.0,           // Allocated time budget (ms)
@@ -175,7 +175,7 @@ export class AgentPerformanceTracker {
                     overbudgetCount: 0,       // Number of times over budget
                     budgetEfficiency: 1.0     // Budget usage efficiency
                 },
-                
+
                 // Quality adjustment tracking
                 qualityAdjustments: {
                     reductions: 0,
@@ -184,10 +184,10 @@ export class AgentPerformanceTracker {
                     lastAdjustment: 0
                 }
             });
-            
+
             // Initialize performance budget
             this.initializeAgentBudget(agentId);
-            
+
             this.totalAgents++;
         }
     }
@@ -202,7 +202,7 @@ export class AgentPerformanceTracker {
 
         const profile = this.agentProfiles.get(agentId);
         profile.isActive = false;
-        
+
         // Keep the profile for historical data but mark as inactive
         // Don't delete immediately to preserve performance history
     }
@@ -217,9 +217,9 @@ export class AgentPerformanceTracker {
 
         const profile = this.agentProfiles.get(agentId);
         const startTime = performance.now();
-        
+
         profile.lastActiveTime = startTime;
-        
+
         return {
             agentId,
             startTime,
@@ -238,7 +238,7 @@ export class AgentPerformanceTracker {
         const endTime = performance.now();
         const duration = endTime - timingData.startTime;
         const profile = this.agentProfiles.get(timingData.agentId);
-        
+
         // Update metrics
         profile.updateCount++;
         profile.totalUpdateTime += duration;
@@ -246,15 +246,15 @@ export class AgentPerformanceTracker {
         profile.minUpdateTime = Math.min(profile.minUpdateTime, duration);
         profile.maxUpdateTime = Math.max(profile.maxUpdateTime, duration);
         profile.lastUpdateTime = duration;
-        
+
         this.totalUpdates++;
-        
+
         // Check for performance issues
         this.checkPerformanceThresholds(timingData.agentId, 'update', duration);
-        
+
         // Update active agent count
         this.updateActiveAgentCount();
-        
+
         return {
             agentId: timingData.agentId,
             duration,
@@ -272,10 +272,10 @@ export class AgentPerformanceTracker {
 
         const profile = this.agentProfiles.get(agentId);
         const startTime = performance.now();
-        
+
         profile.currentBehavior = behaviorName;
         profile.behaviorStartTime = startTime;
-        
+
         return {
             agentId,
             behaviorName,
@@ -295,7 +295,7 @@ export class AgentPerformanceTracker {
         const endTime = performance.now();
         const duration = endTime - timingData.startTime;
         const profile = this.agentProfiles.get(timingData.agentId);
-        
+
         // Update behavior metrics for this agent
         if (!profile.behaviors.has(timingData.behaviorName)) {
             profile.behaviors.set(timingData.behaviorName, {
@@ -307,23 +307,23 @@ export class AgentPerformanceTracker {
                 maxTime: 0
             });
         }
-        
+
         const behaviorMetrics = profile.behaviors.get(timingData.behaviorName);
         behaviorMetrics.callCount++;
         behaviorMetrics.totalTime += duration;
         behaviorMetrics.averageTime = behaviorMetrics.totalTime / behaviorMetrics.callCount;
         behaviorMetrics.minTime = Math.min(behaviorMetrics.minTime, duration);
         behaviorMetrics.maxTime = Math.max(behaviorMetrics.maxTime, duration);
-        
+
         // Update global behavior metrics
         this.updateGlobalBehaviorMetrics(timingData.behaviorName, duration);
-        
+
         // Check thresholds
         this.checkPerformanceThresholds(timingData.agentId, 'behavior', duration);
-        
+
         profile.currentBehavior = null;
         profile.behaviorStartTime = 0;
-        
+
         return {
             agentId: timingData.agentId,
             behaviorName: timingData.behaviorName,
@@ -344,7 +344,7 @@ export class AgentPerformanceTracker {
         profile.pathfindingCalls++;
         profile.totalPathfindingTime += duration;
         profile.averagePathfindingTime = profile.totalPathfindingTime / profile.pathfindingCalls;
-        
+
         this.checkPerformanceThresholds(agentId, 'pathfinding', duration);
     }
 
@@ -360,7 +360,7 @@ export class AgentPerformanceTracker {
         profile.collisionChecks++;
         profile.totalCollisionTime += duration;
         profile.averageCollisionTime = profile.totalCollisionTime / profile.collisionChecks;
-        
+
         this.checkPerformanceThresholds(agentId, 'collision', duration);
     }
 
@@ -379,14 +379,14 @@ export class AgentPerformanceTracker {
                 agentCount: 0
             });
         }
-        
+
         const metrics = this.behaviorProfiles.get(behaviorName);
         metrics.callCount++;
         metrics.totalTime += duration;
         metrics.averageTime = metrics.totalTime / metrics.callCount;
         metrics.minTime = Math.min(metrics.minTime, duration);
         metrics.maxTime = Math.max(metrics.maxTime, duration);
-        
+
         // Count unique agents using this behavior
         const agentsUsingBehavior = new Set();
         for (const [agentId, profile] of this.agentProfiles) {
@@ -408,12 +408,12 @@ export class AgentPerformanceTracker {
 
         const profile = this.agentProfiles.get(agentId);
         profile.alertCount++;
-        
+
         // Mark as bottleneck if consistently slow
         if (profile.alertCount > 5) {
             profile.isBottleneck = true;
         }
-        
+
         // Create alert
         const alert = {
             timestamp: performance.now(),
@@ -424,9 +424,9 @@ export class AgentPerformanceTracker {
             threshold,
             severity: duration > threshold * 2 ? 'high' : 'medium'
         };
-        
+
         this.alerts.push(alert);
-        
+
         // Maintain alert history size
         if (this.alerts.length > this.maxAlerts) {
             this.alerts.shift();
@@ -439,7 +439,7 @@ export class AgentPerformanceTracker {
     updateActiveAgentCount() {
         const currentTime = performance.now();
         const activeThreshold = 5000; // 5 seconds
-        
+
         this.activeAgents = 0;
         for (const [agentId, profile] of this.agentProfiles) {
             if (profile.isActive && (currentTime - profile.lastActiveTime) < activeThreshold) {
@@ -453,22 +453,22 @@ export class AgentPerformanceTracker {
      */
     getCurrentMetrics() {
         this.updateActiveAgentCount();
-        
+
         return {
             isTracking: this.isTracking,
             totalAgents: this.totalAgents,
             activeAgents: this.activeAgents,
             totalUpdates: this.totalUpdates,
-            averageUpdatesPerAgent: this.totalAgents > 0 ? 
-                Math.round((this.totalUpdates / this.totalAgents) * 100) / 100 : 0,
-            
+            averageUpdatesPerAgent: this.totalAgents > 0
+                ? Math.round((this.totalUpdates / this.totalAgents) * 100) / 100 : 0,
+
             // Performance summary
             bottleneckAgents: this.getBottleneckAgents().length,
             recentAlerts: this.getRecentAlerts(5000).length, // Last 5 seconds
-            
+
             // Behavior summary
             trackedBehaviors: this.behaviorProfiles.size,
-            
+
             // Thresholds
             thresholds: { ...this.thresholds }
         };
@@ -488,7 +488,7 @@ export class AgentPerformanceTracker {
             type: profile.type,
             isActive: profile.isActive,
             isBottleneck: profile.isBottleneck,
-            
+
             update: {
                 count: profile.updateCount,
                 averageTime: Math.round(profile.averageTime * 100) / 100,
@@ -496,19 +496,19 @@ export class AgentPerformanceTracker {
                 maxTime: Math.round(profile.maxUpdateTime * 100) / 100,
                 lastTime: Math.round(profile.lastUpdateTime * 100) / 100
             },
-            
+
             pathfinding: {
                 calls: profile.pathfindingCalls,
                 averageTime: Math.round(profile.averagePathfindingTime * 100) / 100,
                 totalTime: Math.round(profile.totalPathfindingTime * 100) / 100
             },
-            
+
             collision: {
                 checks: profile.collisionChecks,
                 averageTime: Math.round(profile.averageCollisionTime * 100) / 100,
                 totalTime: Math.round(profile.totalCollisionTime * 100) / 100
             },
-            
+
             behaviors: Array.from(profile.behaviors.values()).map(b => ({
                 ...b,
                 averageTime: Math.round(b.averageTime * 100) / 100,
@@ -516,7 +516,7 @@ export class AgentPerformanceTracker {
                 maxTime: Math.round(b.maxTime * 100) / 100,
                 totalTime: Math.round(b.totalTime * 100) / 100
             })),
-            
+
             alertCount: profile.alertCount,
             registeredAt: profile.registeredAt,
             lastActiveTime: profile.lastActiveTime
@@ -578,7 +578,7 @@ export class AgentPerformanceTracker {
     getPerformanceStatistics() {
         const allAgents = this.getAllAgentPerformance();
         const activeAgents = allAgents.filter(a => a.isActive);
-        
+
         if (activeAgents.length === 0) {
             return {
                 agentCount: 0,
@@ -588,10 +588,10 @@ export class AgentPerformanceTracker {
                 bottleneckPercentage: 0
             };
         }
-        
+
         const updateTimes = activeAgents.map(a => a.update.averageTime).sort((a, b) => a - b);
         const bottleneckCount = this.getBottleneckAgents().length;
-        
+
         return {
             agentCount: activeAgents.length,
             averageUpdateTime: Math.round((updateTimes.reduce((a, b) => a + b, 0) / updateTimes.length) * 100) / 100,
@@ -630,7 +630,7 @@ export class AgentPerformanceTracker {
         const bottlenecks = this.getBottleneckAgents();
         const behaviorPerf = this.getBehaviorPerformance();
         const recentAlerts = this.getRecentAlerts();
-        
+
         return {
             summary: metrics,
             statistics,
@@ -646,27 +646,27 @@ export class AgentPerformanceTracker {
      */
     generateRecommendations(statistics, bottlenecks, behaviors) {
         const recommendations = [];
-        
+
         if (statistics.bottleneckPercentage > 20) {
             recommendations.push(`${statistics.bottleneckPercentage}% of agents are performance bottlenecks. Consider optimizing agent behaviors.`);
         }
-        
+
         if (statistics.p95UpdateTime > this.thresholds.update * 2) {
             recommendations.push(`95th percentile update time (${statistics.p95UpdateTime}ms) is high. Review agent update logic.`);
         }
-        
+
         if (behaviors.length > 0 && behaviors[0].averageTime > this.thresholds.behavior * 3) {
             recommendations.push(`Behavior "${behaviors[0].name}" is very slow (${behaviors[0].averageTime}ms avg). Consider optimization.`);
         }
-        
+
         if (statistics.agentCount > 100 && statistics.averageUpdateTime > 1) {
             recommendations.push('High agent count with slow updates. Consider agent pooling or level-of-detail systems.');
         }
-        
+
         if (recommendations.length === 0) {
             recommendations.push('Agent performance looks good! No major issues detected.');
         }
-        
+
         return recommendations;
     }
 
@@ -680,7 +680,7 @@ export class AgentPerformanceTracker {
         // Calculate initial budget based on agent type and total budget
         const baseBudget = this.globalBudget.agentUpdateBudget / Math.max(1, this.totalAgents);
         profile.budget.allocated = baseBudget;
-        
+
         this.performanceBudgets.set(agentId, {
             frameAllocated: baseBudget,
             frameUsed: 0,
@@ -700,17 +700,17 @@ export class AgentPerformanceTracker {
 
         const profile = this.agentProfiles.get(agentId);
         const scheduling = profile.schedulingMetrics;
-        
+
         scheduling.scheduledUpdates++;
         scheduling.priority = schedulingData.priority || 'medium';
         scheduling.distanceCategory = schedulingData.distanceCategory || 'medium';
         scheduling.lastScheduledFrame = schedulingData.frameNumber || 0;
-        
+
         if (schedulingData.delay) {
             const totalDelay = scheduling.averageSchedulingDelay * (scheduling.scheduledUpdates - 1) + schedulingData.delay;
             scheduling.averageSchedulingDelay = totalDelay / scheduling.scheduledUpdates;
         }
-        
+
         if (schedulingData.skipped) {
             scheduling.skippedUpdates++;
             this.optimizationMetrics.skippedUpdates++;
@@ -729,7 +729,7 @@ export class AgentPerformanceTracker {
 
         const profile = this.agentProfiles.get(agentId);
         const optimization = profile.behaviorOptimization;
-        
+
         if (behaviorData.cacheHit) {
             optimization.cacheHits++;
             this.optimizationMetrics.cacheHits++;
@@ -737,19 +737,19 @@ export class AgentPerformanceTracker {
             optimization.cacheMisses++;
             this.optimizationMetrics.cacheMisses++;
         }
-        
+
         if (behaviorData.behaviorType) {
             optimization.optimizedBehaviors.add(behaviorData.behaviorType);
         }
-        
+
         if (behaviorData.complexityLevel) {
             optimization.complexityLevel = behaviorData.complexityLevel;
         }
-        
+
         if (behaviorData.sharedComputation) {
             optimization.sharedComputations++;
         }
-        
+
         this.optimizationMetrics.behaviorOptimizations++;
     }
 
@@ -762,12 +762,12 @@ export class AgentPerformanceTracker {
         }
 
         const profile = this.agentProfiles.get(agentId);
-        const budget = profile.budget;
+        const { budget } = profile;
         const frameBudget = this.performanceBudgets.get(agentId);
-        
+
         budget.used = timeUsed;
         budget.overbudget = timeUsed > budget.allocated;
-        
+
         if (budget.overbudget) {
             budget.overbudgetCount++;
             frameBudget.totalOverruns++;
@@ -775,15 +775,15 @@ export class AgentPerformanceTracker {
         } else {
             frameBudget.frameOverrun = 0;
         }
-        
+
         // Calculate efficiency
-        budget.budgetEfficiency = budget.allocated > 0 ? 
-            Math.min(1.0, budget.allocated / Math.max(0.1, timeUsed)) : 1.0;
+        budget.budgetEfficiency = budget.allocated > 0
+            ? Math.min(1.0, budget.allocated / Math.max(0.1, timeUsed)) : 1.0;
         frameBudget.efficiency = budget.budgetEfficiency;
-        
+
         // Update frame budget tracking
         frameBudget.frameUsed = timeUsed;
-        
+
         // Check if budget enforcement is needed
         this.checkBudgetEnforcement(agentId);
     }
@@ -795,8 +795,8 @@ export class AgentPerformanceTracker {
         const profile = this.agentProfiles.get(agentId);
         if (!profile) return;
 
-        const budget = profile.budget;
-        
+        const { budget } = profile;
+
         // If agent consistently exceeds budget, trigger quality adjustment
         if (budget.overbudgetCount > 5 && budget.budgetEfficiency < 0.7) {
             this.triggerQualityAdjustment(agentId, 'reduce', 'budget_exceeded');
@@ -816,28 +816,27 @@ export class AgentPerformanceTracker {
 
         const adjustments = profile.qualityAdjustments;
         const now = performance.now();
-        
+
         // Prevent too frequent adjustments
         if (now - adjustments.lastAdjustment < 1000) {
             return;
         }
-        
+
         if (direction === 'reduce' && adjustments.currentLevel > 0.3) {
             adjustments.currentLevel = Math.max(0.3, adjustments.currentLevel - 0.1);
             adjustments.reductions++;
             this.optimizationMetrics.qualityAdjustments++;
-            
+
             // Create alert
             this.createQualityAlert(agentId, 'reduced', reason, adjustments.currentLevel);
-            
         } else if (direction === 'increase' && adjustments.currentLevel < 1.0) {
             adjustments.currentLevel = Math.min(1.0, adjustments.currentLevel + 0.1);
             adjustments.increases++;
-            
+
             // Create alert
             this.createQualityAlert(agentId, 'increased', reason, adjustments.currentLevel);
         }
-        
+
         adjustments.lastAdjustment = now;
     }
 
@@ -858,9 +857,9 @@ export class AgentPerformanceTracker {
             newLevel: Math.round(newLevel * 100) / 100,
             severity: newLevel < 0.5 ? 'high' : 'medium'
         };
-        
+
         this.alerts.push(alert);
-        
+
         // Maintain alert history size
         if (this.alerts.length > this.maxAlerts) {
             this.alerts.shift();
@@ -871,16 +870,16 @@ export class AgentPerformanceTracker {
      * Update global performance budget
      */
     updateGlobalBudget(frameTime) {
-        this.globalBudget.remainingBudget = Math.max(0, 
+        this.globalBudget.remainingBudget = Math.max(0,
             this.globalBudget.totalFrameTime - frameTime);
-        
+
         // Check for quality adjustment triggers
         this.checkGlobalQualityTriggers(frameTime);
-        
+
         // Redistribute budgets if needed
         if (this.totalAgents > 0) {
             const newAgentBudget = this.globalBudget.agentUpdateBudget / this.totalAgents;
-            
+
             for (const [agentId, profile] of this.agentProfiles) {
                 profile.budget.allocated = newAgentBudget;
                 const frameBudget = this.performanceBudgets.get(agentId);
@@ -896,11 +895,11 @@ export class AgentPerformanceTracker {
      */
     checkGlobalQualityTriggers(frameTime) {
         const triggers = this.qualityTriggers;
-        
+
         if (frameTime > triggers.frameTimeThreshold) {
             triggers.currentSlowFrames++;
             triggers.currentRecoveryFrames = 0;
-            
+
             // Trigger quality reduction after consecutive slow frames
             if (triggers.currentSlowFrames >= triggers.consecutiveFrames) {
                 this.triggerGlobalQualityReduction();
@@ -909,7 +908,7 @@ export class AgentPerformanceTracker {
         } else {
             triggers.currentSlowFrames = 0;
             triggers.currentRecoveryFrames++;
-            
+
             // Trigger quality increase after recovery period
             if (triggers.currentRecoveryFrames >= triggers.recoveryFrames) {
                 this.triggerGlobalQualityIncrease();
@@ -923,19 +922,19 @@ export class AgentPerformanceTracker {
      */
     triggerGlobalQualityReduction() {
         let adjustedAgents = 0;
-        
+
         // Reduce quality for the most expensive agents first
         const sortedAgents = Array.from(this.agentProfiles.values())
             .filter(profile => profile.qualityAdjustments.currentLevel > 0.3)
             .sort((a, b) => b.averageUpdateTime - a.averageUpdateTime);
-        
+
         const maxAdjustments = Math.min(5, sortedAgents.length);
-        
+
         for (let i = 0; i < maxAdjustments; i++) {
             this.triggerQualityAdjustment(sortedAgents[i].id, 'reduce', 'global_performance');
             adjustedAgents++;
         }
-        
+
         console.log(`Global quality reduction: adjusted ${adjustedAgents} agents`);
     }
 
@@ -944,19 +943,19 @@ export class AgentPerformanceTracker {
      */
     triggerGlobalQualityIncrease() {
         let adjustedAgents = 0;
-        
+
         // Increase quality for agents with reduced quality
         const sortedAgents = Array.from(this.agentProfiles.values())
             .filter(profile => profile.qualityAdjustments.currentLevel < 1.0)
             .sort((a, b) => a.qualityAdjustments.currentLevel - b.qualityAdjustments.currentLevel);
-        
+
         const maxAdjustments = Math.min(3, sortedAgents.length);
-        
+
         for (let i = 0; i < maxAdjustments; i++) {
             this.triggerQualityAdjustment(sortedAgents[i].id, 'increase', 'performance_recovery');
             adjustedAgents++;
         }
-        
+
         if (adjustedAgents > 0) {
             console.log(`Global quality increase: adjusted ${adjustedAgents} agents`);
         }
@@ -966,12 +965,12 @@ export class AgentPerformanceTracker {
      * Get optimization metrics
      */
     getOptimizationMetrics() {
-        const cacheHitRate = this.optimizationMetrics.cacheHits + this.optimizationMetrics.cacheMisses > 0 ?
-            (this.optimizationMetrics.cacheHits / (this.optimizationMetrics.cacheHits + this.optimizationMetrics.cacheMisses)) * 100 : 0;
-        
-        const schedulingEfficiency = this.optimizationMetrics.scheduledUpdates + this.optimizationMetrics.skippedUpdates > 0 ?
-            (this.optimizationMetrics.scheduledUpdates / (this.optimizationMetrics.scheduledUpdates + this.optimizationMetrics.skippedUpdates)) * 100 : 0;
-        
+        const cacheHitRate = this.optimizationMetrics.cacheHits + this.optimizationMetrics.cacheMisses > 0
+            ? (this.optimizationMetrics.cacheHits / (this.optimizationMetrics.cacheHits + this.optimizationMetrics.cacheMisses)) * 100 : 0;
+
+        const schedulingEfficiency = this.optimizationMetrics.scheduledUpdates + this.optimizationMetrics.skippedUpdates > 0
+            ? (this.optimizationMetrics.scheduledUpdates / (this.optimizationMetrics.scheduledUpdates + this.optimizationMetrics.skippedUpdates)) * 100 : 0;
+
         return {
             ...this.optimizationMetrics,
             cacheHitRate: Math.round(cacheHitRate * 100) / 100,
@@ -990,30 +989,30 @@ export class AgentPerformanceTracker {
             return null;
         }
 
-        const cacheHitRate = profile.behaviorOptimization.cacheHits + profile.behaviorOptimization.cacheMisses > 0 ?
-            (profile.behaviorOptimization.cacheHits / (profile.behaviorOptimization.cacheHits + profile.behaviorOptimization.cacheMisses)) * 100 : 0;
+        const cacheHitRate = profile.behaviorOptimization.cacheHits + profile.behaviorOptimization.cacheMisses > 0
+            ? (profile.behaviorOptimization.cacheHits / (profile.behaviorOptimization.cacheHits + profile.behaviorOptimization.cacheMisses)) * 100 : 0;
 
         return {
             id: profile.id,
             type: profile.type,
-            
+
             scheduling: {
                 ...profile.schedulingMetrics,
-                efficiency: profile.schedulingMetrics.scheduledUpdates > 0 ?
-                    (profile.schedulingMetrics.scheduledUpdates / (profile.schedulingMetrics.scheduledUpdates + profile.schedulingMetrics.skippedUpdates)) * 100 : 0
+                efficiency: profile.schedulingMetrics.scheduledUpdates > 0
+                    ? (profile.schedulingMetrics.scheduledUpdates / (profile.schedulingMetrics.scheduledUpdates + profile.schedulingMetrics.skippedUpdates)) * 100 : 0
             },
-            
+
             behaviorOptimization: {
                 ...profile.behaviorOptimization,
                 cacheHitRate: Math.round(cacheHitRate * 100) / 100,
                 optimizedBehaviorCount: profile.behaviorOptimization.optimizedBehaviors.size
             },
-            
+
             budget: {
                 ...profile.budget,
                 budgetEfficiency: Math.round(profile.budget.budgetEfficiency * 100) / 100
             },
-            
+
             qualityAdjustments: {
                 ...profile.qualityAdjustments,
                 currentLevel: Math.round(profile.qualityAdjustments.currentLevel * 100) / 100
@@ -1048,7 +1047,7 @@ export class AgentPerformanceTracker {
             qualityAdjustments: 0,
             memoryOptimizations: 0
         };
-        
+
         // Reset agent-specific optimization metrics
         for (const profile of this.agentProfiles.values()) {
             profile.schedulingMetrics.scheduledUpdates = 0;

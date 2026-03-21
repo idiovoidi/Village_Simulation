@@ -9,7 +9,7 @@ export class ThresholdMonitor {
         this.isMonitoring = false;
         this.alertHistory = [];
         this.maxAlertHistory = options.maxAlertHistory || 1000;
-        
+
         // Threshold definitions
         this.thresholds = {
             frameRate: {
@@ -76,18 +76,18 @@ export class ThresholdMonitor {
         this.optimizationTriggers = new Map(); // metricType -> trigger config
         this.optimizationCallbacks = new Map(); // callbackId -> callback function
         this.lastOptimizationTriggers = new Map(); // metricType -> timestamp
-        
+
         // Initialize default optimization triggers
         this.initializeOptimizationTriggers();
 
         // Alert callbacks
         this.alertCallbacks = new Map();
-        
+
         // Alert state tracking
         this.activeAlerts = new Map();
         this.alertCooldowns = new Map();
         this.recentAlerts = [];
-        
+
         // Statistics
         this.stats = {
             totalAlerts: 0,
@@ -179,7 +179,7 @@ export class ThresholdMonitor {
         console.log('Starting threshold monitoring...');
         this.isMonitoring = true;
         this.stats.monitoringStartTime = Date.now();
-        
+
         // Clear previous state
         this.activeAlerts.clear();
         this.alertCooldowns.clear();
@@ -197,7 +197,7 @@ export class ThresholdMonitor {
 
         console.log('Stopping threshold monitoring...');
         this.isMonitoring = false;
-        
+
         // Clear active alerts
         this.activeAlerts.clear();
         this.alertCooldowns.clear();
@@ -220,7 +220,7 @@ export class ThresholdMonitor {
         // Check each metric type
         for (const [metricType, thresholds] of Object.entries(this.thresholds)) {
             const value = this.extractMetricValue(metrics, metricType);
-            
+
             if (value !== null && value !== undefined) {
                 const alert = this.checkThreshold(metricType, value, thresholds, timestamp);
                 if (alert) {
@@ -248,7 +248,7 @@ export class ThresholdMonitor {
 
         // Check in order of severity (critical -> warning -> info)
         const severityLevels = ['critical', 'warning', 'info'];
-        
+
         for (const level of severityLevels) {
             if (!this.alertConfig.enabledSeverities.includes(level)) {
                 continue;
@@ -260,7 +260,7 @@ export class ThresholdMonitor {
             }
 
             const { min, max } = threshold;
-            
+
             if (value < min || value > max) {
                 severity = level;
                 thresholdInfo = threshold;
@@ -294,8 +294,8 @@ export class ThresholdMonitor {
             value,
             threshold: thresholdInfo,
             message: this.generateAlertMessage(metricType, severity, value, thresholdInfo),
-            isNew: !this.activeAlerts.has(metricType) || 
-                   this.activeAlerts.get(metricType).severity !== severity
+            isNew: !this.activeAlerts.has(metricType)
+                   || this.activeAlerts.get(metricType).severity !== severity
         };
 
         return alert;
@@ -307,7 +307,7 @@ export class ThresholdMonitor {
     processAlert(alert) {
         // Add to history
         this.alertHistory.push(alert);
-        
+
         // Maintain history size
         if (this.alertHistory.length > this.maxAlertHistory) {
             this.alertHistory.shift();
@@ -345,7 +345,7 @@ export class ThresholdMonitor {
         if (this.activeAlerts.has(metricType)) {
             const clearedAlert = this.activeAlerts.get(metricType);
             this.activeAlerts.delete(metricType);
-            
+
             // Create resolution alert
             const resolutionAlert = {
                 id: this.generateAlertId(),
@@ -382,7 +382,7 @@ export class ThresholdMonitor {
         }
 
         const triggerConfig = trigger[alert.severity];
-        
+
         // Create optimization trigger event
         const optimizationTrigger = {
             id: this.generateAlertId(),
@@ -409,11 +409,10 @@ export class ThresholdMonitor {
      */
     checkEscalation(alert) {
         const existingAlert = this.activeAlerts.get(alert.metricType);
-        
-        if (existingAlert && 
-            existingAlert.severity === alert.severity &&
-            alert.timestamp - existingAlert.timestamp > this.alertConfig.escalationTime) {
-            
+
+        if (existingAlert
+            && existingAlert.severity === alert.severity
+            && alert.timestamp - existingAlert.timestamp > this.alertConfig.escalationTime) {
             // Escalate alert
             const escalatedAlert = {
                 ...alert,
@@ -453,7 +452,7 @@ export class ThresholdMonitor {
     updateDynamicThresholds(metrics) {
         // Update agent scheduling thresholds based on total agents
         if (metrics.optimization?.agents?.scheduler?.totalAgents) {
-            const totalAgents = metrics.optimization.agents.scheduler.totalAgents;
+            const { totalAgents } = metrics.optimization.agents.scheduler;
             const maxRecommendedUpdatesPerFrame = Math.max(1, Math.floor(totalAgents * 0.3));
             const criticalUpdatesPerFrame = Math.max(1, Math.floor(totalAgents * 0.8));
 
@@ -466,7 +465,7 @@ export class ThresholdMonitor {
         // Update memory thresholds based on available memory
         if (metrics.memory?.total) {
             const totalMemoryMB = metrics.memory.total / (1024 * 1024);
-            
+
             // Adjust thresholds for systems with different memory amounts
             if (totalMemoryMB < 4096) { // Less than 4GB
                 this.thresholds.memory = {
@@ -497,7 +496,7 @@ export class ThresholdMonitor {
     generateAlertMessage(metricType, severity, value, threshold) {
         const { min, max } = threshold;
         let condition = '';
-        
+
         if (value < min) {
             condition = `below minimum threshold (${value} < ${min})`;
         } else if (value > max) {
@@ -522,7 +521,7 @@ export class ThresholdMonitor {
         // Clean old alerts from recent list
         const oneMinuteAgo = timestamp - 60000;
         this.recentAlerts = this.recentAlerts.filter(time => time > oneMinuteAgo);
-        
+
         return this.recentAlerts.length >= this.alertConfig.maxAlertsPerMinute;
     }
 
@@ -548,12 +547,12 @@ export class ThresholdMonitor {
     updateAlertStatistics(alert) {
         this.stats.totalAlerts++;
         this.stats.alertsBySeverity[alert.severity]++;
-        
+
         if (!this.stats.alertsByType[alert.metricType]) {
             this.stats.alertsByType[alert.metricType] = 0;
         }
         this.stats.alertsByType[alert.metricType]++;
-        
+
         this.stats.lastAlert = alert;
     }
 
@@ -567,7 +566,7 @@ export class ThresholdMonitor {
         } = options;
 
         const callbackId = this.generateCallbackId();
-        
+
         this.alertCallbacks.set(callbackId, {
             callback,
             severities,
@@ -595,7 +594,7 @@ export class ThresholdMonitor {
         } = options;
 
         const callbackId = this.generateCallbackId();
-        
+
         this.optimizationCallbacks.set(callbackId, {
             callback,
             actions,
@@ -619,22 +618,22 @@ export class ThresholdMonitor {
     notifyOptimizationCallbacks(trigger) {
         for (const [id, config] of this.optimizationCallbacks) {
             const { callback, actions, metricTypes, severities } = config;
-            
+
             // Check severity filter
             if (!severities.includes(trigger.severity)) {
                 continue;
             }
-            
+
             // Check metric type filter
             if (metricTypes && !metricTypes.includes(trigger.metricType)) {
                 continue;
             }
-            
+
             // Check action filter
             if (actions && !trigger.actions.some(action => actions.includes(action))) {
                 continue;
             }
-            
+
             try {
                 callback(trigger);
             } catch (error) {
@@ -649,17 +648,17 @@ export class ThresholdMonitor {
     notifyCallbacks(alert) {
         for (const [id, config] of this.alertCallbacks) {
             const { callback, severities, metricTypes } = config;
-            
+
             // Check severity filter
             if (!severities.includes(alert.severity)) {
                 continue;
             }
-            
+
             // Check metric type filter
             if (metricTypes && !metricTypes.includes(alert.metricType)) {
                 continue;
             }
-            
+
             try {
                 callback(alert);
             } catch (error) {
@@ -703,15 +702,15 @@ export class ThresholdMonitor {
         if (startTime) {
             alerts = alerts.filter(alert => alert.timestamp >= startTime);
         }
-        
+
         if (endTime) {
             alerts = alerts.filter(alert => alert.timestamp <= endTime);
         }
-        
+
         if (severity) {
             alerts = alerts.filter(alert => alert.severity === severity);
         }
-        
+
         if (metricType) {
             alerts = alerts.filter(alert => alert.metricType === metricType);
         }
@@ -735,8 +734,8 @@ export class ThresholdMonitor {
      * Get alert statistics
      */
     getStatistics() {
-        const uptime = this.stats.monitoringStartTime ? 
-            Date.now() - this.stats.monitoringStartTime : 0;
+        const uptime = this.stats.monitoringStartTime
+            ? Date.now() - this.stats.monitoringStartTime : 0;
 
         return {
             ...this.stats,
@@ -753,14 +752,14 @@ export class ThresholdMonitor {
     generateReport(timeRange = 3600000) { // Default 1 hour
         const endTime = Date.now();
         const startTime = endTime - timeRange;
-        
+
         const alerts = this.getAlertHistory({ startTime, endTime });
         const activeAlerts = this.getActiveAlerts();
-        
+
         // Group alerts by type and severity
         const alertsByType = {};
         const alertsBySeverity = { critical: 0, warning: 0, info: 0 };
-        
+
         alerts.forEach(alert => {
             if (!alertsByType[alert.metricType]) {
                 alertsByType[alert.metricType] = { critical: 0, warning: 0, info: 0 };
@@ -788,19 +787,19 @@ export class ThresholdMonitor {
      */
     generateRecommendations(alerts, activeAlerts) {
         const recommendations = [];
-        
+
         // Check for frequent alerts
         const alertCounts = {};
         alerts.forEach(alert => {
             alertCounts[alert.metricType] = (alertCounts[alert.metricType] || 0) + 1;
         });
-        
+
         for (const [metricType, count] of Object.entries(alertCounts)) {
             if (count > 10) {
                 recommendations.push(`High alert frequency for ${metricType} (${count} alerts). Consider adjusting thresholds or investigating root cause.`);
             }
         }
-        
+
         // Check for persistent active alerts
         activeAlerts.forEach(alert => {
             const duration = Date.now() - alert.timestamp;
@@ -808,17 +807,17 @@ export class ThresholdMonitor {
                 recommendations.push(`Persistent ${alert.severity} alert for ${alert.metricType} (active for ${Math.round(duration / 60000)} minutes).`);
             }
         });
-        
+
         // Check for critical alerts
         const criticalAlerts = alerts.filter(alert => alert.severity === 'critical');
         if (criticalAlerts.length > 0) {
             recommendations.push(`${criticalAlerts.length} critical alerts detected. Immediate attention required.`);
         }
-        
+
         if (recommendations.length === 0) {
             recommendations.push('No significant alert patterns detected. System performance appears stable.');
         }
-        
+
         return recommendations;
     }
 
@@ -843,7 +842,7 @@ export class ThresholdMonitor {
         if (!this.optimizationTriggers.has(metricType)) {
             this.optimizationTriggers.set(metricType, {});
         }
-        
+
         this.optimizationTriggers.get(metricType)[severity] = config;
     }
 
@@ -860,7 +859,7 @@ export class ThresholdMonitor {
         } else {
             this.optimizationTriggers.delete(metricType);
         }
-        
+
         return true;
     }
 

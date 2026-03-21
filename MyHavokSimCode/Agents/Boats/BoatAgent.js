@@ -3,7 +3,7 @@ import { BoatAgentBehaviour } from './BoatAgentBehaviour.js';
 export class BoatAgent {
     constructor(scene, waterLevel = -8) {
         if (!scene) {
-            throw new Error("Scene is required for BoatAgent");
+            throw new Error('Scene is required for BoatAgent');
         }
         this.scene = scene;
         this.waterLevel = waterLevel;
@@ -19,7 +19,7 @@ export class BoatAgent {
                 this.updateBoats(deltaTime);
             });
         } catch (error) {
-            console.error("Error initializing BoatAgent:", error);
+            console.error('Error initializing BoatAgent:', error);
         }
     }
 
@@ -33,7 +33,7 @@ export class BoatAgent {
                 this.waterLevel + 0.5,
                 Math.sin(angle) * radius
             );
-            
+
             const boat = this.createBoat(position);
             this.boats.push(boat);
         }
@@ -41,10 +41,10 @@ export class BoatAgent {
 
     createBoat(position) {
         // Create boat container
-        const boat = new BABYLON.TransformNode("boat", this.scene);
-        
+        const boat = new BABYLON.TransformNode('boat', this.scene);
+
         // Create hull (slightly larger and more visible)
-        const hull = BABYLON.MeshBuilder.CreateBox("hull", {
+        const hull = BABYLON.MeshBuilder.CreateBox('hull', {
             width: 2,
             height: 1,
             depth: 4
@@ -53,7 +53,7 @@ export class BoatAgent {
         hull.position.y = 0.5; // Raise hull slightly
 
         // Create mast
-        const mast = BABYLON.MeshBuilder.CreateCylinder("mast", {
+        const mast = BABYLON.MeshBuilder.CreateCylinder('mast', {
             diameter: 0.2,
             height: 4
         }, this.scene);
@@ -61,7 +61,7 @@ export class BoatAgent {
         mast.position.y = 2.5;
 
         // Create sail (larger)
-        const sail = BABYLON.MeshBuilder.CreatePlane("sail", {
+        const sail = BABYLON.MeshBuilder.CreatePlane('sail', {
             width: 2,
             height: 3
         }, this.scene);
@@ -70,7 +70,7 @@ export class BoatAgent {
         sail.rotation.y = Math.PI / 2;
 
         // Create materials with more visible colors
-        const hullMat = new BABYLON.StandardMaterial("hullMat", this.scene);
+        const hullMat = new BABYLON.StandardMaterial('hullMat', this.scene);
         hullMat.diffuseColor = new BABYLON.Color3(
             0.8 + Math.random() * 0.2, // More vibrant wood color
             0.4 + Math.random() * 0.2,
@@ -78,7 +78,7 @@ export class BoatAgent {
         );
         hullMat.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
 
-        const sailMat = new BABYLON.StandardMaterial("sailMat", this.scene);
+        const sailMat = new BABYLON.StandardMaterial('sailMat', this.scene);
         sailMat.diffuseColor = new BABYLON.Color3(1, 1, 1);
         sailMat.backFaceCulling = false;
         sailMat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
@@ -100,10 +100,10 @@ export class BoatAgent {
         const bowlRadius = 100;
         const bowlDepth = 25;
         const distFromCenter = Math.sqrt(x * x + z * z);
-        
+
         let height = -Math.pow(distFromCenter / bowlRadius, 1.2) * bowlDepth;
-        height += Math.sin(x/20) * Math.cos(z/20) * 2;
-        
+        height += Math.sin(x / 20) * Math.cos(z / 20) * 2;
+
         return height;
     }
 
@@ -115,4 +115,4 @@ export class BoatAgent {
             boat.behavior.update(deltaTime, this.boats);
         });
     }
-} 
+}

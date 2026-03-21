@@ -17,7 +17,7 @@ const mockFs = {
 // Mock path module
 const mockPath = {
     join: (...args) => args.join('/'),
-    resolve: (path) => path
+    resolve: path => path
 };
 
 // Mock imports
@@ -29,7 +29,7 @@ const DependencyManager = require('../DependencyManager.js');
 
 describe('DependencyManager', () => {
     let dependencyManager;
-    
+
     beforeEach(() => {
         dependencyManager = new DependencyManager();
         jest.clearAllMocks();
@@ -123,7 +123,7 @@ describe('DependencyManager', () => {
                 },
                 devDependencies: {}
             };
-            
+
             mockFs.promises.readFile.mockResolvedValue(JSON.stringify({
                 dependencies: mockCurrentVersions.dependencies,
                 devDependencies: mockCurrentVersions.devDependencies
@@ -267,7 +267,7 @@ describe('DependencyManager', () => {
             const result = await dependencyManager.updatePackageJson(newVersions);
 
             expect(result).toBe(true);
-            
+
             const expectedPackageJson = {
                 dependencies: {
                     '@babylonjs/core': '^8.29.0',

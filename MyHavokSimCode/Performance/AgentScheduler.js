@@ -8,7 +8,7 @@ export class AgentScheduler {
     constructor(scene, camera) {
         this.scene = scene;
         this.camera = camera;
-        
+
         // Scheduling configuration
         this.config = {
             maxAgentsPerFrame: 10,        // Maximum agents to update per frame
@@ -30,7 +30,7 @@ export class AgentScheduler {
                 critical_behavior: 2      // Priority multiplier for critical behaviors
             }
         };
-        
+
         // Agent management
         this.registeredAgents = new Map();  // agentId -> agent data
         this.updateQueues = {
@@ -38,12 +38,12 @@ export class AgentScheduler {
             medium: [],                   // Medium priority agents
             low: []                       // Low priority agents
         };
-        
+
         // Scheduling state
         this.frameCounter = 0;
         this.currentFrameUpdates = 0;
         this.schedulingEnabled = true;
-        
+
         // Performance tracking
         this.metrics = {
             totalAgents: 0,
@@ -53,12 +53,12 @@ export class AgentScheduler {
             skippedUpdates: 0,
             priorityDistribution: { high: 0, medium: 0, low: 0 }
         };
-        
+
         // Timing for metrics
         this.lastMetricsUpdate = performance.now();
         this.frameUpdateCounts = [];
         this.maxFrameHistory = 60; // Track last 60 frames
-        
+
         // Initialize update loop
         this.initializeScheduler();
     }
@@ -73,7 +73,7 @@ export class AgentScheduler {
                 this.updateMetrics();
             }
         });
-        
+
         console.log('AgentScheduler initialized');
     }
 
@@ -92,25 +92,25 @@ export class AgentScheduler {
             updateCallback: agentData.updateCallback,
             behaviorType: agentData.behaviorType || 'default',
             priority: agentData.priority || 'medium',
-            
+
             // Scheduling data
             lastUpdateFrame: 0,
             updateFrequency: this.config.updateFrequencies.medium,
             distanceCategory: 'medium',
             currentPriority: 'medium',
-            
+
             // Performance data
             updateCount: 0,
             totalUpdateTime: 0,
             averageUpdateTime: 0,
             lastUpdateDuration: 0,
-            
+
             // State tracking
             isVisible: false,
             distanceFromCamera: 0,
             isPlayerInteracting: false,
             hasCriticalBehavior: false,
-            
+
             // Custom properties
             customPriority: agentData.customPriority || 1.0,
             forceUpdate: false
@@ -119,7 +119,7 @@ export class AgentScheduler {
         this.registeredAgents.set(agentId, scheduledAgent);
         this.addToQueue(scheduledAgent);
         this.metrics.totalAgents++;
-        
+
         return true;
     }
 
@@ -136,7 +136,7 @@ export class AgentScheduler {
         this.removeFromAllQueues(agentId);
         this.registeredAgents.delete(agentId);
         this.metrics.totalAgents--;
-        
+
         return true;
     }
 
@@ -146,27 +146,27 @@ export class AgentScheduler {
     processScheduledUpdates() {
         this.frameCounter++;
         this.currentFrameUpdates = 0;
-        
+
         // Update agent priorities and distances
         this.updateAgentPriorities();
-        
+
         // Calculate how many agents to update this frame
         const maxUpdates = this.calculateMaxUpdatesThisFrame();
-        
+
         // Process high priority agents first
         this.processQueueUpdates('high', maxUpdates * this.config.priorityUpdateRatio);
-        
+
         // Process remaining capacity with medium and low priority
         const remainingCapacity = maxUpdates - this.currentFrameUpdates;
         this.processQueueUpdates('medium', remainingCapacity * 0.7);
         this.processQueueUpdates('low', maxUpdates - this.currentFrameUpdates);
-        
+
         // Track frame update count
         this.frameUpdateCounts.push(this.currentFrameUpdates);
         if (this.frameUpdateCounts.length > this.maxFrameHistory) {
             this.frameUpdateCounts.shift();
         }
-        
+
         this.metrics.updatesThisFrame = this.currentFrameUpdates;
     }
 
@@ -185,19 +185,19 @@ export class AgentScheduler {
                 this.camera.position
             );
             agent.distanceFromCamera = distance;
-            
+
             // Update distance category
             const oldCategory = agent.distanceCategory;
             agent.distanceCategory = this.getDistanceCategory(distance);
-            agent.updateFrequency = this.config.updateFrequencies[agent.distanceCategory] || 
-                                   this.config.updateFrequencies.medium;
-            
+            agent.updateFrequency = this.config.updateFrequencies[agent.distanceCategory]
+                                   || this.config.updateFrequencies.medium;
+
             // Check visibility (simplified frustum check)
             agent.isVisible = this.isAgentVisible(agent);
-            
+
             // Calculate new priority
             const newPriority = this.calculateAgentPriority(agent);
-            
+
             // Move agent to appropriate queue if priority changed
             if (newPriority !== agent.currentPriority) {
                 this.removeFromAllQueues(agentId);
@@ -212,7 +212,7 @@ export class AgentScheduler {
      */
     getDistanceCategory(distance) {
         const thresholds = this.config.distanceThresholds;
-        
+
         if (distance <= thresholds.near) return 'near';
         if (distance <= thresholds.medium) return 'medium';
         if (distance <= thresholds.far) return 'far';
@@ -231,7 +231,7 @@ export class AgentScheduler {
         // In a real implementation, this would use frustum culling
         const distance = agent.distanceFromCamera;
         const maxVisibleDistance = this.config.distanceThresholds.far;
-        
+
         return distance <= maxVisibleDistance;
     }
 
@@ -240,33 +240,33 @@ export class AgentScheduler {
      */
     calculateAgentPriority(agent) {
         let priorityScore = agent.customPriority;
-        
+
         // Distance-based priority
         if (agent.distanceCategory === 'near') priorityScore *= 3;
         else if (agent.distanceCategory === 'medium') priorityScore *= 2;
         else if (agent.distanceCategory === 'far') priorityScore *= 1;
         else priorityScore *= 0.5; // veryFar
-        
+
         // Visibility bonus
         if (agent.isVisible) {
             priorityScore *= this.config.priorityBonus.visible;
         }
-        
+
         // Player interaction bonus
         if (agent.isPlayerInteracting) {
             priorityScore *= this.config.priorityBonus.player_interaction;
         }
-        
+
         // Critical behavior bonus
         if (agent.hasCriticalBehavior) {
             priorityScore *= this.config.priorityBonus.critical_behavior;
         }
-        
+
         // Force update override
         if (agent.forceUpdate) {
             return 'high';
         }
-        
+
         // Convert score to priority category
         if (priorityScore >= 4) return 'high';
         if (priorityScore >= 2) return 'medium';
@@ -279,7 +279,7 @@ export class AgentScheduler {
     calculateMaxUpdatesThisFrame() {
         // Base capacity
         let maxUpdates = this.config.maxAgentsPerFrame;
-        
+
         // Adjust based on frame rate (if available)
         const engine = this.scene.getEngine();
         if (engine && engine.getFps) {
@@ -290,7 +290,7 @@ export class AgentScheduler {
                 maxUpdates = Math.floor(maxUpdates * 1.2);
             }
         }
-        
+
         return Math.min(maxUpdates, this.metrics.totalAgents);
     }
 
@@ -305,22 +305,22 @@ export class AgentScheduler {
 
         const updatesToProcess = Math.min(Math.floor(maxUpdates), queue.length);
         const agentsToUpdate = [];
-        
+
         // Select agents that are due for update
         for (let i = 0; i < queue.length && agentsToUpdate.length < updatesToProcess; i++) {
             const agent = queue[i];
-            
+
             if (this.shouldUpdateAgent(agent)) {
                 agentsToUpdate.push(agent);
             }
         }
-        
+
         // Process selected agents
         for (const agent of agentsToUpdate) {
             if (this.currentFrameUpdates >= this.config.maxAgentsPerFrame) {
                 break;
             }
-            
+
             this.updateAgent(agent);
         }
     }
@@ -334,7 +334,7 @@ export class AgentScheduler {
             agent.forceUpdate = false;
             return true;
         }
-        
+
         // Check update frequency
         const framesSinceLastUpdate = this.frameCounter - agent.lastUpdateFrame;
         return framesSinceLastUpdate >= agent.updateFrequency;
@@ -349,7 +349,7 @@ export class AgentScheduler {
         }
 
         const startTime = performance.now();
-        
+
         try {
             // Call the agent's update function
             const deltaTime = this.scene.getEngine().getDeltaTime() * 0.001;
@@ -359,18 +359,17 @@ export class AgentScheduler {
                 priority: agent.currentPriority,
                 framesSinceLastUpdate: this.frameCounter - agent.lastUpdateFrame
             });
-            
+
             // Update tracking data
             agent.lastUpdateFrame = this.frameCounter;
             agent.updateCount++;
             this.currentFrameUpdates++;
-            
+
             // Performance tracking
             const duration = performance.now() - startTime;
             agent.lastUpdateDuration = duration;
             agent.totalUpdateTime += duration;
             agent.averageUpdateTime = agent.totalUpdateTime / agent.updateCount;
-            
         } catch (error) {
             console.error(`Error updating agent ${agent.id}:`, error);
         }
@@ -406,20 +405,20 @@ export class AgentScheduler {
     updateMetrics() {
         const now = performance.now();
         const timeSinceLastUpdate = now - this.lastMetricsUpdate;
-        
+
         // Update metrics every second
         if (timeSinceLastUpdate >= 1000) {
             // Calculate updates per second
             const totalUpdates = Array.from(this.registeredAgents.values())
                 .reduce((sum, agent) => sum + agent.updateCount, 0);
             this.metrics.updatesPerSecond = totalUpdates / (timeSinceLastUpdate / 1000);
-            
+
             // Calculate average updates per frame
             if (this.frameUpdateCounts.length > 0) {
-                this.metrics.averageUpdatesPerFrame = 
-                    this.frameUpdateCounts.reduce((a, b) => a + b, 0) / this.frameUpdateCounts.length;
+                this.metrics.averageUpdatesPerFrame
+                    = this.frameUpdateCounts.reduce((a, b) => a + b, 0) / this.frameUpdateCounts.length;
             }
-            
+
             this.lastMetricsUpdate = now;
         }
     }
@@ -465,11 +464,11 @@ export class AgentScheduler {
      */
     updateConfig(newConfig) {
         this.config = { ...this.config, ...newConfig };
-        
+
         // Recalculate update frequencies for all agents
         for (const agent of this.registeredAgents.values()) {
-            agent.updateFrequency = this.config.updateFrequencies[agent.distanceCategory] || 
-                                   this.config.updateFrequencies.medium;
+            agent.updateFrequency = this.config.updateFrequencies[agent.distanceCategory]
+                                   || this.config.updateFrequencies.medium;
         }
     }
 
@@ -541,7 +540,7 @@ export class AgentScheduler {
         this.updateQueues.high = [];
         this.updateQueues.medium = [];
         this.updateQueues.low = [];
-        
+
         console.log('AgentScheduler disposed');
     }
 }

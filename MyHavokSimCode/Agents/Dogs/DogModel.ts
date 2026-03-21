@@ -17,7 +17,7 @@ export class DogModel {
 
     create(position: BABYLON.Vector3): BABYLON.Mesh {
         // Create dog body
-        const body = BABYLON.MeshBuilder.CreateBox("dogBody", {
+        const body = BABYLON.MeshBuilder.CreateBox('dogBody', {
             width: 0.8,
             height: 0.6,
             depth: 1.2
@@ -25,7 +25,7 @@ export class DogModel {
         body.position = position;
 
         // Create head
-        const head = BABYLON.MeshBuilder.CreateBox("dogHead", {
+        const head = BABYLON.MeshBuilder.CreateBox('dogHead', {
             width: 0.4,
             height: 0.4,
             depth: 0.4
@@ -35,7 +35,7 @@ export class DogModel {
         head.position.y = 0.2;
 
         // Create snout
-        const snout = BABYLON.MeshBuilder.CreateBox("dogSnout", {
+        const snout = BABYLON.MeshBuilder.CreateBox('dogSnout', {
             width: 0.25,
             height: 0.25,
             depth: 0.3
@@ -46,7 +46,7 @@ export class DogModel {
 
         // Create ears
         [-1, 1].forEach(side => {
-            const ear = BABYLON.MeshBuilder.CreateBox("dogEar", {
+            const ear = BABYLON.MeshBuilder.CreateBox('dogEar', {
                 width: 0.15,
                 height: 0.3,
                 depth: 0.1
@@ -67,7 +67,7 @@ export class DogModel {
 
         this.legs = [];
         legPositions.forEach((pos, index) => {
-            const leg = BABYLON.MeshBuilder.CreateBox("dogLeg" + index, {
+            const leg = BABYLON.MeshBuilder.CreateBox(`dogLeg${index}`, {
                 width: 0.15,
                 height: 0.6,
                 depth: 0.15
@@ -80,7 +80,7 @@ export class DogModel {
         });
 
         // Create tail
-        const tail = BABYLON.MeshBuilder.CreateCylinder("dogTail", {
+        const tail = BABYLON.MeshBuilder.CreateCylinder('dogTail', {
             height: 0.6,
             diameter: 0.1,
             tessellation: 8
@@ -92,7 +92,7 @@ export class DogModel {
         this.tail = tail;
 
         // Materials
-        const bodyMaterial = new BABYLON.StandardMaterial("dogBodyMat", this.scene);
+        const bodyMaterial = new BABYLON.StandardMaterial('dogBodyMat', this.scene);
         const randomColor = Math.random();
         if (randomColor < 0.3) {
             // Brown
@@ -105,7 +105,7 @@ export class DogModel {
             bodyMaterial.diffuseColor = new BABYLON.Color3(0.8, 0.6, 0.2);
         }
 
-        const darkMaterial = new BABYLON.StandardMaterial("dogDarkMat", this.scene);
+        const darkMaterial = new BABYLON.StandardMaterial('dogDarkMat', this.scene);
         darkMaterial.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1);
 
         // Apply materials
@@ -143,8 +143,8 @@ export class DogModel {
             this.legs.forEach((leg, index) => {
                 const phase = (index % 2) * Math.PI;
                 const animation = new BABYLON.Animation(
-                    "legWalk" + index,
-                    "rotation.x",
+                    `legWalk${index}`,
+                    'rotation.x',
                     30,
                     BABYLON.Animation.ANIMATIONTYPE_FLOAT,
                     BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
@@ -154,7 +154,7 @@ export class DogModel {
                 for (let frame = 0; frame <= 30; frame++) {
                     const angle = (frame / 30) * Math.PI * 2 + phase;
                     keys.push({
-                        frame: frame,
+                        frame,
                         value: Math.sin(angle) * 0.3
                     });
                 }
@@ -166,8 +166,8 @@ export class DogModel {
             // Wag tail while walking
             if (this.tail) {
                 const tailAnimation = new BABYLON.Animation(
-                    "tailWag",
-                    "rotation.z",
+                    'tailWag',
+                    'rotation.z',
                     30,
                     BABYLON.Animation.ANIMATIONTYPE_FLOAT,
                     BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
@@ -192,7 +192,7 @@ export class DogModel {
                 this.scene.stopAnimation(leg);
                 leg.rotation.x = 0;
             });
-            
+
             if (this.tail) {
                 this.scene.stopAnimation(this.tail);
                 this.tail.rotation.x = Math.PI / 4;

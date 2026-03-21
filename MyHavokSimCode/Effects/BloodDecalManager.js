@@ -5,8 +5,8 @@ export class BloodDecalManager {
         this.maxDecals = 50;
 
         // Create a reusable material for the decals
-        this.decalMaterial = new BABYLON.StandardMaterial("bloodDecalMaterial", this.scene);
-        this.decalMaterial.diffuseTexture = new BABYLON.Texture("https://www.babylonjs-playground.com/textures/impact.png", this.scene);
+        this.decalMaterial = new BABYLON.StandardMaterial('bloodDecalMaterial', this.scene);
+        this.decalMaterial.diffuseTexture = new BABYLON.Texture('https://www.babylonjs-playground.com/textures/impact.png', this.scene);
         this.decalMaterial.diffuseTexture.hasAlpha = true;
         this.decalMaterial.zOffset = -2;
     }
@@ -19,8 +19,8 @@ export class BloodDecalManager {
         }
 
         const decalSize = new BABYLON.Vector3(2, 2, 2);
-        const decal = BABYLON.MeshBuilder.CreateDecal("bloodDecal", this.scene.getMeshByName("ground"), {
-            position: position,
+        const decal = BABYLON.MeshBuilder.CreateDecal('bloodDecal', this.scene.getMeshByName('ground'), {
+            position,
             normal: new BABYLON.Vector3(0, 1, 0),
             size: decalSize
         });
@@ -36,4 +36,4 @@ export class BloodDecalManager {
             this.decalMaterial.dispose();
         }
     }
-} 
+}

@@ -8,12 +8,12 @@ export class MemoryMonitor {
         // Integration with optimization systems
         this.memoryManager = memoryManager;
         this.resourceCleanupSystem = resourceCleanupSystem;
-        
+
         // Memory tracking state
         this.isMonitoring = false;
         this.memoryHistory = [];
         this.maxHistorySize = 100; // Keep last 100 measurements
-        
+
         // Current memory metrics
         this.currentMemory = {
             used: 0,
@@ -23,18 +23,18 @@ export class MemoryMonitor {
             external: 0,
             arrayBuffers: 0
         };
-        
+
         // GPU memory tracking (when available)
         this.gpuMemory = {
             used: 0,
             total: 0,
             available: false
         };
-        
+
         // Monitoring interval
         this.monitoringInterval = null;
         this.updateInterval = 1000; // Update every second
-        
+
         // Memory pressure detection
         this.memoryPressure = {
             isActive: false,
@@ -47,7 +47,7 @@ export class MemoryMonitor {
             history: [],
             lastAlert: 0
         };
-        
+
         // Memory usage prediction
         this.prediction = {
             enabled: true,
@@ -57,21 +57,21 @@ export class MemoryMonitor {
             predictedUsage: 0,
             timeToLimit: Infinity
         };
-        
+
         // Optimization recommendations
         this.recommendations = {
             active: [],
             history: [],
             lastUpdate: 0
         };
-        
+
         // Alert system
         this.alerts = {
             callbacks: new Set(),
             suppressionTime: 30000, // 30 seconds between similar alerts
             lastAlerts: new Map()
         };
-        
+
         // Check for memory API availability
         this.hasMemoryAPI = this.checkMemoryAPISupport();
         this.hasGPUMemoryAPI = this.checkGPUMemorySupport();
@@ -81,9 +81,9 @@ export class MemoryMonitor {
      * Check if the browser supports the Memory API
      */
     checkMemoryAPISupport() {
-        return 'memory' in performance && 
-               typeof performance.memory === 'object' &&
-               'usedJSHeapSize' in performance.memory;
+        return 'memory' in performance
+               && typeof performance.memory === 'object'
+               && 'usedJSHeapSize' in performance.memory;
     }
 
     /**
@@ -114,15 +114,15 @@ export class MemoryMonitor {
 
         console.log('Starting memory monitoring...');
         this.isMonitoring = true;
-        
+
         // Clear history
         this.memoryHistory = [];
-        
+
         // Start periodic monitoring
         this.monitoringInterval = setInterval(() => {
             this.updateMemoryMetrics();
         }, this.updateInterval);
-        
+
         // Take initial measurement
         this.updateMemoryMetrics();
     }
@@ -137,7 +137,7 @@ export class MemoryMonitor {
 
         console.log('Stopping memory monitoring...');
         this.isMonitoring = false;
-        
+
         if (this.monitoringInterval) {
             clearInterval(this.monitoringInterval);
             this.monitoringInterval = null;
@@ -153,28 +153,28 @@ export class MemoryMonitor {
         }
 
         const timestamp = performance.now();
-        
+
         // Update heap memory information
         this.updateHeapMemory();
-        
+
         // Update GPU memory information if available
         this.updateGPUMemory();
-        
+
         // Create memory snapshot
         const memorySnapshot = {
             timestamp,
             ...this.currentMemory,
             gpu: { ...this.gpuMemory }
         };
-        
+
         // Add to history
         this.memoryHistory.push(memorySnapshot);
-        
+
         // Maintain history size
         if (this.memoryHistory.length > this.maxHistorySize) {
             this.memoryHistory.shift();
         }
-        
+
         // Enhanced optimization features
         this.detectMemoryPressure(memorySnapshot);
         this.updateMemoryPrediction(memorySnapshot);
@@ -187,8 +187,8 @@ export class MemoryMonitor {
      */
     updateHeapMemory() {
         if (this.hasMemoryAPI) {
-            const memory = performance.memory;
-            
+            const { memory } = performance;
+
             this.currentMemory = {
                 used: memory.usedJSHeapSize,
                 total: memory.totalJSHeapSize,
@@ -239,14 +239,14 @@ export class MemoryMonitor {
         if (this.isMonitoring) {
             this.updateMemoryMetrics();
         }
-        
+
         return {
             used: this.formatBytes(this.currentMemory.used),
             total: this.formatBytes(this.currentMemory.total),
             heapUsed: this.formatBytes(this.currentMemory.heapUsed),
             heapTotal: this.formatBytes(this.currentMemory.heapTotal),
-            usagePercentage: this.currentMemory.total > 0 ? 
-                Math.round((this.currentMemory.used / this.currentMemory.total) * 100) : 0,
+            usagePercentage: this.currentMemory.total > 0
+                ? Math.round((this.currentMemory.used / this.currentMemory.total) * 100) : 0,
             gpu: {
                 ...this.gpuMemory,
                 used: this.formatBytes(this.gpuMemory.used),
@@ -264,17 +264,17 @@ export class MemoryMonitor {
         if (this.memoryHistory.length < sampleCount) {
             return 'insufficient_data';
         }
-        
+
         const recent = this.memoryHistory.slice(-sampleCount);
         const firstHalf = recent.slice(0, sampleCount / 2);
         const secondHalf = recent.slice(sampleCount / 2);
-        
+
         const firstAvg = firstHalf.reduce((sum, sample) => sum + sample.used, 0) / firstHalf.length;
         const secondAvg = secondHalf.reduce((sum, sample) => sum + sample.used, 0) / secondHalf.length;
-        
+
         const difference = secondAvg - firstAvg;
         const threshold = 1024 * 1024; // 1MB threshold
-        
+
         if (Math.abs(difference) < threshold) {
             return 'stable';
         } else if (difference > 0) {
@@ -290,7 +290,7 @@ export class MemoryMonitor {
     getMemoryStatistics(timeRangeMs = 60000) {
         const cutoffTime = performance.now() - timeRangeMs;
         const recentSamples = this.memoryHistory.filter(sample => sample.timestamp >= cutoffTime);
-        
+
         if (recentSamples.length === 0) {
             return {
                 sampleCount: 0,
@@ -301,30 +301,30 @@ export class MemoryMonitor {
                 isStable: false
             };
         }
-        
+
         const usageValues = recentSamples.map(sample => sample.used);
         const average = usageValues.reduce((a, b) => a + b, 0) / usageValues.length;
         const min = Math.min(...usageValues);
         const max = Math.max(...usageValues);
-        
+
         // Calculate memory growth rate
         const firstSample = recentSamples[0];
         const lastSample = recentSamples[recentSamples.length - 1];
         const timeDiff = lastSample.timestamp - firstSample.timestamp;
-        const memoryGrowth = timeDiff > 0 ? 
-            (lastSample.used - firstSample.used) / (timeDiff / 1000) : 0; // bytes per second
-        
+        const memoryGrowth = timeDiff > 0
+            ? (lastSample.used - firstSample.used) / (timeDiff / 1000) : 0; // bytes per second
+
         // Check stability (low variance)
         const variance = usageValues.reduce((sum, val) => sum + Math.pow(val - average, 2), 0) / usageValues.length;
         const stdDev = Math.sqrt(variance);
         const isStable = stdDev < (average * 0.1); // Stable if std dev < 10% of average
-        
+
         return {
             sampleCount: recentSamples.length,
             averageUsage: this.formatBytes(average),
             minUsage: this.formatBytes(min),
             maxUsage: this.formatBytes(max),
-            memoryGrowth: this.formatBytes(Math.abs(memoryGrowth)) + '/s',
+            memoryGrowth: `${this.formatBytes(Math.abs(memoryGrowth))}/s`,
             memoryGrowthDirection: memoryGrowth > 0 ? 'increasing' : memoryGrowth < 0 ? 'decreasing' : 'stable',
             isStable,
             variance: this.formatBytes(variance)
@@ -336,14 +336,14 @@ export class MemoryMonitor {
      */
     detectMemoryLeak(thresholdGrowthRate = 1024 * 1024) { // 1MB/s default threshold
         const stats = this.getMemoryStatistics(300000); // Check last 5 minutes
-        
+
         if (stats.sampleCount < 10) {
             return {
                 detected: false,
                 reason: 'insufficient_data'
             };
         }
-        
+
         // Parse growth rate
         const growthMatch = stats.memoryGrowth.match(/^([\d.]+)\s*([KMGT]?B)/);
         if (!growthMatch) {
@@ -352,10 +352,10 @@ export class MemoryMonitor {
                 reason: 'invalid_growth_data'
             };
         }
-        
+
         const growthValue = parseFloat(growthMatch[1]);
         const growthUnit = growthMatch[2];
-        
+
         // Convert to bytes
         let growthBytes = growthValue;
         switch (growthUnit) {
@@ -363,17 +363,17 @@ export class MemoryMonitor {
             case 'MB': growthBytes *= 1024 * 1024; break;
             case 'GB': growthBytes *= 1024 * 1024 * 1024; break;
         }
-        
-        const isLeaking = stats.memoryGrowthDirection === 'increasing' && 
-                         growthBytes > thresholdGrowthRate;
-        
+
+        const isLeaking = stats.memoryGrowthDirection === 'increasing'
+                         && growthBytes > thresholdGrowthRate;
+
         return {
             detected: isLeaking,
             growthRate: stats.memoryGrowth,
-            threshold: this.formatBytes(thresholdGrowthRate) + '/s',
-            recommendation: isLeaking ? 
-                'Memory usage is growing rapidly. Check for object retention and dispose of unused resources.' :
-                'Memory usage appears normal.'
+            threshold: `${this.formatBytes(thresholdGrowthRate)}/s`,
+            recommendation: isLeaking
+                ? 'Memory usage is growing rapidly. Check for object retention and dispose of unused resources.'
+                : 'Memory usage appears normal.'
         };
     }
 
@@ -382,12 +382,12 @@ export class MemoryMonitor {
      */
     formatBytes(bytes) {
         if (bytes === 0) return '0 B';
-        
+
         const k = 1024;
         const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
-        
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+
+        return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
     }
 
     /**
@@ -397,7 +397,7 @@ export class MemoryMonitor {
         if (count === null) {
             return [...this.memoryHistory];
         }
-        
+
         return this.memoryHistory.slice(-count);
     }
 
@@ -413,7 +413,7 @@ export class MemoryMonitor {
      */
     setUpdateInterval(intervalMs) {
         this.updateInterval = Math.max(500, intervalMs); // Minimum 500ms
-        
+
         if (this.isMonitoring) {
             // Restart with new interval
             this.stop();
@@ -425,12 +425,12 @@ export class MemoryMonitor {
      * Detect memory pressure conditions
      */
     detectMemoryPressure(memorySnapshot) {
-        const usagePercent = memorySnapshot.total > 0 ? 
-            memorySnapshot.used / memorySnapshot.total : 0;
-        
+        const usagePercent = memorySnapshot.total > 0
+            ? memorySnapshot.used / memorySnapshot.total : 0;
+
         let newLevel = 'normal';
         let isActive = false;
-        
+
         if (usagePercent >= this.memoryPressure.threshold.emergency) {
             newLevel = 'emergency';
             isActive = true;
@@ -441,11 +441,11 @@ export class MemoryMonitor {
             newLevel = 'warning';
             isActive = true;
         }
-        
+
         const previousLevel = this.memoryPressure.level;
         this.memoryPressure.isActive = isActive;
         this.memoryPressure.level = newLevel;
-        
+
         // Add to pressure history
         this.memoryPressure.history.push({
             timestamp: memorySnapshot.timestamp,
@@ -454,17 +454,17 @@ export class MemoryMonitor {
             used: memorySnapshot.used,
             total: memorySnapshot.total
         });
-        
+
         // Maintain pressure history size
         if (this.memoryPressure.history.length > 50) {
             this.memoryPressure.history.shift();
         }
-        
+
         // Trigger alerts on level changes
         if (newLevel !== previousLevel && isActive) {
             this.triggerMemoryPressureAlert(newLevel, usagePercent);
         }
-        
+
         // Trigger optimization actions
         if (isActive && this.memoryManager) {
             switch (newLevel) {
@@ -491,19 +491,19 @@ export class MemoryMonitor {
         if (!this.prediction.enabled) {
             return;
         }
-        
+
         // Add sample to prediction data
         this.prediction.samples.push({
             timestamp: memorySnapshot.timestamp,
             used: memorySnapshot.used,
             total: memorySnapshot.total
         });
-        
+
         // Maintain sample size
         if (this.prediction.samples.length > this.prediction.maxSamples) {
             this.prediction.samples.shift();
         }
-        
+
         // Calculate trend if we have enough samples
         if (this.prediction.samples.length >= 5) {
             this.calculateMemoryTrend();
@@ -515,20 +515,20 @@ export class MemoryMonitor {
      * Calculate memory usage trend
      */
     calculateMemoryTrend() {
-        const samples = this.prediction.samples;
+        const { samples } = this.prediction;
         if (samples.length < 5) {
             return;
         }
-        
+
         // Linear regression to determine trend
         const n = samples.length;
         const sumX = samples.reduce((sum, sample, index) => sum + index, 0);
         const sumY = samples.reduce((sum, sample) => sum + sample.used, 0);
         const sumXY = samples.reduce((sum, sample, index) => sum + (index * sample.used), 0);
         const sumXX = samples.reduce((sum, sample, index) => sum + (index * index), 0);
-        
+
         const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
-        
+
         // Determine trend based on slope
         const threshold = 1024 * 10; // 10KB per sample threshold
         if (Math.abs(slope) < threshold) {
@@ -544,23 +544,23 @@ export class MemoryMonitor {
      * Predict future memory usage
      */
     predictFutureUsage() {
-        const samples = this.prediction.samples;
+        const { samples } = this.prediction;
         if (samples.length < 5) {
             return;
         }
-        
+
         const lastSample = samples[samples.length - 1];
         const firstSample = samples[0];
         const timeSpan = lastSample.timestamp - firstSample.timestamp;
         const usageChange = lastSample.used - firstSample.used;
-        
+
         if (timeSpan > 0) {
             const changeRate = usageChange / timeSpan; // bytes per ms
-            
+
             // Predict usage in 60 seconds
             const futureTime = 60000; // 60 seconds
             this.prediction.predictedUsage = lastSample.used + (changeRate * futureTime);
-            
+
             // Calculate time to memory limit (if increasing)
             if (changeRate > 0 && lastSample.total > 0) {
                 const remainingMemory = lastSample.total - lastSample.used;
@@ -576,18 +576,18 @@ export class MemoryMonitor {
      */
     generateOptimizationRecommendations() {
         const currentTime = performance.now();
-        
+
         // Don't update recommendations too frequently
         if (currentTime - this.recommendations.lastUpdate < 10000) { // 10 seconds
             return;
         }
-        
+
         this.recommendations.lastUpdate = currentTime;
         this.recommendations.active = [];
-        
+
         const metrics = this.getCurrentMetrics();
         const usagePercent = metrics.usagePercentage / 100;
-        
+
         // Memory usage recommendations
         if (usagePercent > 0.8) {
             this.recommendations.active.push({
@@ -606,10 +606,10 @@ export class MemoryMonitor {
                 actions: ['monitor_growth', 'enable_proactive_cleanup']
             });
         }
-        
+
         // Memory trend recommendations
         if (this.prediction.trend === 'increasing') {
-            const timeToLimit = this.prediction.timeToLimit;
+            const { timeToLimit } = this.prediction;
             if (timeToLimit < 300000) { // Less than 5 minutes
                 this.recommendations.active.push({
                     type: 'memory_trend',
@@ -628,7 +628,7 @@ export class MemoryMonitor {
                 });
             }
         }
-        
+
         // Object pool recommendations
         if (this.memoryManager) {
             const poolStats = this.memoryManager.getStatistics();
@@ -644,7 +644,7 @@ export class MemoryMonitor {
                 }
             }
         }
-        
+
         // Resource cleanup recommendations
         if (this.resourceCleanupSystem) {
             const cleanupStats = this.resourceCleanupSystem.getStatistics();
@@ -658,14 +658,14 @@ export class MemoryMonitor {
                 });
             }
         }
-        
+
         // Add to history
         if (this.recommendations.active.length > 0) {
             this.recommendations.history.push({
                 timestamp: currentTime,
                 recommendations: [...this.recommendations.active]
             });
-            
+
             // Maintain history size
             if (this.recommendations.history.length > 20) {
                 this.recommendations.history.shift();
@@ -678,7 +678,7 @@ export class MemoryMonitor {
      */
     checkMemoryAlerts() {
         const currentTime = performance.now();
-        
+
         // Check for memory leak alerts
         const leakInfo = this.detectMemoryLeak();
         if (leakInfo.detected) {
@@ -688,7 +688,7 @@ export class MemoryMonitor {
                 threshold: leakInfo.threshold
             });
         }
-        
+
         // Check for prediction alerts
         if (this.prediction.timeToLimit < 300000) { // Less than 5 minutes
             this.triggerAlert('memory_limit_approaching', {
@@ -706,15 +706,15 @@ export class MemoryMonitor {
         const alertKey = `memory_pressure_${level}`;
         const currentTime = performance.now();
         const lastAlert = this.alerts.lastAlerts.get(alertKey) || 0;
-        
+
         // Check suppression time
         if (currentTime - lastAlert < this.alerts.suppressionTime) {
             return;
         }
-        
+
         this.alerts.lastAlerts.set(alertKey, currentTime);
         this.memoryPressure.lastAlert = currentTime;
-        
+
         this.triggerAlert('memory_pressure', {
             level,
             usagePercent: Math.round(usagePercent * 100),
@@ -730,7 +730,7 @@ export class MemoryMonitor {
             // Trigger a gentler cleanup than aggressive mode
             this.memoryManager.performScheduledCleanup();
         }
-        
+
         if (this.resourceCleanupSystem) {
             this.resourceCleanupSystem.performCleanupCycle();
         }
@@ -745,7 +745,7 @@ export class MemoryMonitor {
             timestamp: performance.now(),
             data
         };
-        
+
         // Notify all registered callbacks
         for (const callback of this.alerts.callbacks) {
             try {
@@ -754,7 +754,7 @@ export class MemoryMonitor {
                 console.error('Error in memory alert callback:', error);
             }
         }
-        
+
         // Log the alert
         console.warn(`Memory Alert [${type}]:`, data.message || data);
     }
@@ -846,11 +846,11 @@ export class MemoryMonitor {
         if (milliseconds === Infinity) {
             return 'never';
         }
-        
+
         const seconds = Math.floor(milliseconds / 1000);
         const minutes = Math.floor(seconds / 60);
         const hours = Math.floor(minutes / 60);
-        
+
         if (hours > 0) {
             return `${hours}h ${minutes % 60}m`;
         } else if (minutes > 0) {
@@ -865,7 +865,7 @@ export class MemoryMonitor {
      */
     getCurrentMetricsEnhanced() {
         const baseMetrics = this.getCurrentMetrics();
-        
+
         return {
             ...baseMetrics,
             pressure: this.getMemoryPressureInfo(),

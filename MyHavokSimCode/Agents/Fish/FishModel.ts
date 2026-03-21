@@ -11,7 +11,7 @@ export class FishModel {
 
     create(position: BABYLON.Vector3): BABYLON.Mesh {
         // Create main fish body
-        this.mesh = BABYLON.MeshBuilder.CreateBox("fishBody", {
+        this.mesh = BABYLON.MeshBuilder.CreateBox('fishBody', {
             width: 0.5,
             height: 0.3,
             depth: 1
@@ -21,7 +21,7 @@ export class FishModel {
         this.mesh.position = position;
 
         // Create tail
-        this.tailMesh = BABYLON.MeshBuilder.CreateBox("fishTail", {
+        this.tailMesh = BABYLON.MeshBuilder.CreateBox('fishTail', {
             width: 0.4,
             height: 0.2,
             depth: 0.3
@@ -30,7 +30,7 @@ export class FishModel {
         this.tailMesh.position.z = -0.6; // Attach to back of fish
 
         // Create material
-        const fishMaterial = new BABYLON.StandardMaterial("fishMat", this.scene);
+        const fishMaterial = new BABYLON.StandardMaterial('fishMat', this.scene);
         fishMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.8, 1.0);
         fishMaterial.alpha = 0.8;
 

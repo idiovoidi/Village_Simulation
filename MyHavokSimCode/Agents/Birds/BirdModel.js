@@ -9,11 +9,11 @@ export class BirdModel {
 
     create(position) {
         // Create bird container
-        this.mesh = new BABYLON.TransformNode("bird", this.scene);
+        this.mesh = new BABYLON.TransformNode('bird', this.scene);
         this.mesh.position = position;
 
         // Create body
-        const body = BABYLON.MeshBuilder.CreateCapsule("birdBody", {
+        const body = BABYLON.MeshBuilder.CreateCapsule('birdBody', {
             radius: 0.2,
             height: 0.8,
             tessellation: 8
@@ -22,11 +22,11 @@ export class BirdModel {
         body.rotation.z = Math.PI / 2;
 
         // Create wings
-        this.wingLeft = this.createWing("wingLeft", -0.2);
-        this.wingRight = this.createWing("wingRight", 0.2);
+        this.wingLeft = this.createWing('wingLeft', -0.2);
+        this.wingRight = this.createWing('wingRight', 0.2);
 
         // Create tail
-        this.tail = BABYLON.MeshBuilder.CreateBox("tail", {
+        this.tail = BABYLON.MeshBuilder.CreateBox('tail', {
             width: 0.3,
             height: 0.05,
             depth: 0.2
@@ -36,14 +36,14 @@ export class BirdModel {
         this.tail.position.y = 0;
 
         // Create materials
-        const bodyMaterial = new BABYLON.StandardMaterial("birdMat", this.scene);
+        const bodyMaterial = new BABYLON.StandardMaterial('birdMat', this.scene);
         bodyMaterial.diffuseColor = new BABYLON.Color3(
             0.6 + Math.random() * 0.2,
             0.6 + Math.random() * 0.2,
             0.6 + Math.random() * 0.2
         );
 
-        const wingMaterial = new BABYLON.StandardMaterial("wingMat", this.scene);
+        const wingMaterial = new BABYLON.StandardMaterial('wingMat', this.scene);
         wingMaterial.diffuseColor = bodyMaterial.diffuseColor.scale(0.8);
 
         // Apply materials

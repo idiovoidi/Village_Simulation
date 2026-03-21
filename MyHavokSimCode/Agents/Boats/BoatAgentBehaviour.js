@@ -6,7 +6,7 @@ export class BoatAgentBehaviour {
         this.currentSpeed = 0;
         this.minWaterDepth = 3; // Increased minimum water depth
         this.terrainCheckDistance = 8; // Increased terrain check distance
-        
+
         this.params = {
             speed: 0.03,           // Slightly faster speed
             turnSpeed: 0.01,       // Increased turn speed
@@ -20,7 +20,7 @@ export class BoatAgentBehaviour {
     update(deltaTime, otherBoats) {
         // Get steering direction with terrain awareness
         const steering = this.getSteeringDirection(otherBoats);
-        
+
         // Only move if we're in safe water
         if (this.isInSafeWater()) {
             this.moveBoat(steering, deltaTime);
@@ -28,12 +28,12 @@ export class BoatAgentBehaviour {
             // If in shallow water, reverse course
             this.reverseFromDanger();
         }
-        
+
         this.updateBoatVisuals(deltaTime);
     }
 
     getSteeringDirection(otherBoats) {
-        let direction = new BABYLON.Vector3(0, 0, 0);
+        const direction = new BABYLON.Vector3(0, 0, 0);
         const pos = this.boat.mesh.position;
 
         // Get forward direction
@@ -55,8 +55,8 @@ export class BoatAgentBehaviour {
             if (distFromCenter > this.safeRadius) {
                 direction.addInPlace(new BABYLON.Vector3(-pos.x, 0, -pos.z).normalize());
             } else {
-                if (!this.boat.targetPoint || 
-                    BABYLON.Vector3.Distance(pos, this.boat.targetPoint) < 5) {
+                if (!this.boat.targetPoint
+                    || BABYLON.Vector3.Distance(pos, this.boat.targetPoint) < 5) {
                     this.boat.targetPoint = this.getNewTarget();
                 }
                 direction.addInPlace(this.boat.targetPoint.subtract(pos).normalize());
@@ -70,16 +70,16 @@ export class BoatAgentBehaviour {
         const pos = this.boat.mesh.position;
         const checkPoints = [
             { direction: forward, weight: 1.0 },
-            { direction: this.rotateVector(forward, Math.PI/4), weight: 0.7 },
-            { direction: this.rotateVector(forward, -Math.PI/4), weight: 0.7 }
+            { direction: this.rotateVector(forward, Math.PI / 4), weight: 0.7 },
+            { direction: this.rotateVector(forward, -Math.PI / 4), weight: 0.7 }
         ];
 
-        let avoidanceVector = new BABYLON.Vector3(0, 0, 0);
+        const avoidanceVector = new BABYLON.Vector3(0, 0, 0);
 
         checkPoints.forEach(point => {
             const checkPos = pos.add(point.direction.scale(this.terrainCheckDistance));
             const waterDepth = this.getWaterDepth(checkPos);
-            
+
             if (waterDepth < this.minWaterDepth) {
                 // Add avoidance force away from shallow water
                 const avoidDir = pos.subtract(checkPos).normalize();
@@ -112,16 +112,16 @@ export class BoatAgentBehaviour {
             0,
             Math.cos(this.boat.mesh.rotation.y)
         );
-        
+
         // Move backwards
         this.boat.mesh.position.subtractInPlace(forward.scale(this.params.speed));
-        
+
         // Turn towards deeper water
         const deepWaterDir = this.findDeepWaterDirection();
         if (deepWaterDir) {
             const targetAngle = Math.atan2(deepWaterDir.x, deepWaterDir.z);
-            this.boat.mesh.rotation.y += 
-                (targetAngle - this.boat.mesh.rotation.y) * this.params.turnSpeed * 2;
+            this.boat.mesh.rotation.y
+                += (targetAngle - this.boat.mesh.rotation.y) * this.params.turnSpeed * 2;
         }
     }
 
@@ -131,7 +131,7 @@ export class BoatAgentBehaviour {
         let maxDepth = -Infinity;
 
         // Check in 8 directions
-        for (let angle = 0; angle < Math.PI * 2; angle += Math.PI/4) {
+        for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 4) {
             const checkDir = new BABYLON.Vector3(
                 Math.sin(angle),
                 0,
@@ -153,17 +153,17 @@ export class BoatAgentBehaviour {
         const bowlRadius = 100;
         const bowlDepth = 25;
         const distFromCenter = Math.sqrt(x * x + z * z);
-        
+
         let height = -Math.pow(distFromCenter / bowlRadius, 1.2) * bowlDepth;
-        height += Math.sin(x/20) * Math.cos(z/20) * 2;
-        
+        height += Math.sin(x / 20) * Math.cos(z / 20) * 2;
+
         return height;
     }
 
     moveBoat(direction, deltaTime) {
         // Calculate target angle
         const targetAngle = Math.atan2(direction.x, direction.z);
-        let currentAngle = this.boat.mesh.rotation.y;
+        const currentAngle = this.boat.mesh.rotation.y;
 
         // Smooth rotation
         let angleDiff = targetAngle - currentAngle;
@@ -190,8 +190,8 @@ export class BoatAgentBehaviour {
         const time = performance.now() * 0.001;
 
         // More pronounced wave motion
-        this.boat.mesh.position.y = this.waterLevel + 0.5 + 
-            Math.sin(time + pos.x * 0.2) * this.params.waveHeight;
+        this.boat.mesh.position.y = this.waterLevel + 0.5
+            + Math.sin(time + pos.x * 0.2) * this.params.waveHeight;
 
         // More dramatic tilting
         this.boat.mesh.rotation.z = Math.sin(time + pos.x * 0.2) * this.params.tiltAmount;
@@ -199,8 +199,8 @@ export class BoatAgentBehaviour {
 
         // Animate sail
         if (this.boat.parts.sail) {
-            this.boat.parts.sail.rotation.y = 
-                Math.PI / 2 + Math.sin(time * 0.5) * 0.2;
+            this.boat.parts.sail.rotation.y
+                = Math.PI / 2 + Math.sin(time * 0.5) * 0.2;
         }
     }
 
@@ -213,4 +213,4 @@ export class BoatAgentBehaviour {
             Math.sin(angle) * radius
         );
     }
-} 
+}

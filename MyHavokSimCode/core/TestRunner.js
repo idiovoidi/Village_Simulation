@@ -26,7 +26,7 @@ export class TestRunner {
         };
 
         console.log('🚀 Starting Compatibility Test Runner...');
-        
+
         if (config.verbose) {
             console.log('Test Configuration:', config);
         }
@@ -34,7 +34,7 @@ export class TestRunner {
         try {
             // Run the test suite
             const results = await this.framework.runAllTests();
-            
+
             // Save results if requested
             if (config.saveResults) {
                 this.framework.saveResults(results);
@@ -56,9 +56,8 @@ export class TestRunner {
             }
 
             this.printSummary(results);
-            
+
             return results;
-            
         } catch (error) {
             console.error('❌ Test runner failed:', error);
             throw error;
@@ -71,7 +70,7 @@ export class TestRunner {
      */
     async generateReport(results) {
         const report = this.createReportContent(results);
-        
+
         try {
             // In browser environment, save to localStorage or download
             if (typeof window !== 'undefined') {
@@ -80,7 +79,7 @@ export class TestRunner {
                 // In Node.js environment, save to file
                 await this.saveReportToFile(report, results.timestamp);
             }
-            
+
             console.log('📊 Test report generated successfully');
         } catch (error) {
             console.warn('⚠️ Failed to generate report:', error.message);
@@ -94,7 +93,7 @@ export class TestRunner {
      */
     createReportContent(results) {
         const timestamp = new Date(results.timestamp).toLocaleString();
-        
+
         let report = `# Compatibility Test Report
 Generated: ${timestamp}
 
@@ -139,7 +138,7 @@ Generated: ${timestamp}
             const status = test.status === 'PASSED' ? '✅' : '❌';
             report += `### ${index + 1}. ${test.name} ${status}
 `;
-            
+
             if (test.status === 'PASSED') {
                 report += `- Duration: ${test.duration}ms
 `;
@@ -186,7 +185,7 @@ ${test.stack}
 `;
 
         const failedTests = results.details.filter(t => t.status === 'FAILED');
-        
+
         if (failedTests.length === 0) {
             recommendations += `✅ All tests passed! The system appears to be compatible with the dependency updates.
 
@@ -195,7 +194,7 @@ ${test.stack}
             recommendations += `⚠️ ${failedTests.length} test(s) failed. Consider the following actions:
 
 `;
-            
+
             failedTests.forEach(test => {
                 recommendations += `- **${test.name}**: ${this.getRecommendationForTest(test)}
 `;
@@ -232,7 +231,7 @@ ${test.stack}
      */
     getRecommendationForTest(test) {
         const testName = test.name.toLowerCase();
-        
+
         if (testName.includes('scene loading')) {
             return 'Check Babylon.js engine initialization and canvas setup';
         } else if (testName.includes('basic functionality')) {
@@ -259,7 +258,7 @@ ${test.stack}
         // Save to localStorage
         const reportKey = `test-report-${timestamp}`;
         localStorage.setItem(reportKey, report);
-        
+
         // Trigger download
         const blob = new Blob([report], { type: 'text/markdown' });
         const url = URL.createObjectURL(blob);
@@ -280,13 +279,13 @@ ${test.stack}
     async saveReportToFile(report, timestamp) {
         const fs = await import('fs').then(m => m.promises);
         const path = await import('path');
-        
+
         // Create reports directory if it doesn't exist
         await fs.mkdir(this.reportPath, { recursive: true });
-        
+
         const filename = `compatibility-test-report-${timestamp}.md`;
         const filepath = path.join(this.reportPath, filename);
-        
+
         await fs.writeFile(filepath, report, 'utf8');
         console.log(`📄 Report saved to: ${filepath}`);
     }
@@ -296,28 +295,28 @@ ${test.stack}
      * @param {Object} results - Test results
      */
     printSummary(results) {
-        console.log('\n' + '='.repeat(50));
+        console.log(`\n${'='.repeat(50)}`);
         console.log('🧪 COMPATIBILITY TEST SUMMARY');
         console.log('='.repeat(50));
-        
+
         const successRate = ((results.passed / results.total) * 100).toFixed(1);
         const status = results.failed === 0 ? '✅ PASSED' : '❌ FAILED';
-        
+
         console.log(`Status: ${status}`);
         console.log(`Tests: ${results.passed}/${results.total} passed (${successRate}%)`);
-        
+
         if (results.performanceBaseline) {
             console.log(`Performance: ${results.performanceBaseline.frameRate.toFixed(1)} FPS`);
         }
-        
+
         if (results.comparison && results.comparison.overall !== 'unknown') {
-            const perfStatus = results.comparison.overall === 'improved' ? '📈' : 
-                             results.comparison.overall === 'degraded' ? '📉' : '➡️';
+            const perfStatus = results.comparison.overall === 'improved' ? '📈'
+                : results.comparison.overall === 'degraded' ? '📉' : '➡️';
             console.log(`Performance Change: ${perfStatus} ${results.comparison.overall.toUpperCase()}`);
         }
-        
+
         console.log('='.repeat(50));
-        
+
         if (results.failed > 0) {
             console.log('\n❌ Failed Tests:');
             results.details
@@ -341,7 +340,7 @@ ${test.stack}
         };
 
         const runner = new TestRunner();
-        
+
         try {
             const results = await runner.runTests(options);
             process.exit(results.failed === 0 ? 0 : 1);

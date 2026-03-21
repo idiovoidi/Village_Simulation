@@ -9,23 +9,23 @@ export class CPUProfiler {
         this.isProfiling = false;
         this.profiles = new Map(); // Function name -> profile data
         this.activeTimers = new Map(); // Timer ID -> start time
-        
+
         // Performance metrics
         this.renderTimes = [];
         this.updateTimes = [];
         this.maxHistorySize = 100;
-        
+
         // Frame timing
         this.frameStartTime = 0;
         this.lastFrameTime = 0;
         this.renderStartTime = 0;
         this.updateStartTime = 0;
-        
+
         // Statistics
         this.totalFrames = 0;
         this.totalRenderTime = 0;
         this.totalUpdateTime = 0;
-        
+
         // Timer ID counter
         this.timerIdCounter = 0;
     }
@@ -41,7 +41,7 @@ export class CPUProfiler {
 
         console.log('Starting CPU profiling...');
         this.isProfiling = true;
-        
+
         // Reset statistics
         this.profiles.clear();
         this.activeTimers.clear();
@@ -50,7 +50,7 @@ export class CPUProfiler {
         this.totalFrames = 0;
         this.totalRenderTime = 0;
         this.totalUpdateTime = 0;
-        
+
         this.frameStartTime = performance.now();
     }
 
@@ -64,7 +64,7 @@ export class CPUProfiler {
 
         console.log('Stopping CPU profiling...');
         this.isProfiling = false;
-        
+
         // Clear any active timers
         this.activeTimers.clear();
     }
@@ -79,13 +79,13 @@ export class CPUProfiler {
 
         const timerId = `${name}_${this.timerIdCounter++}`;
         const startTime = performance.now();
-        
+
         this.activeTimers.set(timerId, {
             name,
             startTime,
             stackTrace: this.captureStackTrace()
         });
-        
+
         return timerId;
     }
 
@@ -100,13 +100,13 @@ export class CPUProfiler {
         const endTime = performance.now();
         const timerData = this.activeTimers.get(timerId);
         const duration = endTime - timerData.startTime;
-        
+
         // Remove from active timers
         this.activeTimers.delete(timerId);
-        
+
         // Update profile data
         this.updateProfile(timerData.name, duration, timerData.stackTrace);
-        
+
         return {
             name: timerData.name,
             duration,
@@ -126,14 +126,14 @@ export class CPUProfiler {
         const timerId = this.startTimer(name);
         try {
             const result = fn(...args);
-            
+
             // Handle async functions
             if (result && typeof result.then === 'function') {
                 return result.finally(() => {
                     this.endTimer(timerId);
                 });
             }
-            
+
             this.endTimer(timerId);
             return result;
         } catch (error) {
@@ -183,13 +183,13 @@ export class CPUProfiler {
         const renderTime = performance.now() - this.renderStartTime;
         this.renderTimes.push(renderTime);
         this.totalRenderTime += renderTime;
-        
+
         // Maintain history size
         if (this.renderTimes.length > this.maxHistorySize) {
             const removed = this.renderTimes.shift();
             this.totalRenderTime -= removed;
         }
-        
+
         this.renderStartTime = 0;
     }
 
@@ -215,13 +215,13 @@ export class CPUProfiler {
         const updateTime = performance.now() - this.updateStartTime;
         this.updateTimes.push(updateTime);
         this.totalUpdateTime += updateTime;
-        
+
         // Maintain history size
         if (this.updateTimes.length > this.maxHistorySize) {
             const removed = this.updateTimes.shift();
             this.totalUpdateTime -= removed;
         }
-        
+
         this.updateStartTime = 0;
     }
 
@@ -235,7 +235,7 @@ export class CPUProfiler {
 
         const currentTime = performance.now();
         const frameTime = currentTime - this.frameStartTime;
-        
+
         this.totalFrames++;
         this.lastFrameTime = frameTime;
         this.frameStartTime = currentTime;
@@ -265,7 +265,7 @@ export class CPUProfiler {
         profile.maxTime = Math.max(profile.maxTime, duration);
         profile.averageTime = profile.totalTime / profile.callCount;
         profile.lastCallTime = duration;
-        
+
         // Store unique stack traces (limited to prevent memory issues)
         if (stackTrace && profile.stackTraces.length < 5) {
             const traceExists = profile.stackTraces.some(trace => trace === stackTrace);
@@ -280,31 +280,31 @@ export class CPUProfiler {
      */
     getCurrentMetrics() {
         const currentTime = performance.now();
-        
+
         return {
             isProfiling: this.isProfiling,
             totalFrames: this.totalFrames,
             lastFrameTime: Math.round(this.lastFrameTime * 100) / 100,
             render: {
-                averageTime: this.renderTimes.length > 0 ? 
-                    Math.round((this.totalRenderTime / this.renderTimes.length) * 100) / 100 : 0,
-                lastTime: this.renderTimes.length > 0 ? 
-                    Math.round(this.renderTimes[this.renderTimes.length - 1] * 100) / 100 : 0,
-                minTime: this.renderTimes.length > 0 ? 
-                    Math.round(Math.min(...this.renderTimes) * 100) / 100 : 0,
-                maxTime: this.renderTimes.length > 0 ? 
-                    Math.round(Math.max(...this.renderTimes) * 100) / 100 : 0,
+                averageTime: this.renderTimes.length > 0
+                    ? Math.round((this.totalRenderTime / this.renderTimes.length) * 100) / 100 : 0,
+                lastTime: this.renderTimes.length > 0
+                    ? Math.round(this.renderTimes[this.renderTimes.length - 1] * 100) / 100 : 0,
+                minTime: this.renderTimes.length > 0
+                    ? Math.round(Math.min(...this.renderTimes) * 100) / 100 : 0,
+                maxTime: this.renderTimes.length > 0
+                    ? Math.round(Math.max(...this.renderTimes) * 100) / 100 : 0,
                 sampleCount: this.renderTimes.length
             },
             update: {
-                averageTime: this.updateTimes.length > 0 ? 
-                    Math.round((this.totalUpdateTime / this.updateTimes.length) * 100) / 100 : 0,
-                lastTime: this.updateTimes.length > 0 ? 
-                    Math.round(this.updateTimes[this.updateTimes.length - 1] * 100) / 100 : 0,
-                minTime: this.updateTimes.length > 0 ? 
-                    Math.round(Math.min(...this.updateTimes) * 100) / 100 : 0,
-                maxTime: this.updateTimes.length > 0 ? 
-                    Math.round(Math.max(...this.updateTimes) * 100) / 100 : 0,
+                averageTime: this.updateTimes.length > 0
+                    ? Math.round((this.totalUpdateTime / this.updateTimes.length) * 100) / 100 : 0,
+                lastTime: this.updateTimes.length > 0
+                    ? Math.round(this.updateTimes[this.updateTimes.length - 1] * 100) / 100 : 0,
+                minTime: this.updateTimes.length > 0
+                    ? Math.round(Math.min(...this.updateTimes) * 100) / 100 : 0,
+                maxTime: this.updateTimes.length > 0
+                    ? Math.round(Math.max(...this.updateTimes) * 100) / 100 : 0,
                 sampleCount: this.updateTimes.length
             },
             activeTimers: this.activeTimers.size,
@@ -317,7 +317,7 @@ export class CPUProfiler {
      */
     getProfileData() {
         const profiles = [];
-        
+
         for (const [name, profile] of this.profiles) {
             profiles.push({
                 ...profile,
@@ -328,7 +328,7 @@ export class CPUProfiler {
                 lastCallTime: Math.round(profile.lastCallTime * 100) / 100
             });
         }
-        
+
         // Sort by total time (most expensive first)
         return profiles.sort((a, b) => b.totalTime - a.totalTime);
     }
@@ -372,7 +372,7 @@ export class CPUProfiler {
      * Get performance bottlenecks
      */
     getBottlenecks(thresholdMs = 10) {
-        return this.getProfileData().filter(profile => 
+        return this.getProfileData().filter(profile =>
             profile.averageTime > thresholdMs || profile.maxTime > thresholdMs * 2
         );
     }
@@ -413,20 +413,20 @@ export class CPUProfiler {
             };
         }
 
-        const avgRenderTime = this.renderTimes.length > 0 ? 
-            this.totalRenderTime / this.renderTimes.length : 0;
-        const avgUpdateTime = this.updateTimes.length > 0 ? 
-            this.totalUpdateTime / this.updateTimes.length : 0;
-        
+        const avgRenderTime = this.renderTimes.length > 0
+            ? this.totalRenderTime / this.renderTimes.length : 0;
+        const avgUpdateTime = this.updateTimes.length > 0
+            ? this.totalUpdateTime / this.updateTimes.length : 0;
+
         // Assume 60 FPS target (16.67ms per frame)
         const targetFrameTime = 1000 / 60;
         const totalActiveTime = avgRenderTime + avgUpdateTime;
-        
+
         const renderUtilization = (avgRenderTime / targetFrameTime) * 100;
         const updateUtilization = (avgUpdateTime / targetFrameTime) * 100;
         const totalUtilization = (totalActiveTime / targetFrameTime) * 100;
         const idleTime = Math.max(0, 100 - totalUtilization);
-        
+
         return {
             render: Math.round(Math.min(100, renderUtilization) * 100) / 100,
             update: Math.round(Math.min(100, updateUtilization) * 100) / 100,
@@ -443,7 +443,7 @@ export class CPUProfiler {
         const profiles = this.getProfileData();
         const bottlenecks = this.getBottlenecks();
         const utilization = this.getCPUUtilization();
-        
+
         return {
             summary: {
                 totalFrames: metrics.totalFrames,
@@ -467,28 +467,28 @@ export class CPUProfiler {
      */
     generateRecommendations(bottlenecks, utilization) {
         const recommendations = [];
-        
+
         if (utilization.total > 80) {
             recommendations.push('High CPU utilization detected. Consider optimizing render or update loops.');
         }
-        
+
         if (utilization.render > 50) {
             recommendations.push('High render time. Consider reducing mesh complexity or draw calls.');
         }
-        
+
         if (utilization.update > 30) {
             recommendations.push('High update time. Consider optimizing agent behaviors or physics calculations.');
         }
-        
+
         if (bottlenecks.length > 0) {
             const worstBottleneck = bottlenecks[0];
             recommendations.push(`Function "${worstBottleneck.name}" is a performance bottleneck (avg: ${worstBottleneck.averageTime}ms).`);
         }
-        
+
         if (recommendations.length === 0) {
             recommendations.push('Performance looks good! No major issues detected.');
         }
-        
+
         return recommendations;
     }
 

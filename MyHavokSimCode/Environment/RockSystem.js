@@ -4,7 +4,7 @@ export class RockSystem {
     constructor(scene) {
         this.scene = scene;
         this.rocks = [];
-        
+
         // LOD parameters
         this.LOD_LEVELS = {
             HIGH: { distance: 0, segments: 32, bumpDetails: 1.0 },
@@ -15,7 +15,7 @@ export class RockSystem {
 
         // Instance mesh arrays for LOD
         this.rockInstances = new Map();
-        
+
         // Rock generation parameters
         this.rockTypes = {
             BOULDER: { minSize: 2, maxSize: 4, frequency: 0.2 },
@@ -26,7 +26,7 @@ export class RockSystem {
         // Rock materials cache
         this.materials = new Map();
         this.lodMaterials = new Map();
-        
+
         // Spawn parameters
         this.spawnAttempts = 10;  // Maximum attempts to find a safe position
         this.minSpawnDistance = 2; // Minimum distance between rocks
@@ -36,7 +36,7 @@ export class RockSystem {
             { radius: 75, attempts: 5 },
             { radius: 100, attempts: 3 }
         ];
-        
+
         // Initialize systems
         this.initializeRockMaterials();
         this.initializeLODMeshes();
@@ -47,15 +47,15 @@ export class RockSystem {
         // Create materials for each LOD level
         Object.keys(this.LOD_LEVELS).forEach(level => {
             const lodMaterials = new Map();
-            
+
             // Create base material for this LOD level
             const baseMaterial = new BABYLON.StandardMaterial(`rock${level}BaseMat`, this.scene);
             baseMaterial.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
             baseMaterial.specularPower = 64;
-            
+
             // Only add complex textures for higher LOD levels
             if (this.LOD_LEVELS[level].bumpDetails > 0) {
-                const noiseTexture = new BABYLON.NoiseProceduralTexture(`rock${level}Noise`, 
+                const noiseTexture = new BABYLON.NoiseProceduralTexture(`rock${level}Noise`,
                     256 * this.LOD_LEVELS[level].bumpDetails, this.scene);
                 noiseTexture.octaves = Math.max(1, Math.floor(4 * this.LOD_LEVELS[level].bumpDetails));
                 baseMaterial.bumpTexture = noiseTexture;
@@ -106,17 +106,17 @@ export class RockSystem {
     }
 
     createLODPolyhedronRock(size, segments) {
-        return BABYLON.MeshBuilder.CreatePolyhedron("rockTemplate", {
+        return BABYLON.MeshBuilder.CreatePolyhedron('rockTemplate', {
             type: 0,
-            size: size,
-            segments: segments
+            size,
+            segments
         }, this.scene);
     }
 
     createLODCustomRock(size, segments) {
         const points = [];
         const actualSegments = Math.max(4, segments);
-        
+
         for (let i = 0; i < actualSegments; i++) {
             const angle = (i / actualSegments) * Math.PI * 2;
             points.push(new BABYLON.Vector3(
@@ -126,7 +126,7 @@ export class RockSystem {
             ));
         }
 
-        return BABYLON.MeshBuilder.CreateLathe("rockTemplate", {
+        return BABYLON.MeshBuilder.CreateLathe('rockTemplate', {
             shape: points,
             segments: actualSegments,
             sideOrientation: BABYLON.Mesh.DOUBLESIDE
@@ -134,9 +134,9 @@ export class RockSystem {
     }
 
     createLODBoulderRock(size, segments) {
-        return BABYLON.MeshBuilder.CreateSphere("rockTemplate", {
+        return BABYLON.MeshBuilder.CreateSphere('rockTemplate', {
             diameter: size * 2,
-            segments: segments
+            segments
         }, this.scene);
     }
 
@@ -244,9 +244,9 @@ export class RockSystem {
     }
 
     createPolyhedronRock(size) {
-        return BABYLON.MeshBuilder.CreatePolyhedron("rock", {
+        return BABYLON.MeshBuilder.CreatePolyhedron('rock', {
             type: Math.floor(Math.random() * 4),
-            size: size
+            size
         }, this.scene);
     }
 
@@ -254,7 +254,7 @@ export class RockSystem {
         // Create custom rock shape using vertices
         const points = [];
         const segments = 8 + Math.floor(Math.random() * 5);
-        
+
         for (let i = 0; i < segments; i++) {
             const angle = (i / segments) * Math.PI * 2;
             const radius = size * (0.7 + Math.random() * 0.3);
@@ -265,7 +265,7 @@ export class RockSystem {
             ));
         }
 
-        return BABYLON.MeshBuilder.CreateLathe("rock", {
+        return BABYLON.MeshBuilder.CreateLathe('rock', {
             shape: points,
             sideOrientation: BABYLON.Mesh.DOUBLESIDE
         }, this.scene);
@@ -273,7 +273,7 @@ export class RockSystem {
 
     createBoulderRock(size) {
         // Create a more natural boulder shape using spheres
-        const mainSphere = BABYLON.MeshBuilder.CreateSphere("rockBase", {
+        const mainSphere = BABYLON.MeshBuilder.CreateSphere('rockBase', {
             diameter: size * 2,
             segments: 8
         }, this.scene);
@@ -282,7 +282,7 @@ export class RockSystem {
         const bumpCount = 3 + Math.floor(Math.random() * 4);
         for (let i = 0; i < bumpCount; i++) {
             const bumpSize = size * (0.3 + Math.random() * 0.4);
-            const bump = BABYLON.MeshBuilder.CreateSphere("rockBump", {
+            const bump = BABYLON.MeshBuilder.CreateSphere('rockBump', {
                 diameter: bumpSize,
                 segments: 8
             }, this.scene);
@@ -316,7 +316,7 @@ export class RockSystem {
             const distance = Math.random() * radius;
             const x = centerX + Math.cos(angle) * distance;
             const z = centerZ + Math.sin(angle) * distance;
-            
+
             const rock = this.createRock(x, z, 'MEDIUM');
             cluster.push(rock);
         }
@@ -326,10 +326,10 @@ export class RockSystem {
     generateRocks(count = 50, radius = 100) {
         const spawnedRocks = [];
         let failedAttempts = 0;
-        
+
         while (spawnedRocks.length < count && failedAttempts < this.spawnAttempts * 2) {
             const position = this.findSafeSpawnPosition(radius, spawnedRocks);
-            
+
             if (position) {
                 const rockType = this.determineRockType();
                 const rock = this.createRock(position.x, position.z, rockType);
@@ -338,7 +338,7 @@ export class RockSystem {
             } else {
                 failedAttempts++;
                 console.warn(`Failed to find safe spawn position. Attempt ${failedAttempts}`);
-                
+
                 if (failedAttempts >= this.spawnAttempts) {
                     // Try fallback spawn logic
                     const fallbackPosition = this.findFallbackSpawnPosition(spawnedRocks);
@@ -366,7 +366,7 @@ export class RockSystem {
             const distance = Math.random() * radius;
             const x = Math.cos(angle) * distance;
             const z = Math.sin(angle) * distance;
-            
+
             if (this.isPositionSafe(x, z, existingRocks)) {
                 return new BABYLON.Vector3(x, 0, z);
             }
@@ -421,9 +421,9 @@ export class RockSystem {
         const rayStart = new BABYLON.Vector3(x, y + 5, z);
         const rayEnd = new BABYLON.Vector3(x, y - 1, z);
         const ray = new BABYLON.Ray(rayStart, rayEnd.subtract(rayStart).normalize(), 6);
-        
+
         const hit = this.scene.pickWithRay(ray);
-        if (hit.hit && hit.pickedMesh && hit.pickedMesh.id !== "terrain") {
+        if (hit.hit && hit.pickedMesh && hit.pickedMesh.id !== 'terrain') {
             return false;
         }
 
@@ -433,7 +433,7 @@ export class RockSystem {
     isTerrainSlopeAcceptable(x, z, threshold) {
         const sampleDistance = 0.5;
         const centerHeight = BowlCreator.getTerrainHeight(x, z);
-        
+
         // Sample heights in a cross pattern
         const samples = [
             BowlCreator.getTerrainHeight(x + sampleDistance, z),
@@ -518,4 +518,4 @@ export class RockSystem {
         });
         this.lodMaterials.clear();
     }
-} 
+}

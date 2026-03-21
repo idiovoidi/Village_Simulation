@@ -1,7 +1,7 @@
 // Error handling decorator
 function ErrorDecorator(target, propertyKey, descriptor) {
     const originalMethod = descriptor.value;
-    descriptor.value = function(...args) {
+    descriptor.value = function (...args) {
         try {
             return originalMethod.apply(this, args);
         } catch (error) {
@@ -18,14 +18,14 @@ export class VillagerModel {
         this.scene = scene;
         this.meshes = [];
         this.animations = {};
-        
+
         // Initialize animations
         this.createAnimations();
     }
 
     createVillager(position) {
         const name = `villager_${this.meshes.length}`;
-        
+
         // Create root mesh for the villager
         const root = new BABYLON.TransformNode(name, this.scene);
         root.position = position || BABYLON.Vector3.Zero();
@@ -53,10 +53,10 @@ export class VillagerModel {
 
         // Create limbs
         const limbs = {
-            leftArm: this.createLimb(name, "leftArm", { radius: 0.15, height: 0.8 }),
-            rightArm: this.createLimb(name, "rightArm", { radius: 0.15, height: 0.8 }),
-            leftLeg: this.createLimb(name, "leftLeg", { radius: 0.2, height: 1 }),
-            rightLeg: this.createLimb(name, "rightLeg", { radius: 0.2, height: 1 })
+            leftArm: this.createLimb(name, 'leftArm', { radius: 0.15, height: 0.8 }),
+            rightArm: this.createLimb(name, 'rightArm', { radius: 0.15, height: 0.8 }),
+            leftLeg: this.createLimb(name, 'leftLeg', { radius: 0.2, height: 1 }),
+            rightLeg: this.createLimb(name, 'rightLeg', { radius: 0.2, height: 1 })
         };
 
         // Position limbs
@@ -81,7 +81,7 @@ export class VillagerModel {
             0.6 + Math.random() * 0.2,
             0.4 + Math.random() * 0.2
         );
-        
+
         // Randomize clothing colors for variety
         const clothingHue = Math.random();
         const clothingColor = this.generateRandomColor();
@@ -119,21 +119,21 @@ export class VillagerModel {
         const eyeSize = 0.06;
         const eyeY = 0.05;
         const eyeZ = 0.2;
-        
+
         const leftEye = BABYLON.MeshBuilder.CreateSphere(`${name}_leftEye`, { diameter: eyeSize * 2 }, this.scene);
         leftEye.parent = head;
         leftEye.position = new BABYLON.Vector3(-0.1, eyeY, eyeZ);
-        
+
         const rightEye = BABYLON.MeshBuilder.CreateSphere(`${name}_rightEye`, { diameter: eyeSize * 2 }, this.scene);
         rightEye.parent = head;
         rightEye.position = new BABYLON.Vector3(0.1, eyeY, eyeZ);
-        
+
         // Eye materials
         const eyeMaterial = new BABYLON.StandardMaterial(`${name}_eyeMaterial`, this.scene);
         eyeMaterial.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1);
         leftEye.material = eyeMaterial;
         rightEye.material = eyeMaterial;
-        
+
         // Create mouth
         const mouth = BABYLON.MeshBuilder.CreateCylinder(
             `${name}_mouth`,
@@ -145,7 +145,7 @@ export class VillagerModel {
         mouth.rotation.x = Math.PI / 2;
         mouth.scaling.x = 2;
         mouth.scaling.y = 0.5;
-        
+
         // Mouth material
         const mouthMaterial = new BABYLON.StandardMaterial(`${name}_mouthMaterial`, this.scene);
         mouthMaterial.diffuseColor = new BABYLON.Color3(0.5, 0.1, 0.1);
@@ -163,106 +163,106 @@ export class VillagerModel {
     createAnimations() {
         // Define idle animation - subtle swaying
         const idleAnimation = new BABYLON.Animation(
-            "idleAnimation",
-            "rotation.y",
+            'idleAnimation',
+            'rotation.y',
             30,
             BABYLON.Animation.ANIMATIONTYPE_FLOAT,
             BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
         );
-        
+
         const idleKeys = [];
         idleKeys.push({ frame: 0, value: -0.05 });
         idleKeys.push({ frame: 30, value: 0.05 });
         idleKeys.push({ frame: 60, value: -0.05 });
-        
+
         idleAnimation.setKeys(idleKeys);
         this.animations.idle = idleAnimation;
-        
+
         // Define walking animation for arms and legs
         const walkAnimArm = new BABYLON.Animation(
-            "walkAnimArm",
-            "rotation.x",
+            'walkAnimArm',
+            'rotation.x',
             30,
             BABYLON.Animation.ANIMATIONTYPE_FLOAT,
             BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
         );
-        
+
         const walkKeysLeftArm = [];
         walkKeysLeftArm.push({ frame: 0, value: -0.5 });
         walkKeysLeftArm.push({ frame: 15, value: 0.5 });
         walkKeysLeftArm.push({ frame: 30, value: -0.5 });
-        
+
         walkAnimArm.setKeys(walkKeysLeftArm);
         this.animations.walkLeftArm = walkAnimArm;
-        
+
         // Create opposite animation for right arm
         const walkAnimRightArm = walkAnimArm.clone();
-        walkAnimRightArm.name = "walkAnimRightArm";
-        
+        walkAnimRightArm.name = 'walkAnimRightArm';
+
         const walkKeysRightArm = [];
         walkKeysRightArm.push({ frame: 0, value: 0.5 });
         walkKeysRightArm.push({ frame: 15, value: -0.5 });
         walkKeysRightArm.push({ frame: 30, value: 0.5 });
-        
+
         walkAnimRightArm.setKeys(walkKeysRightArm);
         this.animations.walkRightArm = walkAnimRightArm;
-        
+
         // Define leg animations
         const walkAnimLeg = new BABYLON.Animation(
-            "walkAnimLeg",
-            "rotation.x",
+            'walkAnimLeg',
+            'rotation.x',
             30,
             BABYLON.Animation.ANIMATIONTYPE_FLOAT,
             BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
         );
-        
+
         const walkKeysLeftLeg = [];
         walkKeysLeftLeg.push({ frame: 0, value: 0.5 });
         walkKeysLeftLeg.push({ frame: 15, value: -0.3 });
         walkKeysLeftLeg.push({ frame: 30, value: 0.5 });
-        
+
         walkAnimLeg.setKeys(walkKeysLeftLeg);
         this.animations.walkLeftLeg = walkAnimLeg;
-        
+
         // Create opposite animation for right leg
         const walkAnimRightLeg = walkAnimLeg.clone();
-        walkAnimRightLeg.name = "walkAnimRightLeg";
-        
+        walkAnimRightLeg.name = 'walkAnimRightLeg';
+
         const walkKeysRightLeg = [];
         walkKeysRightLeg.push({ frame: 0, value: -0.3 });
         walkKeysRightLeg.push({ frame: 15, value: 0.5 });
         walkKeysRightLeg.push({ frame: 30, value: -0.3 });
-        
+
         walkAnimRightLeg.setKeys(walkKeysRightLeg);
         this.animations.walkRightLeg = walkAnimRightLeg;
-        
+
         // Create working animation (arm movement)
         const workAnimation = new BABYLON.Animation(
-            "workAnimation",
-            "rotation.x",
+            'workAnimation',
+            'rotation.x',
             30,
             BABYLON.Animation.ANIMATIONTYPE_FLOAT,
             BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
         );
-        
+
         const workKeys = [];
         workKeys.push({ frame: 0, value: -0.2 });
         workKeys.push({ frame: 10, value: -0.8 });
         workKeys.push({ frame: 20, value: -0.2 });
         workKeys.push({ frame: 30, value: -0.2 });
-        
+
         workAnimation.setKeys(workKeys);
         this.animations.work = workAnimation;
-        
+
         // Create greeting animation (arm wave)
         const greetAnimation = new BABYLON.Animation(
-            "greetAnimation",
-            "rotation.z",
+            'greetAnimation',
+            'rotation.z',
             30,
             BABYLON.Animation.ANIMATIONTYPE_FLOAT,
             BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
         );
-        
+
         const greetKeys = [];
         greetKeys.push({ frame: 0, value: 0 });
         greetKeys.push({ frame: 5, value: -0.5 });
@@ -270,7 +270,7 @@ export class VillagerModel {
         greetKeys.push({ frame: 15, value: -0.5 });
         greetKeys.push({ frame: 20, value: 0 });
         greetKeys.push({ frame: 30, value: 0 });
-        
+
         greetAnimation.setKeys(greetKeys);
         this.animations.greet = greetAnimation;
     }
@@ -278,32 +278,32 @@ export class VillagerModel {
     applyAnimations(root, limbs) {
         // Store animation groups for later control
         root.animationGroups = {};
-        
+
         // Create animation groups for each state
-        
+
         // Idle animation group
-        const idleGroup = new BABYLON.AnimationGroup("idle");
+        const idleGroup = new BABYLON.AnimationGroup('idle');
         idleGroup.addTargetedAnimation(this.animations.idle.clone(), root);
         idleGroup.normalize(0, 60);
         root.animationGroups.idle = idleGroup;
-        
+
         // Walking animation group
-        const walkGroup = new BABYLON.AnimationGroup("walk");
+        const walkGroup = new BABYLON.AnimationGroup('walk');
         walkGroup.addTargetedAnimation(this.animations.walkLeftArm.clone(), limbs.leftArm);
         walkGroup.addTargetedAnimation(this.animations.walkRightArm.clone(), limbs.rightArm);
         walkGroup.addTargetedAnimation(this.animations.walkLeftLeg.clone(), limbs.leftLeg);
         walkGroup.addTargetedAnimation(this.animations.walkRightLeg.clone(), limbs.rightLeg);
         walkGroup.normalize(0, 30);
         root.animationGroups.walk = walkGroup;
-        
+
         // Working animation group (right arm only)
-        const workGroup = new BABYLON.AnimationGroup("work");
+        const workGroup = new BABYLON.AnimationGroup('work');
         workGroup.addTargetedAnimation(this.animations.work.clone(), limbs.rightArm);
         workGroup.normalize(0, 30);
         root.animationGroups.work = workGroup;
-        
+
         // Greeting animation group (right arm only)
-        const greetGroup = new BABYLON.AnimationGroup("greet");
+        const greetGroup = new BABYLON.AnimationGroup('greet');
         greetGroup.addTargetedAnimation(this.animations.greet.clone(), limbs.rightArm);
         greetGroup.normalize(0, 30);
         root.animationGroups.greet = greetGroup;
@@ -314,12 +314,12 @@ export class VillagerModel {
             console.warn('Villager has no animation groups');
             return;
         }
-        
+
         // Stop all current animations
         Object.values(villager.mesh.animationGroups).forEach(group => {
             group.stop();
         });
-        
+
         // Play requested animation
         const group = villager.mesh.animationGroups[animationName];
         if (group) {
@@ -345,7 +345,7 @@ export class VillagerModel {
             new BABYLON.Color3(0.4, 0.8, 0.8), // Cyan
             new BABYLON.Color3(0.8, 0.6, 0.2)  // Orange
         ];
-        
+
         return colors[Math.floor(Math.random() * colors.length)];
     }
 
@@ -358,10 +358,10 @@ export class VillagerModel {
                         group.dispose();
                     });
                 }
-                
+
                 mesh.dispose();
             }
         });
         this.meshes = [];
     }
-} 
+}

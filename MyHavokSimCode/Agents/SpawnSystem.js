@@ -7,7 +7,7 @@ export class SpawnSystem {
         this.scene = scene;
         this.villagerBehaviour = new VillagerBehaviour(scene);
         this.zombieBehaviour = new ZombieBehaviour(scene);
-        
+
         // Spawn configuration
         this.spawnConfig = {
             villager: {
@@ -61,18 +61,18 @@ export class SpawnSystem {
 
         while (spawned < count && totalAttempts < maxTotalAttempts) {
             const position = this.findVillagerSpawnPosition();
-            
+
             if (position) {
                 const villager = this.createVillager(position);
                 if (villager) {
                     this.villagerSpawnPoints.push(position);
                     spawned++;
-                    
+
                     // Register locations for activities
                     this.registerVillagerLocations(villager);
                 }
             }
-            
+
             totalAttempts++;
         }
 
@@ -88,12 +88,12 @@ export class SpawnSystem {
 
         while (spawned < count && totalAttempts < maxTotalAttempts) {
             const groupSize = Math.floor(
-                this.spawnConfig.zombie.groupSize.min + 
-                Math.random() * (this.spawnConfig.zombie.groupSize.max - this.spawnConfig.zombie.groupSize.min)
+                this.spawnConfig.zombie.groupSize.min
+                + Math.random() * (this.spawnConfig.zombie.groupSize.max - this.spawnConfig.zombie.groupSize.min)
             );
 
             const groupPosition = this.findZombieGroupSpawnPosition();
-            
+
             if (groupPosition) {
                 const spawnedGroup = this.createZombieGroup(groupPosition, groupSize);
                 if (spawnedGroup) {
@@ -101,7 +101,7 @@ export class SpawnSystem {
                     spawned += spawnedGroup.length;
                 }
             }
-            
+
             totalAttempts++;
         }
 
@@ -130,7 +130,7 @@ export class SpawnSystem {
                 true,
                 zone.attempts
             );
-            
+
             if (fallbackPosition) return fallbackPosition;
         }
 
@@ -165,7 +165,7 @@ export class SpawnSystem {
                 zone.attempts,
                 this.spawnConfig.zombie.minSpawnRadius * 0.9
             );
-            
+
             if (fallbackPosition) return fallbackPosition;
         }
 
@@ -180,19 +180,19 @@ export class SpawnSystem {
 
     findSafePosition(radius, minDistance, existingPoints, isFallback = false, maxAttempts = 10, minRadius = 0) {
         const attempts = maxAttempts || 10;
-        
+
         for (let i = 0; i < attempts; i++) {
             // Generate random position within radius (considering minimum radius for donut shape)
             const angle = Math.random() * Math.PI * 2;
             const distance = minRadius + Math.random() * (radius - minRadius);
             const x = Math.cos(angle) * distance;
             const z = Math.sin(angle) * distance;
-            
+
             if (this.isPositionSafe(x, z, existingPoints, minDistance, isFallback)) {
                 return new BABYLON.Vector3(x, BowlCreator.getTerrainHeight(x, z), z);
             }
         }
-        
+
         return null;
     }
 
@@ -219,9 +219,9 @@ export class SpawnSystem {
         const rayStart = new BABYLON.Vector3(x, y + 5, z);
         const rayEnd = new BABYLON.Vector3(x, y - 1, z);
         const ray = new BABYLON.Ray(rayStart, rayEnd.subtract(rayStart).normalize(), 6);
-        
+
         const hit = this.scene.pickWithRay(ray);
-        if (hit.hit && hit.pickedMesh && hit.pickedMesh.id !== "terrain") {
+        if (hit.hit && hit.pickedMesh && hit.pickedMesh.id !== 'terrain') {
             return false;
         }
 
@@ -231,7 +231,7 @@ export class SpawnSystem {
     isTerrainSlopeAcceptable(x, z, threshold) {
         const sampleDistance = 0.5;
         const centerHeight = BowlCreator.getTerrainHeight(x, z);
-        
+
         // Sample heights in a cross pattern
         const samples = [
             BowlCreator.getTerrainHeight(x + sampleDistance, z),
@@ -299,11 +299,11 @@ export class SpawnSystem {
     createVillager(position) {
         // Create the villager mesh
         const villagerMesh = this.createVillagerMesh(position);
-        
+
         // Create villager data object
         const villager = {
             mesh: villagerMesh,
-            position: position,
+            position,
             speed: 0.05,
             currentActivity: 'idle',
             state: 'wandering',
@@ -327,40 +327,40 @@ export class SpawnSystem {
         try {
             // Check position is valid
             if (!position || !position.x) {
-                console.error("Invalid position for zombie group:", position);
+                console.error('Invalid position for zombie group:', position);
                 return null;
             }
-            
+
             // Get zombie behavior aggressiveness adjustment from level config
             const levelConfig = this.scene.getLevelConfig ? this.scene.getLevelConfig() : null;
             const aggressivenessMultiplier = levelConfig?.zombieAggressiveness || 1.0;
-            
+
             // Create a group of zombies
             const zombieOptions = {
                 lurgeChance: 0.02 * aggressivenessMultiplier,
                 minSpeed: 0.02 * aggressivenessMultiplier,
                 maxSpeed: 0.05 * aggressivenessMultiplier
             };
-            
+
             // Initialize zombies at position with group size
             this.zombieBehaviour.initialize(size, { ...zombieOptions });
-            
+
             // Return group for tracking
             return this.zombieBehaviour.zombies;
         } catch (error) {
-            console.error("Error creating zombie group:", error);
+            console.error('Error creating zombie group:', error);
             return null;
         }
     }
 
     createVillagerMesh(position) {
         // Create basic villager mesh
-        const villager = BABYLON.MeshBuilder.CreateCapsule("villager", {
+        const villager = BABYLON.MeshBuilder.CreateCapsule('villager', {
             radius: 0.4,
             height: 1.8,
             tessellation: 16
         }, this.scene);
-        
+
         // Set initial position with correct ground height
         const groundHeight = BowlCreator.getTerrainHeight(position.x, position.z);
         villager.position = new BABYLON.Vector3(position.x, groundHeight + 0.9, position.z);
@@ -369,7 +369,7 @@ export class SpawnSystem {
         const aggregate = new BABYLON.PhysicsAggregate(
             villager,
             BABYLON.PhysicsShapeType.CAPSULE,
-            { 
+            {
                 mass: 0,           // Static body
                 friction: 0,       // No friction needed
                 restitution: 0,    // No bounce
@@ -384,7 +384,7 @@ export class SpawnSystem {
         villager.physicsBody = aggregate.body;
 
         // Add villager material
-        const villagerMaterial = new BABYLON.StandardMaterial("villagerMat", this.scene);
+        const villagerMaterial = new BABYLON.StandardMaterial('villagerMat', this.scene);
         villagerMaterial.diffuseColor = new BABYLON.Color3(0.8, 0.6, 0.5); // Skin tone
         villager.material = villagerMaterial;
 
@@ -394,13 +394,13 @@ export class SpawnSystem {
     registerVillagerLocations(villager) {
         // Register house as sleep location
         this.villagerBehaviour.registerLocation('sleep', villager.mesh.position.clone());
-        
+
         // Register work locations based on role
         const workPos = villager.mesh.position.clone();
         workPos.x += (Math.random() - 0.5) * 10;
         workPos.z += (Math.random() - 0.5) * 10;
         this.villagerBehaviour.registerLocation('work', workPos);
-        
+
         // Register social locations
         const socialPos = villager.mesh.position.clone();
         socialPos.x += (Math.random() - 0.5) * 15;
@@ -423,4 +423,4 @@ export class SpawnSystem {
         this.villagerSpawnPoints = [];
         this.zombieSpawnPoints = [];
     }
-} 
+}

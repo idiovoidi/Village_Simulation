@@ -7,25 +7,25 @@ export class MemoryManager {
     constructor(scene, memoryMonitor = null) {
         this.scene = scene;
         this.memoryMonitor = memoryMonitor;
-        
+
         // Object pools for different types
         this.objectPools = new Map();
         this.poolConfigs = new Map();
-        
+
         // Resource tracking
         this.trackedResources = new Map();
         this.resourceReferences = new Map();
-        
+
         // Cleanup scheduling
         this.cleanupScheduler = null;
         this.cleanupInterval = 30000; // 30 seconds default
         this.isCleanupActive = false;
-        
+
         // Memory pressure management
         this.memoryPressureThreshold = 0.8; // 80% memory usage
         this.aggressiveCleanupThreshold = 0.9; // 90% memory usage
         this.isMemoryPressure = false;
-        
+
         // Statistics
         this.stats = {
             poolHits: 0,
@@ -36,10 +36,10 @@ export class MemoryManager {
             cleanupCycles: 0,
             memoryReclaimed: 0
         };
-        
+
         // Initialize default pools
         this.initializeDefaultPools();
-        
+
         console.log('MemoryManager initialized');
     }
 
@@ -52,44 +52,44 @@ export class MemoryManager {
             initialSize: 50,
             maxSize: 200,
             factory: () => this.createParticleObject(),
-            reset: (obj) => this.resetParticleObject(obj),
-            dispose: (obj) => this.disposeParticleObject(obj)
+            reset: obj => this.resetParticleObject(obj),
+            dispose: obj => this.disposeParticleObject(obj)
         });
-        
+
         // Temporary mesh pools
         this.createObjectPool('tempMeshes', {
             initialSize: 20,
             maxSize: 100,
             factory: () => this.createTempMesh(),
-            reset: (obj) => this.resetTempMesh(obj),
-            dispose: (obj) => this.disposeTempMesh(obj)
+            reset: obj => this.resetTempMesh(obj),
+            dispose: obj => this.disposeTempMesh(obj)
         });
-        
+
         // Vector3 pools for calculations
         this.createObjectPool('vector3', {
             initialSize: 100,
             maxSize: 500,
             factory: () => new BABYLON.Vector3(),
-            reset: (obj) => obj.setAll(0),
-            dispose: (obj) => {} // Vectors don't need disposal
+            reset: obj => obj.setAll(0),
+            dispose: obj => {} // Vectors don't need disposal
         });
-        
+
         // Matrix pools
         this.createObjectPool('matrix', {
             initialSize: 50,
             maxSize: 200,
             factory: () => new BABYLON.Matrix(),
-            reset: (obj) => obj.reset(),
-            dispose: (obj) => {} // Matrices don't need disposal
+            reset: obj => obj.reset(),
+            dispose: obj => {} // Matrices don't need disposal
         });
-        
+
         // Animation group pools
         this.createObjectPool('animationGroups', {
             initialSize: 10,
             maxSize: 50,
             factory: () => this.createAnimationGroup(),
-            reset: (obj) => this.resetAnimationGroup(obj),
-            dispose: (obj) => this.disposeAnimationGroup(obj)
+            reset: obj => this.resetAnimationGroup(obj),
+            dispose: obj => this.disposeAnimationGroup(obj)
         });
     }
 
@@ -114,19 +114,19 @@ export class MemoryManager {
                 disposed: 0
             }
         };
-        
+
         // Pre-populate pool
         for (let i = 0; i < pool.config.initialSize; i++) {
             const obj = pool.config.factory();
             pool.available.push(obj);
             pool.stats.created++;
         }
-        
+
         this.objectPools.set(type, pool);
         this.poolConfigs.set(type, config);
-        
+
         console.log(`Created object pool '${type}' with ${pool.config.initialSize} initial objects`);
-        
+
         return pool;
     }
 
@@ -140,9 +140,9 @@ export class MemoryManager {
             this.stats.poolMisses++;
             return null;
         }
-        
+
         let obj;
-        
+
         if (pool.available.length > 0) {
             // Get from pool
             obj = pool.available.pop();
@@ -160,14 +160,14 @@ export class MemoryManager {
                 return null;
             }
         }
-        
+
         // Reset object state
         pool.config.reset(obj);
-        
+
         // Track as in use
         pool.inUse.add(obj);
         this.stats.objectsPooled++;
-        
+
         return obj;
     }
 
@@ -180,22 +180,22 @@ export class MemoryManager {
             console.warn(`Object pool '${type}' not found`);
             return false;
         }
-        
+
         if (!pool.inUse.has(obj)) {
             console.warn(`Object not tracked in pool '${type}'`);
             return false;
         }
-        
+
         // Remove from in-use tracking
         pool.inUse.delete(obj);
-        
+
         // Reset object state
         pool.config.reset(obj);
-        
+
         // Return to available pool
         pool.available.push(obj);
         this.stats.objectsReturned++;
-        
+
         return true;
     }
 
@@ -204,7 +204,7 @@ export class MemoryManager {
      */
     trackResource(resource, type, metadata = {}) {
         const resourceId = this.generateResourceId();
-        
+
         const resourceInfo = {
             id: resourceId,
             resource,
@@ -215,12 +215,12 @@ export class MemoryManager {
             accessCount: 0,
             size: this.estimateResourceSize(resource, type)
         };
-        
+
         this.trackedResources.set(resourceId, resourceInfo);
-        
+
         // Initialize reference count
         this.resourceReferences.set(resourceId, 0);
-        
+
         return resourceId;
     }
 
@@ -232,15 +232,15 @@ export class MemoryManager {
             console.warn(`Resource ${resourceId} not found for reference tracking`);
             return false;
         }
-        
+
         const currentRefs = this.resourceReferences.get(resourceId) || 0;
         this.resourceReferences.set(resourceId, currentRefs + 1);
-        
+
         // Update access tracking
         const resourceInfo = this.trackedResources.get(resourceId);
         resourceInfo.lastAccessed = performance.now();
         resourceInfo.accessCount++;
-        
+
         return true;
     }
 
@@ -251,16 +251,16 @@ export class MemoryManager {
         if (!this.trackedResources.has(resourceId)) {
             return false;
         }
-        
+
         const currentRefs = this.resourceReferences.get(resourceId) || 0;
         const newRefs = Math.max(0, currentRefs - 1);
         this.resourceReferences.set(resourceId, newRefs);
-        
+
         // Schedule for cleanup if no references
         if (newRefs === 0) {
             this.scheduleResourceCleanup(resourceId);
         }
-        
+
         return true;
     }
 
@@ -271,10 +271,10 @@ export class MemoryManager {
         if (this.cleanupScheduler) {
             return;
         }
-        
+
         console.log('Starting memory cleanup scheduler...');
         this.isCleanupActive = true;
-        
+
         this.cleanupScheduler = setInterval(() => {
             this.performScheduledCleanup();
         }, this.cleanupInterval);
@@ -287,7 +287,7 @@ export class MemoryManager {
         if (!this.cleanupScheduler) {
             return;
         }
-        
+
         console.log('Stopping memory cleanup scheduler...');
         clearInterval(this.cleanupScheduler);
         this.cleanupScheduler = null;
@@ -301,59 +301,58 @@ export class MemoryManager {
         const startTime = performance.now();
         let disposedCount = 0;
         let reclaimedMemory = 0;
-        
+
         // Check memory pressure
         this.checkMemoryPressure();
-        
+
         // Determine cleanup aggressiveness
         const isAggressive = this.isMemoryPressure;
         const maxAge = isAggressive ? 30000 : 60000; // 30s aggressive, 60s normal
         const currentTime = performance.now();
-        
+
         // Find resources to cleanup
         const resourcesToCleanup = [];
-        
+
         for (const [resourceId, resourceInfo] of this.trackedResources) {
             const refCount = this.resourceReferences.get(resourceId) || 0;
             const age = currentTime - resourceInfo.lastAccessed;
-            
+
             // Cleanup criteria
             const shouldCleanup = refCount === 0 && (
-                age > maxAge || 
-                (isAggressive && age > 15000) // 15s in aggressive mode
+                age > maxAge
+                || (isAggressive && age > 15000) // 15s in aggressive mode
             );
-            
+
             if (shouldCleanup) {
                 resourcesToCleanup.push({ resourceId, resourceInfo });
             }
         }
-        
+
         // Dispose resources
         for (const { resourceId, resourceInfo } of resourcesToCleanup) {
             try {
                 this.disposeResource(resourceInfo.resource, resourceInfo.type);
                 reclaimedMemory += resourceInfo.size;
                 disposedCount++;
-                
+
                 // Remove from tracking
                 this.trackedResources.delete(resourceId);
                 this.resourceReferences.delete(resourceId);
-                
             } catch (error) {
                 console.error(`Error disposing resource ${resourceId}:`, error);
             }
         }
-        
+
         // Update statistics
         this.stats.resourcesDisposed += disposedCount;
         this.stats.cleanupCycles++;
         this.stats.memoryReclaimed += reclaimedMemory;
-        
+
         const duration = performance.now() - startTime;
-        
+
         if (disposedCount > 0) {
-            console.log(`Cleanup cycle completed: ${disposedCount} resources disposed, ` +
-                       `${this.formatBytes(reclaimedMemory)} reclaimed in ${duration.toFixed(2)}ms`);
+            console.log(`Cleanup cycle completed: ${disposedCount} resources disposed, `
+                       + `${this.formatBytes(reclaimedMemory)} reclaimed in ${duration.toFixed(2)}ms`);
         }
     }
 
@@ -364,19 +363,19 @@ export class MemoryManager {
         if (!this.memoryMonitor) {
             return;
         }
-        
+
         const metrics = this.memoryMonitor.getCurrentMetrics();
         const usagePercent = metrics.usagePercentage / 100;
-        
+
         const wasMemoryPressure = this.isMemoryPressure;
         this.isMemoryPressure = usagePercent > this.memoryPressureThreshold;
-        
+
         // Trigger aggressive cleanup if crossing threshold
         if (!wasMemoryPressure && this.isMemoryPressure) {
             console.warn(`Memory pressure detected (${metrics.usagePercentage}% usage)`);
             this.triggerAggressiveCleanup();
         }
-        
+
         // Emergency cleanup at critical threshold
         if (usagePercent > this.aggressiveCleanupThreshold) {
             console.error(`Critical memory usage (${metrics.usagePercentage}% usage) - triggering emergency cleanup`);
@@ -389,13 +388,13 @@ export class MemoryManager {
      */
     triggerAggressiveCleanup() {
         console.log('Triggering aggressive memory cleanup...');
-        
+
         // Reduce pool sizes
         this.shrinkObjectPools(0.5); // Reduce to 50%
-        
+
         // Force cleanup of all unreferenced resources
         this.performScheduledCleanup();
-        
+
         // Trigger garbage collection if available
         if (window.gc) {
             window.gc();
@@ -407,10 +406,10 @@ export class MemoryManager {
      */
     triggerEmergencyCleanup() {
         console.log('Triggering emergency memory cleanup...');
-        
+
         // Drastically reduce pool sizes
         this.shrinkObjectPools(0.2); // Reduce to 20%
-        
+
         // Dispose all unreferenced resources immediately
         const resourcesToDispose = [];
         for (const [resourceId, resourceInfo] of this.trackedResources) {
@@ -419,7 +418,7 @@ export class MemoryManager {
                 resourcesToDispose.push({ resourceId, resourceInfo });
             }
         }
-        
+
         for (const { resourceId, resourceInfo } of resourcesToDispose) {
             try {
                 this.disposeResource(resourceInfo.resource, resourceInfo.type);
@@ -429,12 +428,12 @@ export class MemoryManager {
                 console.error(`Emergency cleanup error for resource ${resourceId}:`, error);
             }
         }
-        
+
         // Force garbage collection
         if (window.gc) {
             window.gc();
         }
-        
+
         console.log(`Emergency cleanup completed: ${resourcesToDispose.length} resources disposed`);
     }
 
@@ -445,7 +444,7 @@ export class MemoryManager {
         for (const [type, pool] of this.objectPools) {
             const targetSize = Math.floor(pool.available.length * factor);
             const toDispose = pool.available.splice(targetSize);
-            
+
             // Dispose excess objects
             for (const obj of toDispose) {
                 try {
@@ -455,7 +454,7 @@ export class MemoryManager {
                     console.error(`Error disposing pooled object from '${type}':`, error);
                 }
             }
-            
+
             if (toDispose.length > 0) {
                 console.log(`Shrunk pool '${type}': disposed ${toDispose.length} objects`);
             }
@@ -477,7 +476,7 @@ export class MemoryManager {
                 ...pool.stats
             };
         }
-        
+
         return {
             pools: poolStats,
             resources: {
@@ -555,7 +554,7 @@ export class MemoryManager {
     }
 
     createTempMesh() {
-        const mesh = BABYLON.MeshBuilder.CreateBox("tempMesh", { size: 1 }, this.scene);
+        const mesh = BABYLON.MeshBuilder.CreateBox('tempMesh', { size: 1 }, this.scene);
         mesh.setEnabled(false);
         return mesh;
     }
@@ -577,7 +576,7 @@ export class MemoryManager {
     }
 
     createAnimationGroup() {
-        return new BABYLON.AnimationGroup("pooledAnimationGroup", this.scene);
+        return new BABYLON.AnimationGroup('pooledAnimationGroup', this.scene);
     }
 
     resetAnimationGroup(animGroup) {
@@ -614,14 +613,14 @@ export class MemoryManager {
         if (!mesh || !mesh.getVerticesData) {
             return 1024;
         }
-        
+
         const positions = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind);
         const indices = mesh.getIndices();
-        
+
         let size = 0;
         if (positions) size += positions.length * 4; // Float32 = 4 bytes
         if (indices) size += indices.length * 2; // Uint16 = 2 bytes
-        
+
         return size || 1024;
     }
 
@@ -629,7 +628,7 @@ export class MemoryManager {
         if (!texture || !texture.getSize) {
             return 4096;
         }
-        
+
         const size = texture.getSize();
         const bytesPerPixel = 4; // RGBA
         return size.width * size.height * bytesPerPixel;
@@ -640,7 +639,7 @@ export class MemoryManager {
      */
     disposeResource(resource, type) {
         if (!resource) return;
-        
+
         switch (type) {
             case 'mesh':
                 if (resource.dispose && !resource.isDisposed()) {
@@ -681,12 +680,12 @@ export class MemoryManager {
      */
     formatBytes(bytes) {
         if (bytes === 0) return '0 B';
-        
+
         const k = 1024;
         const sizes = ['B', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
-        
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+
+        return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
     }
 
     /**
@@ -694,7 +693,7 @@ export class MemoryManager {
      */
     setCleanupInterval(intervalMs) {
         this.cleanupInterval = Math.max(5000, intervalMs); // Minimum 5 seconds
-        
+
         if (this.isCleanupActive) {
             this.stopCleanupScheduler();
             this.startCleanupScheduler();
@@ -714,10 +713,10 @@ export class MemoryManager {
      */
     dispose() {
         console.log('Disposing MemoryManager...');
-        
+
         // Stop cleanup scheduler
         this.stopCleanupScheduler();
-        
+
         // Dispose all pooled objects
         for (const [type, pool] of this.objectPools) {
             for (const obj of pool.available) {
@@ -727,7 +726,7 @@ export class MemoryManager {
                     console.error(`Error disposing pooled object from '${type}':`, error);
                 }
             }
-            
+
             for (const obj of pool.inUse) {
                 try {
                     pool.config.dispose(obj);
@@ -736,7 +735,7 @@ export class MemoryManager {
                 }
             }
         }
-        
+
         // Dispose all tracked resources
         for (const [resourceId, resourceInfo] of this.trackedResources) {
             try {
@@ -745,13 +744,13 @@ export class MemoryManager {
                 console.error(`Error disposing tracked resource ${resourceId}:`, error);
             }
         }
-        
+
         // Clear all data structures
         this.objectPools.clear();
         this.poolConfigs.clear();
         this.trackedResources.clear();
         this.resourceReferences.clear();
-        
+
         console.log('MemoryManager disposed');
     }
 }

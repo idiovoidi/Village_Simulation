@@ -116,11 +116,11 @@ const { CompatibilityTestFramework } = require('../CompatibilityTestFramework.js
 
 describe('CompatibilityTestFramework', () => {
     let framework;
-    
+
     beforeEach(() => {
         framework = new CompatibilityTestFramework();
         jest.clearAllMocks();
-        
+
         // Reset performance.now to return incrementing values
         let timeCounter = 0;
         performance.now.mockImplementation(() => {
@@ -196,7 +196,7 @@ describe('CompatibilityTestFramework', () => {
             expect(result.lightCreated).toBe(true);
             expect(result.meshCreated).toBe(true);
             expect(result.renderSuccessful).toBe(true);
-            
+
             expect(mockBabylon.Engine).toHaveBeenCalled();
             expect(mockBabylon.Scene).toHaveBeenCalled();
             expect(mockBabylon.FreeCamera).toHaveBeenCalled();
@@ -258,7 +258,7 @@ describe('CompatibilityTestFramework', () => {
             expect(result).toHaveProperty('memoryUsage');
             expect(result).toHaveProperty('meshCount');
             expect(result).toHaveProperty('timestamp');
-            
+
             expect(typeof result.frameRate).toBe('number');
             expect(typeof result.renderTime).toBe('number');
         });
@@ -267,7 +267,7 @@ describe('CompatibilityTestFramework', () => {
     describe('testMemoryUsage', () => {
         test('should test memory usage and detect leaks', async () => {
             await framework.testSceneLoading();
-            
+
             const result = await framework.testMemoryUsage();
 
             expect(result).toHaveProperty('initialMemory');
@@ -285,7 +285,7 @@ describe('CompatibilityTestFramework', () => {
             const result = await framework.testMemoryUsage();
 
             expect(result.note).toBe('Memory API not available');
-            
+
             performance.memory = originalMemory;
         });
     });
@@ -322,7 +322,7 @@ describe('CompatibilityTestFramework', () => {
     describe('saveResults and loadPreviousResults', () => {
         test('should save results to localStorage', () => {
             const testResults = { passed: 5, failed: 1 };
-            
+
             framework.saveResults(testResults);
 
             expect(localStorageMock.setItem).toHaveBeenCalled();
@@ -349,7 +349,7 @@ describe('CompatibilityTestFramework', () => {
     describe('cleanup', () => {
         test('should clean up test resources', async () => {
             await framework.testSceneLoading();
-            
+
             const disposeSpy = jest.spyOn(framework.testScene, 'dispose');
             const engineDisposeSpy = jest.spyOn(framework.testEngine, 'dispose');
 
@@ -363,7 +363,7 @@ describe('CompatibilityTestFramework', () => {
 
         test('should handle cleanup errors gracefully', async () => {
             framework.testScene = { dispose: jest.fn(() => { throw new Error('Dispose failed'); }) };
-            
+
             // Should not throw
             await expect(framework.cleanup()).resolves.toBeUndefined();
         });

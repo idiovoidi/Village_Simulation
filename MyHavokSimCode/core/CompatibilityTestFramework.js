@@ -22,7 +22,7 @@ export class CompatibilityTestFramework {
      */
     async runAllTests() {
         console.log('🧪 Starting Compatibility Test Suite...');
-        
+
         const testSuite = [
             { name: 'Scene Loading', test: () => this.testSceneLoading() },
             { name: 'Basic Functionality', test: () => this.testBasicFunctionality() },
@@ -45,24 +45,23 @@ export class CompatibilityTestFramework {
             try {
                 console.log(`Running test: ${testCase.name}...`);
                 const startTime = performance.now();
-                
+
                 const result = await Promise.race([
                     testCase.test(),
                     this.createTimeoutPromise(this.testTimeout)
                 ]);
-                
+
                 const duration = performance.now() - startTime;
-                
+
                 results.passed++;
                 results.details.push({
                     name: testCase.name,
                     status: 'PASSED',
                     duration: Math.round(duration),
-                    result: result
+                    result
                 });
-                
+
                 console.log(`✓ ${testCase.name} passed (${Math.round(duration)}ms)`);
-                
             } catch (error) {
                 results.failed++;
                 results.details.push({
@@ -71,7 +70,7 @@ export class CompatibilityTestFramework {
                     error: error.message,
                     stack: error.stack
                 });
-                
+
                 console.error(`✗ ${testCase.name} failed:`, error.message);
             }
         }
@@ -83,7 +82,7 @@ export class CompatibilityTestFramework {
         }
 
         await this.cleanup();
-        
+
         console.log(`🧪 Test Suite Complete: ${results.passed}/${results.total} passed`);
         return results;
     }
@@ -106,7 +105,7 @@ export class CompatibilityTestFramework {
 
         // Create basic scene
         this.testScene = new BABYLON.Scene(this.testEngine);
-        
+
         // Test scene creation
         if (!this.testScene) {
             throw new Error('Failed to create Babylon.js scene');
@@ -120,21 +119,21 @@ export class CompatibilityTestFramework {
         // Test camera creation
         const camera = new BABYLON.FreeCamera('testCamera', new BABYLON.Vector3(0, 5, -10), this.testScene);
         camera.setTarget(BABYLON.Vector3.Zero());
-        
+
         if (!camera.position) {
             throw new Error('Camera creation failed');
         }
 
         // Test light creation
         const light = new BABYLON.HemisphericLight('testLight', new BABYLON.Vector3(0, 1, 0), this.testScene);
-        
+
         if (!light.intensity) {
             throw new Error('Light creation failed');
         }
 
         // Test mesh creation
         const box = BABYLON.MeshBuilder.CreateBox('testBox', { size: 2 }, this.testScene);
-        
+
         if (!box.position) {
             throw new Error('Mesh creation failed');
         }
@@ -180,10 +179,10 @@ export class CompatibilityTestFramework {
         try {
             const material = new BABYLON.StandardMaterial('testMaterial', this.testScene);
             material.diffuseColor = new BABYLON.Color3(1, 0, 0);
-            
+
             const sphere = BABYLON.MeshBuilder.CreateSphere('testSphere', { diameter: 2 }, this.testScene);
             sphere.material = material;
-            
+
             if (sphere.material && sphere.material.diffuseColor) {
                 results.materialSystem = true;
             }
@@ -244,11 +243,11 @@ export class CompatibilityTestFramework {
 
         try {
             // Test basic agent creation (simplified version)
-            const agentMesh = BABYLON.MeshBuilder.CreateCapsule('testAgent', { 
-                radius: 0.5, 
-                height: 2 
+            const agentMesh = BABYLON.MeshBuilder.CreateCapsule('testAgent', {
+                radius: 0.5,
+                height: 2
             }, this.testScene);
-            
+
             if (agentMesh && agentMesh.position) {
                 results.basicAgentCreation = true;
             }
@@ -256,7 +255,7 @@ export class CompatibilityTestFramework {
             // Test agent movement capabilities
             const startPosition = agentMesh.position.clone();
             agentMesh.position.x += 5;
-            
+
             if (!agentMesh.position.equals(startPosition)) {
                 results.agentMovement = true;
             }
@@ -268,7 +267,7 @@ export class CompatibilityTestFramework {
                 state: 'idle',
                 health: 100
             };
-            
+
             if (agentState.id && agentState.position && agentState.state) {
                 results.agentStateManagement = true;
             }
@@ -280,11 +279,10 @@ export class CompatibilityTestFramework {
                 new BABYLON.Vector3(5, 0, 5),
                 new BABYLON.Vector3(0, 0, 5)
             ];
-            
+
             if (waypoints.length > 0 && waypoints[0] instanceof BABYLON.Vector3) {
                 results.navigationSystem = true;
             }
-
         } catch (error) {
             console.warn('Agent behavior test failed:', error.message);
         }
@@ -327,15 +325,15 @@ export class CompatibilityTestFramework {
 
         for (let frame = 0; frame < measureFrames; frame++) {
             const frameStart = performance.now();
-            
+
             this.testScene.render();
-            
+
             const frameEnd = performance.now();
             const frameTime = frameEnd - frameStart;
-            
+
             renderTimes.push(frameTime);
             frameRates.push(1000 / frameTime); // Convert to FPS
-            
+
             // Small delay to prevent overwhelming the system
             await new Promise(resolve => setTimeout(resolve, 16)); // ~60fps
         }
@@ -380,7 +378,7 @@ export class CompatibilityTestFramework {
 
         // Create and destroy objects to test memory management
         const testObjects = [];
-        
+
         for (let i = 0; i < 1000; i++) {
             const mesh = BABYLON.MeshBuilder.CreateSphere(`memTestSphere${i}`, { diameter: 1 }, this.testScene);
             testObjects.push(mesh);
@@ -390,7 +388,7 @@ export class CompatibilityTestFramework {
 
         // Clean up objects
         testObjects.forEach(obj => obj.dispose());
-        
+
         // Force garbage collection if available
         if (window.gc) {
             window.gc();
@@ -400,7 +398,7 @@ export class CompatibilityTestFramework {
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         results.finalMemory = performance.memory.usedJSHeapSize;
-        
+
         // Check for memory leak
         const memoryIncrease = results.finalMemory - results.initialMemory;
         results.memoryLeak = memoryIncrease > results.leakThreshold;
@@ -431,14 +429,14 @@ export class CompatibilityTestFramework {
             // Test shadow mapping
             const light = new BABYLON.DirectionalLight('shadowLight', new BABYLON.Vector3(-1, -1, -1), this.testScene);
             const shadowGenerator = new BABYLON.ShadowGenerator(1024, light);
-            
+
             if (shadowGenerator.getShadowMap()) {
                 results.shadowMapping = true;
             }
 
             // Test post-processing
             const postProcess = new BABYLON.PassPostProcess('testPass', 1.0, null, BABYLON.Texture.BILINEAR_SAMPLINGMODE, this.testEngine);
-            
+
             if (postProcess.name) {
                 results.postProcessing = true;
                 postProcess.dispose();
@@ -446,12 +444,11 @@ export class CompatibilityTestFramework {
 
             // Test render targets
             const renderTarget = new BABYLON.RenderTargetTexture('testRT', 512, this.testScene);
-            
+
             if (renderTarget.getSize().width === 512) {
                 results.multipleRenderTargets = true;
                 renderTarget.dispose();
             }
-
         } catch (error) {
             console.warn('Rendering pipeline test failed:', error.message);
         }
@@ -479,12 +476,12 @@ export class CompatibilityTestFramework {
                 this.testScene.dispose();
                 this.testScene = null;
             }
-            
+
             if (this.testEngine) {
                 this.testEngine.dispose();
                 this.testEngine = null;
             }
-            
+
             if (this.testCanvas && this.testCanvas.parentNode) {
                 this.testCanvas.parentNode.removeChild(this.testCanvas);
                 this.testCanvas = null;

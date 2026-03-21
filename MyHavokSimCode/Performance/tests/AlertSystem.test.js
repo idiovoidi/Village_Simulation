@@ -11,7 +11,7 @@ class MockDOM {
         this.elements = new Map();
         this.eventListeners = new Map();
         this.body = {
-            appendChild: (element) => {
+            appendChild: element => {
                 this.elements.set(element.id, element);
             }
         };
@@ -36,27 +36,23 @@ class MockDOM {
                 this.eventListeners.set(key, handler);
             },
             removeEventListener: () => {},
-            appendChild: (child) => {
+            appendChild: child => {
                 element.children.push(child);
                 child.parentNode = element;
             },
-            removeChild: (child) => {
+            removeChild: child => {
                 const index = element.children.indexOf(child);
                 if (index > -1) {
                     element.children.splice(index, 1);
                     child.parentNode = null;
                 }
             },
-            querySelector: (selector) => {
-                return element.children[0] || null;
-            },
-            querySelectorAll: (selector) => {
-                return element.children.filter(child => 
-                    selector.includes(child.className) || 
-                    selector.includes(child.tagName.toLowerCase())
-                );
-            },
-            remove: function() {
+            querySelector: selector => element.children[0] || null,
+            querySelectorAll: selector => element.children.filter(child =>
+                selector.includes(child.className)
+                    || selector.includes(child.tagName.toLowerCase())
+            ),
+            remove() {
                 if (this.parentNode) {
                     this.parentNode.removeChild(this);
                 }
@@ -95,14 +91,14 @@ class SimpleTestFramework {
         const previousDescribe = this.currentDescribe;
         this.currentDescribe = name;
         console.log(`\n📋 ${name}`);
-        
+
         try {
             fn();
         } catch (error) {
             console.error(`❌ Error in describe block "${name}":`, error.message);
             this.results.errors.push({ describe: name, error: error.message });
         }
-        
+
         this.currentDescribe = previousDescribe;
     }
 
@@ -115,9 +111,9 @@ class SimpleTestFramework {
             console.log(`  ❌ ${name}`);
             console.log(`     Error: ${error.message}`);
             this.results.failed++;
-            this.results.errors.push({ 
-                test: this.currentDescribe ? `${this.currentDescribe} > ${name}` : name, 
-                error: error.message 
+            this.results.errors.push({
+                test: this.currentDescribe ? `${this.currentDescribe} > ${name}` : name,
+                error: error.message
             });
         }
     }
@@ -140,12 +136,12 @@ class SimpleTestFramework {
 
     expect(actual) {
         return {
-            toBe: (expected) => {
+            toBe: expected => {
                 if (actual !== expected) {
                     throw new Error(`Expected ${actual} to be ${expected}`);
                 }
             },
-            toEqual: (expected) => {
+            toEqual: expected => {
                 if (JSON.stringify(actual) !== JSON.stringify(expected)) {
                     throw new Error(`Expected ${JSON.stringify(actual)} to equal ${JSON.stringify(expected)}`);
                 }
@@ -175,22 +171,22 @@ class SimpleTestFramework {
                     throw new Error('Expected function to have been called');
                 }
             },
-            toBeLessThan: (expected) => {
+            toBeLessThan: expected => {
                 if (actual >= expected) {
                     throw new Error(`Expected ${actual} to be less than ${expected}`);
                 }
             },
-            toBeGreaterThan: (expected) => {
+            toBeGreaterThan: expected => {
                 if (actual <= expected) {
                     throw new Error(`Expected ${actual} to be greater than ${expected}`);
                 }
             },
-            toContain: (expected) => {
+            toContain: expected => {
                 if (!actual.includes(expected)) {
                     throw new Error(`Expected ${actual} to contain ${expected}`);
                 }
             },
-            toHaveLength: (expected) => {
+            toHaveLength: expected => {
                 if (actual.length !== expected) {
                     throw new Error(`Expected length ${actual.length} to be ${expected}`);
                 }
@@ -201,7 +197,7 @@ class SimpleTestFramework {
     jest = {
         spyOn: (obj, method) => {
             const original = obj[method];
-            const spy = function(...args) {
+            const spy = function (...args) {
                 spy.called = true;
                 spy.callCount = (spy.callCount || 0) + 1;
                 spy.lastArgs = args;
@@ -215,20 +211,20 @@ class SimpleTestFramework {
     };
 
     printResults() {
-        console.log('\n' + '='.repeat(50));
+        console.log(`\n${'='.repeat(50)}`);
         console.log('📊 Test Results');
         console.log('='.repeat(50));
         console.log(`✅ Passed: ${this.results.passed}`);
         console.log(`❌ Failed: ${this.results.failed}`);
         console.log(`📊 Total: ${this.results.passed + this.results.failed}`);
-        
+
         if (this.results.errors.length > 0) {
             console.log('\n🔍 Error Details:');
             this.results.errors.forEach((error, index) => {
                 console.log(`${index + 1}. ${error.test || error.describe}: ${error.error}`);
             });
         }
-        
+
         const success = this.results.failed === 0;
         console.log(`\n${success ? '🎉 All tests passed!' : '💥 Some tests failed!'}`);
         return success;
@@ -259,8 +255,8 @@ console.log('🚀 Starting AlertSystem Tests...');
 // Setup mock DOM
 const mockDOM = new MockDOM();
 global.document = {
-    getElementById: (id) => mockDOM.getElementById(id),
-    createElement: (tag) => mockDOM.createElement(tag),
+    getElementById: id => mockDOM.getElementById(id),
+    createElement: tag => mockDOM.createElement(tag),
     body: mockDOM.body,
     head: mockDOM.head,
     addEventListener: () => {}
@@ -271,7 +267,7 @@ global.window = {
         constructor() {
             this.destination = {};
         }
-        
+
         createBufferSource() {
             return {
                 buffer: null,
@@ -279,16 +275,16 @@ global.window = {
                 start: () => {}
             };
         }
-        
+
         decodeAudioData(buffer) {
             return Promise.resolve(new ArrayBuffer(1024));
         }
-        
+
         close() {
             return Promise.resolve();
         }
     },
-    fetch: (url) => Promise.resolve({
+    fetch: url => Promise.resolve({
         arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024))
     })
 };
@@ -300,7 +296,7 @@ describe('AlertSystem', () => {
         // Reset DOM
         mockDOM.elements.clear();
         mockDOM.eventListeners.clear();
-        
+
         // Create new alert system
         alertSystem = new AlertSystem({
             alertConfig: {
@@ -352,7 +348,7 @@ describe('AlertSystem', () => {
 
             const alerts = alertSystem.checkMetrics(metrics);
             expect(alerts.length).toBeGreaterThan(0);
-            
+
             const frameRateAlert = alerts.find(alert => alert.metricType === 'frameRate');
             expect(frameRateAlert).toBeDefined();
             expect(frameRateAlert.severity).toBe('critical');
@@ -424,7 +420,7 @@ describe('AlertSystem', () => {
 
             const initialHistoryLength = alertSystem.alertHistory.length;
             alertSystem.checkMetrics(metrics);
-            
+
             expect(alertSystem.alertHistory.length).toBeGreaterThan(initialHistoryLength);
         });
 
@@ -437,7 +433,7 @@ describe('AlertSystem', () => {
             };
 
             alertSystem.checkMetrics(metrics);
-            
+
             expect(alertSystem.activeAlerts.size).toBeGreaterThan(0);
         });
 
@@ -474,7 +470,7 @@ describe('AlertSystem', () => {
                     ...metrics,
                     frameRate: { current: 10 - i }
                 };
-                
+
                 const alerts = alertSystem.checkMetrics(testMetrics);
                 totalAlerts += alerts.length;
             }
@@ -492,7 +488,7 @@ describe('AlertSystem', () => {
             };
 
             alertSystem.setThresholds('frameRate', customThresholds);
-            
+
             const thresholds = alertSystem.getThresholds('frameRate');
             expect(thresholds.critical.min).toBe(10);
             expect(thresholds.warning.min).toBe(20);
@@ -517,7 +513,7 @@ describe('AlertSystem', () => {
         test('should register alert callbacks', () => {
             const callback = () => {};
             const callbackId = alertSystem.onAlert(callback);
-            
+
             expect(callbackId).toBeDefined();
             expect(alertSystem.callbacks.length).toBe(1);
         });
@@ -525,7 +521,7 @@ describe('AlertSystem', () => {
         test('should remove alert callbacks', () => {
             const callback = () => {};
             const callbackId = alertSystem.onAlert(callback);
-            
+
             const removed = alertSystem.removeCallback(callbackId);
             expect(removed).toBe(true);
             expect(alertSystem.callbacks.length).toBe(0);
@@ -534,23 +530,23 @@ describe('AlertSystem', () => {
         test('should notify callbacks on alert', () => {
             let callbackCalled = false;
             let receivedAlert = null;
-            
-            const callback = (alert) => {
+
+            const callback = alert => {
                 callbackCalled = true;
                 receivedAlert = alert;
             };
-            
+
             alertSystem.onAlert(callback);
-            
+
             const metrics = {
                 frameRate: { current: 10 },
                 memory: { used: 50 },
                 cpu: { utilization: 30 },
                 agents: { count: 100 }
             };
-            
+
             alertSystem.checkMetrics(metrics);
-            
+
             expect(callbackCalled).toBe(true);
             expect(receivedAlert).toBeDefined();
             expect(receivedAlert.metricType).toBe('frameRate');
@@ -559,19 +555,19 @@ describe('AlertSystem', () => {
         test('should filter callbacks by severity', () => {
             let criticalCallbackCalled = false;
             let warningCallbackCalled = false;
-            
+
             alertSystem.onAlert(() => { criticalCallbackCalled = true; }, { severity: 'critical' });
             alertSystem.onAlert(() => { warningCallbackCalled = true; }, { severity: 'warning' });
-            
+
             const metrics = {
                 frameRate: { current: 10 }, // Critical
                 memory: { used: 50 },
                 cpu: { utilization: 30 },
                 agents: { count: 100 }
             };
-            
+
             alertSystem.checkMetrics(metrics);
-            
+
             expect(criticalCallbackCalled).toBe(true);
             expect(warningCallbackCalled).toBe(false);
         });
@@ -587,7 +583,7 @@ describe('AlertSystem', () => {
             };
 
             alertSystem.checkMetrics(metrics);
-            
+
             const history = alertSystem.getAlertHistory();
             expect(history.length).toBeGreaterThan(0);
         });
@@ -601,13 +597,13 @@ describe('AlertSystem', () => {
             };
 
             alertSystem.checkMetrics(metrics);
-            
+
             const criticalHistory = alertSystem.getAlertHistory({ severity: 'critical' });
             const warningHistory = alertSystem.getAlertHistory({ severity: 'warning' });
-            
+
             expect(criticalHistory.length).toBeGreaterThan(0);
             expect(warningHistory.length).toBeGreaterThan(0);
-            
+
             criticalHistory.forEach(alert => {
                 expect(alert.severity).toBe('critical');
             });
@@ -622,9 +618,9 @@ describe('AlertSystem', () => {
             };
 
             alertSystem.checkMetrics(metrics);
-            
+
             const frameRateHistory = alertSystem.getAlertHistory({ metricType: 'frameRate' });
-            
+
             frameRateHistory.forEach(alert => {
                 expect(alert.metricType).toBe('frameRate');
             });
@@ -640,7 +636,7 @@ describe('AlertSystem', () => {
 
             alertSystem.checkMetrics(metrics);
             expect(alertSystem.alertHistory.length).toBeGreaterThan(0);
-            
+
             alertSystem.clearHistory();
             expect(alertSystem.alertHistory.length).toBe(0);
             expect(alertSystem.activeAlerts.size).toBe(0);
@@ -657,7 +653,7 @@ describe('AlertSystem', () => {
             };
 
             alertSystem.checkMetrics(metrics);
-            
+
             const stats = alertSystem.getStatistics();
             expect(stats.total).toBeGreaterThan(0);
             expect(stats.bySeverity).toBeDefined();
@@ -673,7 +669,7 @@ describe('AlertSystem', () => {
             };
 
             alertSystem.checkMetrics(metrics);
-            
+
             const stats = alertSystem.getStatistics();
             expect(stats.bySeverity.critical).toBeGreaterThan(0);
             expect(stats.bySeverity.warning).toBeGreaterThan(0);
@@ -683,17 +679,17 @@ describe('AlertSystem', () => {
     describe('Enable/Disable', () => {
         test('should toggle alert system', () => {
             expect(alertSystem.isEnabled).toBe(true);
-            
+
             alertSystem.toggle();
             expect(alertSystem.isEnabled).toBe(false);
-            
+
             alertSystem.toggle();
             expect(alertSystem.isEnabled).toBe(true);
         });
 
         test('should not generate alerts when disabled', () => {
             alertSystem.disable();
-            
+
             const metrics = {
                 frameRate: { current: 10 },
                 memory: { used: 95 },
@@ -708,7 +704,7 @@ describe('AlertSystem', () => {
         test('should enable alert system', () => {
             alertSystem.disable();
             expect(alertSystem.isEnabled).toBe(false);
-            
+
             alertSystem.enable();
             expect(alertSystem.isEnabled).toBe(true);
         });
@@ -724,10 +720,10 @@ describe('AlertSystem', () => {
             };
 
             alertSystem.checkMetrics(metrics);
-            
+
             const jsonExport = alertSystem.exportAlerts('json');
             expect(jsonExport).toBeDefined();
-            
+
             const data = JSON.parse(jsonExport);
             expect(data.alerts).toBeDefined();
             expect(data.statistics).toBeDefined();
@@ -743,7 +739,7 @@ describe('AlertSystem', () => {
             };
 
             alertSystem.checkMetrics(metrics);
-            
+
             const csvExport = alertSystem.exportAlerts('csv');
             expect(csvExport).toBeDefined();
             expect(csvExport).toContain('Timestamp,Severity,Metric Type,Value,Message');
@@ -755,7 +751,7 @@ describe('AlertSystem', () => {
             expect(() => {
                 alertSystem.checkMetrics(null);
             }).not.toThrow();
-            
+
             const alerts = alertSystem.checkMetrics(null);
             expect(alerts.length).toBe(0);
         });
@@ -776,9 +772,9 @@ describe('AlertSystem', () => {
             const errorCallback = () => {
                 throw new Error('Callback error');
             };
-            
+
             alertSystem.onAlert(errorCallback);
-            
+
             const metrics = {
                 frameRate: { current: 10 },
                 memory: { used: 50 },

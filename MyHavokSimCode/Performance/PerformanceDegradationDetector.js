@@ -1,6 +1,6 @@
 /**
  * PerformanceDegradationDetector - Detects performance degradation and triggers recovery
- * 
+ *
  * This class provides:
  * - Automatic quality reduction when performance drops below thresholds
  * - Emergency mode with minimal settings for critical performance issues
@@ -12,13 +12,13 @@ export class PerformanceDegradationDetector {
     constructor(performanceMonitor, adaptiveQualityManager) {
         this.performanceMonitor = performanceMonitor;
         this.adaptiveQualityManager = adaptiveQualityManager;
-        
+
         // Detection state
         this.initialized = false;
         this.detectionActive = false;
         this.emergencyModeActive = false;
         this.lastRecoveryAttempt = 0;
-        
+
         // Performance thresholds
         this.thresholds = {
             // Critical thresholds that trigger emergency mode
@@ -43,7 +43,7 @@ export class PerformanceDegradationDetector {
                 minStablePeriod: 10000 // 10 seconds of stable performance
             }
         };
-        
+
         // Performance tracking
         this.performanceHistory = [];
         this.maxHistorySize = 60; // 60 samples (1 minute at 1 sample/second)
@@ -51,7 +51,7 @@ export class PerformanceDegradationDetector {
         this.lastStableTime = 0;
         this.degradationEvents = [];
         this.recoveryEvents = [];
-        
+
         // Emergency mode settings
         this.emergencySettings = {
             qualityLevel: 10, // Minimal quality
@@ -63,7 +63,7 @@ export class PerformanceDegradationDetector {
             lodDistance: 25,
             maxDrawCalls: 50
         };
-        
+
         // Recovery settings
         this.recoverySettings = {
             cooldownPeriod: 5000, // 5 seconds between recovery attempts
@@ -71,15 +71,15 @@ export class PerformanceDegradationDetector {
             maxRecoveryLevel: 75, // Don't auto-recover beyond this level
             stabilityRequirement: 8000 // 8 seconds of stable performance before recovery
         };
-        
+
         // Callbacks
         this.degradationCallbacks = [];
         this.recoveryCallbacks = [];
         this.emergencyCallbacks = [];
-        
+
         console.log('PerformanceDegradationDetector initialized');
     }
-    
+
     /**
      * Initialize the degradation detector
      */
@@ -88,28 +88,27 @@ export class PerformanceDegradationDetector {
             console.warn('PerformanceDegradationDetector already initialized');
             return;
         }
-        
+
         try {
             console.log('Initializing PerformanceDegradationDetector...');
-            
+
             // Validate dependencies
             this.validateDependencies();
-            
+
             // Set up performance monitoring integration
             this.setupPerformanceMonitoringIntegration();
-            
+
             // Initialize performance tracking
             this.initializePerformanceTracking();
-            
+
             this.initialized = true;
             console.log('PerformanceDegradationDetector initialization complete');
-            
         } catch (error) {
             console.error('Failed to initialize PerformanceDegradationDetector:', error);
             throw error;
         }
     }
-    
+
     /**
      * Validate required dependencies
      */
@@ -117,12 +116,12 @@ export class PerformanceDegradationDetector {
         if (!this.performanceMonitor) {
             throw new Error('PerformanceMonitor is required for degradation detection');
         }
-        
+
         if (!this.adaptiveQualityManager) {
             throw new Error('AdaptiveQualityManager is required for quality adjustments');
         }
     }
-    
+
     /**
      * Set up performance monitoring integration
      */
@@ -130,22 +129,22 @@ export class PerformanceDegradationDetector {
         if (!this.performanceMonitor) {
             return;
         }
-        
+
         console.log('Setting up performance monitoring integration for degradation detection...');
-        
+
         // Register for performance metric updates
-        this.performanceMonitor.onMetricsUpdate((metrics) => {
+        this.performanceMonitor.onMetricsUpdate(metrics => {
             this.analyzePerformanceMetrics(metrics);
         });
-        
+
         // Register for performance alerts
-        this.performanceMonitor.onAlert((alert) => {
+        this.performanceMonitor.onAlert(alert => {
             this.handlePerformanceAlert(alert);
         });
-        
+
         console.log('Performance monitoring integration complete');
     }
-    
+
     /**
      * Initialize performance tracking
      */
@@ -156,7 +155,7 @@ export class PerformanceDegradationDetector {
         this.degradationEvents = [];
         this.recoveryEvents = [];
     }
-    
+
     /**
      * Start degradation detection
      */
@@ -164,20 +163,20 @@ export class PerformanceDegradationDetector {
         if (!this.initialized) {
             throw new Error('PerformanceDegradationDetector must be initialized before starting');
         }
-        
+
         if (this.detectionActive) {
             console.warn('Degradation detection already active');
             return;
         }
-        
+
         console.log('Starting performance degradation detection...');
-        
+
         this.detectionActive = true;
         this.lastStableTime = performance.now();
-        
+
         console.log('Performance degradation detection started');
     }
-    
+
     /**
      * Stop degradation detection
      */
@@ -185,19 +184,19 @@ export class PerformanceDegradationDetector {
         if (!this.detectionActive) {
             return;
         }
-        
+
         console.log('Stopping performance degradation detection...');
-        
+
         this.detectionActive = false;
-        
+
         // Exit emergency mode if active
         if (this.emergencyModeActive) {
             this.exitEmergencyMode();
         }
-        
+
         console.log('Performance degradation detection stopped');
     }
-    
+
     /**
      * Analyze performance metrics for degradation
      */
@@ -205,9 +204,9 @@ export class PerformanceDegradationDetector {
         if (!this.detectionActive) {
             return;
         }
-        
+
         const currentTime = performance.now();
-        
+
         // Add to performance history
         const performanceData = {
             timestamp: currentTime,
@@ -216,17 +215,17 @@ export class PerformanceDegradationDetector {
             memoryUsage: metrics.memory?.percentage || 0,
             drawCalls: metrics.rendering?.drawCalls || 0
         };
-        
+
         this.performanceHistory.push(performanceData);
-        
+
         // Maintain history size
         if (this.performanceHistory.length > this.maxHistorySize) {
             this.performanceHistory.shift();
         }
-        
+
         // Analyze current performance
         const analysis = this.analyzeCurrentPerformance(performanceData);
-        
+
         // Handle degradation or recovery
         if (analysis.isDegraded) {
             this.handlePerformanceDegradation(analysis);
@@ -234,7 +233,7 @@ export class PerformanceDegradationDetector {
             this.handlePerformanceRecovery(analysis);
         }
     }
-    
+
     /**
      * Analyze current performance data
      */
@@ -247,54 +246,51 @@ export class PerformanceDegradationDetector {
             reason: '',
             recommendations: []
         };
-        
+
         // Check critical thresholds
-        if (data.fps < this.thresholds.critical.minFPS ||
-            data.frameTime > this.thresholds.critical.maxFrameTime ||
-            data.memoryUsage > this.thresholds.critical.maxMemoryUsage) {
-            
+        if (data.fps < this.thresholds.critical.minFPS
+            || data.frameTime > this.thresholds.critical.maxFrameTime
+            || data.memoryUsage > this.thresholds.critical.maxMemoryUsage) {
             analysis.isDegraded = true;
             analysis.isCritical = true;
             analysis.severity = 1.0;
             analysis.reason = 'critical_performance_drop';
             analysis.recommendations.push('emergency_mode');
-            
+
             this.consecutiveDrops++;
         }
         // Check warning thresholds
-        else if (data.fps < this.thresholds.warning.minFPS ||
-                 data.frameTime > this.thresholds.warning.maxFrameTime ||
-                 data.memoryUsage > this.thresholds.warning.maxMemoryUsage) {
-            
+        else if (data.fps < this.thresholds.warning.minFPS
+                 || data.frameTime > this.thresholds.warning.maxFrameTime
+                 || data.memoryUsage > this.thresholds.warning.maxMemoryUsage) {
             analysis.isDegraded = true;
             analysis.isCritical = false;
             analysis.severity = 0.6;
             analysis.reason = 'performance_degradation';
             analysis.recommendations.push('reduce_quality');
-            
+
             this.consecutiveDrops++;
         }
         // Check recovery thresholds
-        else if (data.fps >= this.thresholds.recovery.minFPS &&
-                 data.frameTime <= this.thresholds.recovery.maxFrameTime &&
-                 data.memoryUsage <= this.thresholds.recovery.maxMemoryUsage) {
-            
+        else if (data.fps >= this.thresholds.recovery.minFPS
+                 && data.frameTime <= this.thresholds.recovery.maxFrameTime
+                 && data.memoryUsage <= this.thresholds.recovery.maxMemoryUsage) {
             analysis.isStable = true;
             analysis.severity = 0;
             analysis.reason = 'stable_performance';
-            
+
             // Check if we've been stable long enough for recovery
             const stableDuration = performance.now() - this.lastStableTime;
             if (stableDuration >= this.thresholds.recovery.minStablePeriod) {
                 analysis.recommendations.push('increase_quality');
             }
-            
+
             this.consecutiveDrops = 0;
         } else {
             // Performance is neither degraded nor stable enough for recovery
             this.consecutiveDrops = Math.max(0, this.consecutiveDrops - 1);
         }
-        
+
         // Update last stable time
         if (analysis.isStable && this.consecutiveDrops === 0) {
             if (this.lastStableTime === 0) {
@@ -303,16 +299,16 @@ export class PerformanceDegradationDetector {
         } else {
             this.lastStableTime = 0;
         }
-        
+
         return analysis;
     }
-    
+
     /**
      * Handle performance degradation
      */
     handlePerformanceDegradation(analysis) {
         const currentTime = performance.now();
-        
+
         // Record degradation event
         const degradationEvent = {
             timestamp: currentTime,
@@ -322,60 +318,60 @@ export class PerformanceDegradationDetector {
             consecutiveDrops: this.consecutiveDrops,
             currentQuality: this.adaptiveQualityManager.getCurrentQualityLevel()
         };
-        
+
         this.degradationEvents.push(degradationEvent);
-        
+
         // Maintain event history
         if (this.degradationEvents.length > 50) {
             this.degradationEvents.shift();
         }
-        
+
         console.log(`Performance degradation detected: ${analysis.reason} (severity: ${analysis.severity}, consecutive: ${this.consecutiveDrops})`);
-        
+
         // Determine response based on severity and consecutive drops
         if (analysis.isCritical || this.consecutiveDrops >= this.thresholds.critical.maxConsecutiveDrops) {
             this.triggerEmergencyMode(degradationEvent);
         } else if (this.consecutiveDrops >= this.thresholds.warning.maxConsecutiveDrops) {
             this.triggerQualityReduction(degradationEvent);
         }
-        
+
         // Notify callbacks
         this.notifyDegradationCallbacks(degradationEvent);
     }
-    
+
     /**
      * Handle performance recovery
      */
     handlePerformanceRecovery(analysis) {
         const currentTime = performance.now();
-        
+
         // Check if we can attempt recovery
         if (currentTime - this.lastRecoveryAttempt < this.recoverySettings.cooldownPeriod) {
             return; // Still in cooldown
         }
-        
+
         // Check if we've been stable long enough
         const stableDuration = currentTime - this.lastStableTime;
         if (stableDuration < this.recoverySettings.stabilityRequirement) {
             return; // Not stable long enough
         }
-        
+
         // Check if we're in emergency mode
         if (this.emergencyModeActive) {
             this.attemptEmergencyModeExit();
             return;
         }
-        
+
         // Check if we can increase quality
         const currentQuality = this.adaptiveQualityManager.getCurrentQualityLevel();
         if (currentQuality >= this.recoverySettings.maxRecoveryLevel) {
             return; // Already at max recovery level
         }
-        
+
         // Attempt gradual quality recovery
         this.attemptQualityRecovery();
     }
-    
+
     /**
      * Trigger emergency mode
      */
@@ -383,17 +379,17 @@ export class PerformanceDegradationDetector {
         if (this.emergencyModeActive) {
             return; // Already in emergency mode
         }
-        
+
         console.warn('Triggering emergency performance mode due to critical degradation');
-        
+
         this.emergencyModeActive = true;
-        
+
         // Store current settings for potential restoration
         this.preEmergencyQuality = this.adaptiveQualityManager.getCurrentQualityLevel();
-        
+
         // Apply emergency settings
         this.applyEmergencySettings();
-        
+
         // Record emergency event
         const emergencyEvent = {
             timestamp: performance.now(),
@@ -401,26 +397,26 @@ export class PerformanceDegradationDetector {
             preEmergencyQuality: this.preEmergencyQuality,
             emergencySettings: { ...this.emergencySettings }
         };
-        
+
         // Notify callbacks
         this.notifyEmergencyCallbacks('emergency_mode_activated', emergencyEvent);
-        
+
         console.warn(`Emergency mode activated. Quality reduced from ${this.preEmergencyQuality} to ${this.emergencySettings.qualityLevel}`);
     }
-    
+
     /**
      * Apply emergency settings
      */
     applyEmergencySettings() {
         // Set minimal quality level
         this.adaptiveQualityManager.setQualityLevel(this.emergencySettings.qualityLevel, false);
-        
+
         // Disable dynamic adjustment temporarily
         this.adaptiveQualityManager.enableDynamicAdjustment(false);
-        
+
         console.log('Emergency settings applied');
     }
-    
+
     /**
      * Attempt to exit emergency mode
      */
@@ -428,20 +424,20 @@ export class PerformanceDegradationDetector {
         if (!this.emergencyModeActive) {
             return;
         }
-        
+
         console.log('Attempting to exit emergency mode...');
-        
+
         // Check if performance has been stable enough
         const stableDuration = performance.now() - this.lastStableTime;
         if (stableDuration < this.recoverySettings.stabilityRequirement * 2) {
             console.log('Performance not stable enough to exit emergency mode');
             return;
         }
-        
+
         // Exit emergency mode
         this.exitEmergencyMode();
     }
-    
+
     /**
      * Exit emergency mode
      */
@@ -449,18 +445,18 @@ export class PerformanceDegradationDetector {
         if (!this.emergencyModeActive) {
             return;
         }
-        
+
         console.log('Exiting emergency performance mode');
-        
+
         this.emergencyModeActive = false;
-        
+
         // Re-enable dynamic adjustment
         this.adaptiveQualityManager.enableDynamicAdjustment(true);
-        
+
         // Gradually restore quality (don't jump back to pre-emergency level)
         const targetQuality = Math.min(this.preEmergencyQuality, 50); // Cap at medium quality
         this.adaptiveQualityManager.setQualityLevel(targetQuality, true);
-        
+
         // Record recovery event
         const recoveryEvent = {
             timestamp: performance.now(),
@@ -468,33 +464,33 @@ export class PerformanceDegradationDetector {
             restoredQuality: targetQuality,
             preEmergencyQuality: this.preEmergencyQuality
         };
-        
+
         this.recoveryEvents.push(recoveryEvent);
-        
+
         // Notify callbacks
         this.notifyEmergencyCallbacks('emergency_mode_deactivated', recoveryEvent);
         this.notifyRecoveryCallbacks(recoveryEvent);
-        
+
         console.log(`Emergency mode exited. Quality restored to ${targetQuality}`);
-        
+
         this.lastRecoveryAttempt = performance.now();
     }
-    
+
     /**
      * Trigger quality reduction
      */
     triggerQualityReduction(degradationEvent) {
         const currentQuality = this.adaptiveQualityManager.getCurrentQualityLevel();
-        
+
         // Calculate reduction amount based on severity
         const reductionAmount = Math.ceil(degradationEvent.severity * 15); // 5-15 point reduction
         const newQuality = Math.max(15, currentQuality - reductionAmount);
-        
+
         console.log(`Reducing quality due to performance degradation: ${currentQuality} → ${newQuality}`);
-        
+
         // Apply quality reduction
         this.adaptiveQualityManager.setQualityLevel(newQuality, true);
-        
+
         // Record the action
         degradationEvent.qualityReduction = {
             from: currentQuality,
@@ -502,7 +498,7 @@ export class PerformanceDegradationDetector {
             amount: reductionAmount
         };
     }
-    
+
     /**
      * Attempt quality recovery
      */
@@ -512,16 +508,16 @@ export class PerformanceDegradationDetector {
             this.recoverySettings.maxRecoveryLevel,
             currentQuality + this.recoverySettings.gradualRecoveryStep
         );
-        
+
         if (newQuality <= currentQuality) {
             return; // No improvement possible
         }
-        
+
         console.log(`Attempting quality recovery: ${currentQuality} → ${newQuality}`);
-        
+
         // Apply quality increase
         this.adaptiveQualityManager.setQualityLevel(newQuality, true);
-        
+
         // Record recovery event
         const recoveryEvent = {
             timestamp: performance.now(),
@@ -532,26 +528,26 @@ export class PerformanceDegradationDetector {
             },
             stableDuration: performance.now() - this.lastStableTime
         };
-        
+
         this.recoveryEvents.push(recoveryEvent);
-        
+
         // Maintain event history
         if (this.recoveryEvents.length > 50) {
             this.recoveryEvents.shift();
         }
-        
+
         // Notify callbacks
         this.notifyRecoveryCallbacks(recoveryEvent);
-        
+
         this.lastRecoveryAttempt = performance.now();
     }
-    
+
     /**
      * Handle performance alerts from monitor
      */
     handlePerformanceAlert(alert) {
         console.log('Performance alert received by degradation detector:', alert);
-        
+
         // Convert alert to degradation analysis
         const analysis = {
             isDegraded: alert.severity === 'critical' || alert.severity === 'warning',
@@ -560,12 +556,12 @@ export class PerformanceDegradationDetector {
             reason: alert.type || 'performance_alert',
             recommendations: []
         };
-        
+
         if (analysis.isDegraded) {
             this.handlePerformanceDegradation(analysis);
         }
     }
-    
+
     /**
      * Get degradation detector status
      */
@@ -584,28 +580,28 @@ export class PerformanceDegradationDetector {
             lastRecoveryAttempt: this.lastRecoveryAttempt
         };
     }
-    
+
     /**
      * Get performance history
      */
     getPerformanceHistory(count = 10) {
         return this.performanceHistory.slice(-count);
     }
-    
+
     /**
      * Get degradation events
      */
     getDegradationEvents(count = 10) {
         return this.degradationEvents.slice(-count);
     }
-    
+
     /**
      * Get recovery events
      */
     getRecoveryEvents(count = 10) {
         return this.recoveryEvents.slice(-count);
     }
-    
+
     /**
      * Update thresholds
      */
@@ -613,7 +609,7 @@ export class PerformanceDegradationDetector {
         this.thresholds = { ...this.thresholds, ...newThresholds };
         console.log('Degradation detection thresholds updated:', this.thresholds);
     }
-    
+
     /**
      * Update emergency settings
      */
@@ -621,7 +617,7 @@ export class PerformanceDegradationDetector {
         this.emergencySettings = { ...this.emergencySettings, ...newSettings };
         console.log('Emergency settings updated:', this.emergencySettings);
     }
-    
+
     /**
      * Update recovery settings
      */
@@ -629,7 +625,7 @@ export class PerformanceDegradationDetector {
         this.recoverySettings = { ...this.recoverySettings, ...newSettings };
         console.log('Recovery settings updated:', this.recoverySettings);
     }
-    
+
     /**
      * Register degradation callback
      */
@@ -638,7 +634,7 @@ export class PerformanceDegradationDetector {
             this.degradationCallbacks.push(callback);
         }
     }
-    
+
     /**
      * Register recovery callback
      */
@@ -647,7 +643,7 @@ export class PerformanceDegradationDetector {
             this.recoveryCallbacks.push(callback);
         }
     }
-    
+
     /**
      * Register emergency callback
      */
@@ -656,7 +652,7 @@ export class PerformanceDegradationDetector {
             this.emergencyCallbacks.push(callback);
         }
     }
-    
+
     /**
      * Notify degradation callbacks
      */
@@ -669,7 +665,7 @@ export class PerformanceDegradationDetector {
             }
         });
     }
-    
+
     /**
      * Notify recovery callbacks
      */
@@ -682,7 +678,7 @@ export class PerformanceDegradationDetector {
             }
         });
     }
-    
+
     /**
      * Notify emergency callbacks
      */
@@ -695,16 +691,16 @@ export class PerformanceDegradationDetector {
             }
         });
     }
-    
+
     /**
      * Dispose of the degradation detector
      */
     dispose() {
         console.log('Disposing PerformanceDegradationDetector...');
-        
+
         // Stop detection
         this.stopDetection();
-        
+
         // Clear callbacks and data
         this.degradationCallbacks = [];
         this.recoveryCallbacks = [];
@@ -712,9 +708,9 @@ export class PerformanceDegradationDetector {
         this.performanceHistory = [];
         this.degradationEvents = [];
         this.recoveryEvents = [];
-        
+
         this.initialized = false;
-        
+
         console.log('PerformanceDegradationDetector disposed');
     }
 }

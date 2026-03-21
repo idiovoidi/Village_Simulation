@@ -13,7 +13,7 @@ export class PerformanceDashboard {
         this.isVisible = false;
         this.updateInterval = null;
         this.updateFrequency = 30; // Updates per second
-        
+
         // Chart data storage
         this.chartData = {
             frameRate: [],
@@ -22,35 +22,35 @@ export class PerformanceDashboard {
             agents: []
         };
         this.maxDataPoints = 100; // Keep last 100 data points for charts
-        
+
         // Widget configurations
         this.widgetConfigs = {
             frameRate: {
                 title: 'Frame Rate',
                 unit: 'FPS',
-                format: (value) => Math.round(value),
+                format: value => Math.round(value),
                 thresholds: { critical: 15, warning: 30, good: 45 }
             },
             memory: {
                 title: 'Memory Usage',
                 unit: '%',
-                format: (value) => Math.round(value),
+                format: value => Math.round(value),
                 thresholds: { critical: 90, warning: 75, good: 60 }
             },
             cpu: {
                 title: 'CPU Usage',
                 unit: '%',
-                format: (value) => Math.round(value),
+                format: value => Math.round(value),
                 thresholds: { critical: 90, warning: 75, good: 60 }
             },
             agents: {
                 title: 'Agent Count',
                 unit: '',
-                format: (value) => Math.round(value),
+                format: value => Math.round(value),
                 thresholds: { critical: 1000, warning: 500, good: 100 }
             }
         };
-        
+
         this.initialize();
     }
 
@@ -62,10 +62,10 @@ export class PerformanceDashboard {
         this.createWidgets();
         this.createCharts();
         this.setupEventListeners();
-        
+
         // Register for performance updates
         if (this.performanceMonitor) {
-            this.performanceMonitor.onMetricsUpdate((metrics) => {
+            this.performanceMonitor.onMetricsUpdate(metrics => {
                 this.updateMetrics(metrics);
             });
         }
@@ -80,7 +80,7 @@ export class PerformanceDashboard {
             console.error(`Dashboard container '${this.containerId}' not found`);
             return;
         }
-        
+
         this.container = container;
         this.container.innerHTML = `
             <div class="performance-dashboard" style="display: none;">
@@ -123,7 +123,7 @@ export class PerformanceDashboard {
                 </div>
             </div>
         `;
-        
+
         this.addDashboardStyles();
     }
 
@@ -135,7 +135,7 @@ export class PerformanceDashboard {
         if (document.getElementById(styleId)) {
             return; // Styles already added
         }
-        
+
         const style = document.createElement('style');
         style.id = styleId;
         style.textContent = `
@@ -272,7 +272,7 @@ export class PerformanceDashboard {
                 }
             }
         `;
-        
+
         document.head.appendChild(style);
     }
 
@@ -284,7 +284,7 @@ export class PerformanceDashboard {
             const config = this.widgetConfigs[metricType];
             const widget = new MetricWidget(metricType, config);
             this.widgets.set(metricType, widget);
-            
+
             const container = document.getElementById(`widget-${metricType}`);
             if (container) {
                 container.appendChild(widget.getElement());
@@ -311,21 +311,21 @@ export class PerformanceDashboard {
     setupEventListeners() {
         const toggleBtn = document.getElementById('dashboard-toggle');
         const resetBtn = document.getElementById('dashboard-reset');
-        
+
         if (toggleBtn) {
             toggleBtn.addEventListener('click', () => {
                 this.toggle();
             });
         }
-        
+
         if (resetBtn) {
             resetBtn.addEventListener('click', () => {
                 this.reset();
             });
         }
-        
+
         // Keyboard shortcuts
-        document.addEventListener('keydown', (event) => {
+        document.addEventListener('keydown', event => {
             if (event.ctrlKey && event.key === 'p') {
                 event.preventDefault();
                 this.toggle();
@@ -343,7 +343,7 @@ export class PerformanceDashboard {
                 dashboard.style.display = 'block';
                 this.isVisible = true;
                 this.startUpdating();
-                
+
                 const toggleBtn = document.getElementById('dashboard-toggle');
                 if (toggleBtn) {
                     toggleBtn.textContent = 'Hide';
@@ -362,7 +362,7 @@ export class PerformanceDashboard {
                 dashboard.style.display = 'none';
                 this.isVisible = false;
                 this.stopUpdating();
-                
+
                 const toggleBtn = document.getElementById('dashboard-toggle');
                 if (toggleBtn) {
                     toggleBtn.textContent = 'Show';
@@ -390,12 +390,12 @@ export class PerformanceDashboard {
         Object.keys(this.chartData).forEach(key => {
             this.chartData[key] = [];
         });
-        
+
         // Reset charts
         this.charts.forEach(chart => {
             chart.reset();
         });
-        
+
         // Reset widgets
         this.widgets.forEach(widget => {
             widget.reset();
@@ -409,7 +409,7 @@ export class PerformanceDashboard {
         if (this.updateInterval) {
             return; // Already updating
         }
-        
+
         const intervalMs = 1000 / this.updateFrequency;
         this.updateInterval = setInterval(() => {
             if (this.performanceMonitor && this.isVisible) {
@@ -438,7 +438,7 @@ export class PerformanceDashboard {
         if (!this.isVisible || !metrics) {
             return;
         }
-        
+
         // Extract values for each metric type
         const values = {
             frameRate: metrics.frameRate?.current || 0,
@@ -446,7 +446,7 @@ export class PerformanceDashboard {
             cpu: metrics.cpu?.utilization || 0,
             agents: metrics.agents?.count || 0
         };
-        
+
         // Update widgets
         Object.keys(values).forEach(metricType => {
             const widget = this.widgets.get(metricType);
@@ -454,19 +454,19 @@ export class PerformanceDashboard {
                 widget.updateValue(values[metricType]);
             }
         });
-        
+
         // Update chart data
         const timestamp = metrics.timestamp || performance.now();
         Object.keys(values).forEach(metricType => {
             const data = this.chartData[metricType];
             data.push({ timestamp, value: values[metricType] });
-            
+
             // Maintain max data points
             if (data.length > this.maxDataPoints) {
                 data.shift();
             }
         });
-        
+
         // Update charts
         Object.keys(values).forEach(metricType => {
             const chart = this.charts.get(metricType);
@@ -481,7 +481,7 @@ export class PerformanceDashboard {
      */
     setUpdateFrequency(frequency) {
         this.updateFrequency = Math.max(1, Math.min(60, frequency));
-        
+
         if (this.updateInterval) {
             this.stopUpdating();
             this.startUpdating();
@@ -500,28 +500,28 @@ export class PerformanceDashboard {
      */
     dispose() {
         this.stopUpdating();
-        
+
         // Remove event listeners
         const toggleBtn = document.getElementById('dashboard-toggle');
         const resetBtn = document.getElementById('dashboard-reset');
-        
+
         if (toggleBtn) {
             toggleBtn.removeEventListener('click', this.toggle);
         }
-        
+
         if (resetBtn) {
             resetBtn.removeEventListener('click', this.reset);
         }
-        
+
         // Dispose widgets and charts
         this.widgets.forEach(widget => widget.dispose());
         this.charts.forEach(chart => chart.dispose());
-        
+
         // Clear container
         if (this.container) {
             this.container.innerHTML = '';
         }
-        
+
         this.widgets.clear();
         this.charts.clear();
     }
@@ -536,7 +536,7 @@ class MetricWidget {
         this.config = config;
         this.currentValue = 0;
         this.element = null;
-        
+
         this.createElement();
     }
 
@@ -558,11 +558,11 @@ class MetricWidget {
      */
     updateValue(value) {
         this.currentValue = value;
-        
+
         const valueElement = this.element.querySelector('.widget-value');
         if (valueElement) {
             valueElement.textContent = this.config.format(value);
-            
+
             // Update status color based on thresholds
             const status = this.getStatus(value);
             valueElement.className = `widget-value widget-status-${status}`;
@@ -573,8 +573,8 @@ class MetricWidget {
      * Get status based on thresholds
      */
     getStatus(value) {
-        const thresholds = this.config.thresholds;
-        
+        const { thresholds } = this.config;
+
         if (this.metricType === 'frameRate') {
             // For frame rate, higher is better
             if (value < thresholds.critical) return 'critical';
@@ -623,7 +623,7 @@ class PerformanceChart {
         this.metricType = metricType;
         this.config = config;
         this.data = [];
-        
+
         this.setupCanvas();
     }
 
@@ -635,12 +635,12 @@ class PerformanceChart {
         const rect = this.canvas.getBoundingClientRect();
         this.canvas.width = rect.width * window.devicePixelRatio;
         this.canvas.height = rect.height * window.devicePixelRatio;
-        
+
         this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-        
+
         // Set canvas style size
-        this.canvas.style.width = rect.width + 'px';
-        this.canvas.style.height = rect.height + 'px';
+        this.canvas.style.width = `${rect.width}px`;
+        this.canvas.style.height = `${rect.height}px`;
     }
 
     /**
@@ -657,27 +657,27 @@ class PerformanceChart {
     render() {
         const width = this.canvas.width / window.devicePixelRatio;
         const height = this.canvas.height / window.devicePixelRatio;
-        
+
         // Clear canvas
         this.ctx.clearRect(0, 0, width, height);
-        
+
         if (this.data.length < 2) {
             this.renderNoData(width, height);
             return;
         }
-        
+
         // Calculate data bounds
         const values = this.data.map(d => d.value);
         const minValue = Math.min(...values);
         const maxValue = Math.max(...values);
         const valueRange = maxValue - minValue || 1;
-        
+
         // Draw grid
         this.drawGrid(width, height, minValue, maxValue);
-        
+
         // Draw line
         this.drawLine(width, height, minValue, valueRange);
-        
+
         // Draw threshold lines
         this.drawThresholds(width, height, minValue, valueRange);
     }
@@ -698,7 +698,7 @@ class PerformanceChart {
     drawGrid(width, height, minValue, maxValue) {
         this.ctx.strokeStyle = '#333';
         this.ctx.lineWidth = 1;
-        
+
         // Horizontal grid lines
         for (let i = 0; i <= 4; i++) {
             const y = (height / 4) * i;
@@ -706,7 +706,7 @@ class PerformanceChart {
             this.ctx.moveTo(0, y);
             this.ctx.lineTo(width, y);
             this.ctx.stroke();
-            
+
             // Value labels
             const value = maxValue - (maxValue - minValue) * (i / 4);
             this.ctx.fillStyle = '#666';
@@ -714,7 +714,7 @@ class PerformanceChart {
             this.ctx.textAlign = 'left';
             this.ctx.fillText(this.config.format(value), 2, y - 2);
         }
-        
+
         // Vertical grid lines
         for (let i = 0; i <= 4; i++) {
             const x = (width / 4) * i;
@@ -730,22 +730,22 @@ class PerformanceChart {
      */
     drawLine(width, height, minValue, valueRange) {
         if (this.data.length < 2) return;
-        
+
         this.ctx.strokeStyle = this.getLineColor();
         this.ctx.lineWidth = 2;
         this.ctx.beginPath();
-        
+
         this.data.forEach((point, index) => {
             const x = (index / (this.data.length - 1)) * width;
             const y = height - ((point.value - minValue) / valueRange) * height;
-            
+
             if (index === 0) {
                 this.ctx.moveTo(x, y);
             } else {
                 this.ctx.lineTo(x, y);
             }
         });
-        
+
         this.ctx.stroke();
     }
 
@@ -753,22 +753,22 @@ class PerformanceChart {
      * Draw threshold lines
      */
     drawThresholds(width, height, minValue, valueRange) {
-        const thresholds = this.config.thresholds;
-        
+        const { thresholds } = this.config;
+
         Object.keys(thresholds).forEach(level => {
             const value = thresholds[level];
             const y = height - ((value - minValue) / valueRange) * height;
-            
+
             if (y >= 0 && y <= height) {
                 this.ctx.strokeStyle = this.getThresholdColor(level);
                 this.ctx.lineWidth = 1;
                 this.ctx.setLineDash([5, 5]);
-                
+
                 this.ctx.beginPath();
                 this.ctx.moveTo(0, y);
                 this.ctx.lineTo(width, y);
                 this.ctx.stroke();
-                
+
                 this.ctx.setLineDash([]);
             }
         });
@@ -779,10 +779,10 @@ class PerformanceChart {
      */
     getLineColor() {
         if (this.data.length === 0) return '#00ff00';
-        
+
         const lastValue = this.data[this.data.length - 1].value;
-        const thresholds = this.config.thresholds;
-        
+        const { thresholds } = this.config;
+
         if (this.metricType === 'frameRate') {
             if (lastValue < thresholds.critical) return '#ff0000';
             if (lastValue < thresholds.warning) return '#ffaa00';

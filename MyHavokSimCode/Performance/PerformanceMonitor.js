@@ -14,13 +14,13 @@ export class PerformanceMonitor {
     constructor(engine, scene) {
         this.engine = engine;
         this.scene = scene;
-        
+
         // Initialize monitoring components
         this.frameRateTracker = new FrameRateTracker(engine);
         this.memoryMonitor = new MemoryMonitor();
         this.cpuProfiler = new CPUProfiler();
         this.agentPerformanceTracker = new AgentPerformanceTracker();
-        
+
         // Optimization system references (set externally)
         this.optimizationSystems = {
             lodManager: null,
@@ -32,14 +32,14 @@ export class PerformanceMonitor {
             physicsOptimizer: null,
             adaptiveQualityManager: null
         };
-        
+
         // Initialize data storage and threshold monitoring
         this.dataStore = new PerformanceDataStore({
             maxStorageSize: 10000,
             retentionPeriod: 24 * 60 * 60 * 1000, // 24 hours
             storageKey: 'village_performance_metrics'
         });
-        
+
         this.thresholdMonitor = new ThresholdMonitor({
             thresholds: {
                 frameRate: {
@@ -58,16 +58,16 @@ export class PerformanceMonitor {
                 maxAlertsPerMinute: 5
             }
         });
-        
+
         // Performance data storage (legacy - kept for backward compatibility)
         this.isMonitoring = false;
         this.metricsHistory = [];
         this.maxHistorySize = 1000; // Keep last 1000 measurements
-        
+
         // Callbacks for real-time updates
         this.updateCallbacks = [];
         this.alertCallbacks = [];
-        
+
         // Monitoring interval
         this.monitoringInterval = null;
         this.updateFrequency = 60; // Updates per second
@@ -84,16 +84,16 @@ export class PerformanceMonitor {
 
         console.log('Starting performance monitoring...');
         this.isMonitoring = true;
-        
+
         // Start component monitoring
         this.frameRateTracker.start();
         this.memoryMonitor.start();
         this.cpuProfiler.start();
         this.agentPerformanceTracker.start();
-        
+
         // Start data storage and threshold monitoring
         this.thresholdMonitor.start();
-        
+
         // Set up periodic data collection
         const intervalMs = 1000 / this.updateFrequency;
         this.monitoringInterval = setInterval(() => {
@@ -111,16 +111,16 @@ export class PerformanceMonitor {
 
         console.log('Stopping performance monitoring...');
         this.isMonitoring = false;
-        
+
         // Stop component monitoring
         this.frameRateTracker.stop();
         this.memoryMonitor.stop();
         this.cpuProfiler.stop();
         this.agentPerformanceTracker.stop();
-        
+
         // Stop data storage and threshold monitoring
         this.thresholdMonitor.stop();
-        
+
         // Clear monitoring interval
         if (this.monitoringInterval) {
             clearInterval(this.monitoringInterval);
@@ -137,13 +137,13 @@ export class PerformanceMonitor {
         }
 
         const timestamp = performance.now();
-        
+
         // Gather metrics from all components
         const frameRateData = this.frameRateTracker.getCurrentMetrics();
         const memoryData = this.memoryMonitor.getCurrentMetrics();
         const cpuData = this.cpuProfiler.getCurrentMetrics();
         const agentData = this.agentPerformanceTracker.getCurrentMetrics();
-        
+
         // Create comprehensive metrics object
         const metrics = {
             timestamp,
@@ -158,21 +158,21 @@ export class PerformanceMonitor {
 
         // Store in history (legacy)
         this.addToHistory(metrics);
-        
+
         // Store in data store
         this.dataStore.store(metrics);
-        
+
         // Check thresholds and generate alerts
         const alerts = this.thresholdMonitor.checkMetrics(metrics);
-        
+
         // Notify callbacks
         this.notifyUpdateCallbacks(metrics);
-        
+
         // Notify alert callbacks if there are alerts
         if (alerts.length > 0) {
             this.notifyAlertCallbacks(alerts);
         }
-        
+
         return metrics;
     }
 
@@ -206,7 +206,7 @@ export class PerformanceMonitor {
      */
     getSystemMetrics() {
         const engineStats = this.engine ? this.engine.getGlInfo() : null;
-        
+
         return {
             webglVersion: engineStats ? engineStats.version : 'Unknown',
             renderer: engineStats ? engineStats.renderer : 'Unknown',
@@ -255,8 +255,8 @@ export class PerformanceMonitor {
 
         const lodStats = this.optimizationSystems.lodManager.getStatistics();
         const totalVisible = lodStats.lodLevel0 + lodStats.lodLevel1 + lodStats.lodLevel2;
-        const averageLODLevel = totalVisible > 0 ? 
-            (lodStats.lodLevel1 + lodStats.lodLevel2 * 2 + lodStats.lodLevel3 * 3) / totalVisible : 0;
+        const averageLODLevel = totalVisible > 0
+            ? (lodStats.lodLevel1 + lodStats.lodLevel2 * 2 + lodStats.lodLevel3 * 3) / totalVisible : 0;
 
         return {
             enabled: lodStats.enabled,
@@ -292,8 +292,8 @@ export class PerformanceMonitor {
 
         const cullingStats = this.optimizationSystems.cullingSystem.getStatistics();
         const totalCulled = cullingStats.frustumCulled + cullingStats.occlusionCulled;
-        const cullingRatio = cullingStats.totalObjects > 0 ? 
-            totalCulled / cullingStats.totalObjects : 0;
+        const cullingRatio = cullingStats.totalObjects > 0
+            ? totalCulled / cullingStats.totalObjects : 0;
 
         return {
             enabled: cullingStats.enabled,
@@ -327,8 +327,8 @@ export class PerformanceMonitor {
         }
 
         const instanceStats = this.optimizationSystems.instanceManager.getStatistics();
-        const instancingRatio = instanceStats.totalMeshes > 0 ? 
-            instanceStats.instancedMeshes / instanceStats.totalMeshes : 0;
+        const instancingRatio = instanceStats.totalMeshes > 0
+            ? instanceStats.instancedMeshes / instanceStats.totalMeshes : 0;
 
         return {
             enabled: instanceStats.enabled,
@@ -362,8 +362,8 @@ export class PerformanceMonitor {
 
         const memoryStats = this.optimizationSystems.memoryManager.getStatistics();
         const totalPoolRequests = memoryStats.poolHits + memoryStats.poolMisses;
-        const poolEfficiency = totalPoolRequests > 0 ? 
-            memoryStats.poolHits / totalPoolRequests : 0;
+        const poolEfficiency = totalPoolRequests > 0
+            ? memoryStats.poolHits / totalPoolRequests : 0;
 
         return {
             enabled: true,
@@ -436,8 +436,8 @@ export class PerformanceMonitor {
 
         const behaviorStats = this.optimizationSystems.behaviorOptimizer.getStatistics();
         const totalCacheRequests = behaviorStats.cacheHits + behaviorStats.cacheMisses;
-        const cacheEfficiency = totalCacheRequests > 0 ? 
-            behaviorStats.cacheHits / totalCacheRequests : 0;
+        const cacheEfficiency = totalCacheRequests > 0
+            ? behaviorStats.cacheHits / totalCacheRequests : 0;
 
         return {
             enabled: behaviorStats.enabled,
@@ -544,8 +544,8 @@ export class PerformanceMonitor {
                 renderingComponents++;
             }
 
-            effectiveness.rendering = renderingComponents > 0 ? 
-                Math.round(renderingScore / renderingComponents) : 0;
+            effectiveness.rendering = renderingComponents > 0
+                ? Math.round(renderingScore / renderingComponents) : 0;
         }
 
         // Calculate memory effectiveness
@@ -557,8 +557,8 @@ export class PerformanceMonitor {
         // Calculate agent effectiveness
         const agentMetrics = this.getAgentOptimizationMetrics();
         if (agentMetrics.scheduler.enabled) {
-            const schedulerEfficiency = agentMetrics.scheduler.totalAgents > 0 ? 
-                (agentMetrics.scheduler.averageUpdatesPerFrame / agentMetrics.scheduler.totalAgents) * 100 : 0;
+            const schedulerEfficiency = agentMetrics.scheduler.totalAgents > 0
+                ? (agentMetrics.scheduler.averageUpdatesPerFrame / agentMetrics.scheduler.totalAgents) * 100 : 0;
             effectiveness.agents = Math.min(100, Math.round(schedulerEfficiency));
         }
 
@@ -577,8 +577,8 @@ export class PerformanceMonitor {
             effectiveness.physics
         ].filter(score => score > 0);
 
-        effectiveness.overall = components.length > 0 ? 
-            Math.round(components.reduce((a, b) => a + b, 0) / components.length) : 0;
+        effectiveness.overall = components.length > 0
+            ? Math.round(components.reduce((a, b) => a + b, 0) / components.length) : 0;
 
         return effectiveness;
     }
@@ -588,7 +588,7 @@ export class PerformanceMonitor {
      */
     addToHistory(metrics) {
         this.metricsHistory.push(metrics);
-        
+
         // Maintain history size limit
         if (this.metricsHistory.length > this.maxHistorySize) {
             this.metricsHistory.shift();
@@ -609,7 +609,7 @@ export class PerformanceMonitor {
         if (count === null) {
             return [...this.metricsHistory];
         }
-        
+
         return this.metricsHistory.slice(-count);
     }
 
@@ -619,7 +619,7 @@ export class PerformanceMonitor {
     getPerformanceSummary(timeRangeMs = 10000) {
         const cutoffTime = performance.now() - timeRangeMs;
         const recentMetrics = this.metricsHistory.filter(m => m.timestamp >= cutoffTime);
-        
+
         if (recentMetrics.length === 0) {
             return null;
         }
@@ -627,7 +627,7 @@ export class PerformanceMonitor {
         // Calculate frame rate statistics
         const frameRates = recentMetrics.map(m => m.frameRate.current);
         const memoryUsages = recentMetrics.map(m => m.memory.used);
-        
+
         return {
             timeRange: timeRangeMs,
             sampleCount: recentMetrics.length,
@@ -687,7 +687,7 @@ export class PerformanceMonitor {
      */
     setUpdateFrequency(frequency) {
         this.updateFrequency = Math.max(1, Math.min(120, frequency)); // Clamp between 1-120 Hz
-        
+
         if (this.isMonitoring) {
             // Restart monitoring with new frequency
             this.stopMonitoring();
@@ -912,11 +912,11 @@ export class PerformanceMonitor {
     generatePerformanceReport(timeRange = 3600000) { // Default 1 hour
         const endTime = Date.now();
         const startTime = endTime - timeRange;
-        
+
         const performanceStats = this.getPerformanceStatistics(startTime, endTime);
         const alertReport = this.thresholdMonitor.generateReport(timeRange);
         const storageInfo = this.dataStore.getStorageInfo();
-        
+
         return {
             timeRange: { start: startTime, end: endTime, duration: timeRange },
             performance: performanceStats,
@@ -941,7 +941,7 @@ export class PerformanceMonitor {
         if (performanceStats && performanceStats.frameRate) {
             summary.keyMetrics.averageFPS = Math.round(performanceStats.frameRate.mean);
             summary.keyMetrics.minFPS = Math.round(performanceStats.frameRate.min);
-            
+
             if (performanceStats.frameRate.mean < 30) {
                 summary.overallHealth = 'poor';
                 summary.issues.push('Low average frame rate detected');
@@ -955,7 +955,7 @@ export class PerformanceMonitor {
         // Analyze memory usage
         if (performanceStats && performanceStats.memory) {
             summary.keyMetrics.averageMemory = Math.round(performanceStats.memory.mean);
-            
+
             if (performanceStats.memory.mean > 80) {
                 summary.overallHealth = 'poor';
                 summary.issues.push('High memory usage detected');
@@ -967,12 +967,12 @@ export class PerformanceMonitor {
         if (alertReport && alertReport.summary) {
             summary.keyMetrics.totalAlerts = alertReport.summary.totalAlerts;
             summary.keyMetrics.criticalAlerts = alertReport.summary.alertsBySeverity.critical || 0;
-            
+
             if (summary.keyMetrics.criticalAlerts > 0) {
                 summary.overallHealth = 'critical';
                 summary.issues.push(`${summary.keyMetrics.criticalAlerts} critical alerts detected`);
             }
-            
+
             // Add alert recommendations
             if (alertReport.recommendations) {
                 summary.recommendations.push(...alertReport.recommendations);
@@ -1048,8 +1048,8 @@ export class PerformanceMonitor {
     measureOptimizationImpact(timeRangeMs = 30000) {
         const endTime = performance.now();
         const startTime = endTime - timeRangeMs;
-        
-        const recentMetrics = this.metricsHistory.filter(m => 
+
+        const recentMetrics = this.metricsHistory.filter(m =>
             m.timestamp >= startTime && m.optimization
         );
 
@@ -1063,7 +1063,7 @@ export class PerformanceMonitor {
         // Calculate performance improvements
         const frameRateImprovement = lastMetrics.frameRate.current - firstMetrics.frameRate.current;
         const memoryImprovement = firstMetrics.memory.used - lastMetrics.memory.used;
-        
+
         // Calculate optimization effectiveness changes
         const effectivenessImprovement = {
             overall: lastMetrics.optimization.effectiveness.overall - firstMetrics.optimization.effectiveness.overall,
@@ -1097,11 +1097,11 @@ export class PerformanceMonitor {
     generateOptimizationReport(timeRange = 300000) { // 5 minutes default
         const endTime = Date.now();
         const startTime = endTime - timeRange;
-        
+
         const performanceStats = this.getPerformanceStatistics(startTime, endTime);
         const optimizationImpact = this.measureOptimizationImpact(timeRange);
         const currentOptimization = this.getOptimizationMetrics();
-        
+
         return {
             timeRange: { start: startTime, end: endTime, duration: timeRange },
             currentOptimization,
@@ -1160,8 +1160,8 @@ export class PerformanceMonitor {
 
         // Agent scheduling recommendations
         if (optimizationMetrics.agents.scheduler.enabled) {
-            const updateRatio = optimizationMetrics.agents.scheduler.averageUpdatesPerFrame / 
-                               optimizationMetrics.agents.scheduler.totalAgents;
+            const updateRatio = optimizationMetrics.agents.scheduler.averageUpdatesPerFrame
+                               / optimizationMetrics.agents.scheduler.totalAgents;
             if (updateRatio > 0.5) {
                 recommendations.push({
                     category: 'Agents',
@@ -1243,8 +1243,8 @@ export class PerformanceMonitor {
         if (optimizationMetrics.memory.enabled && optimizationMetrics.memory.isMemoryPressure) {
             summary.issues.push('Memory pressure detected');
         }
-        if (optimizationMetrics.agents.scheduler.enabled && 
-            optimizationMetrics.agents.scheduler.averageUpdatesPerFrame > optimizationMetrics.agents.scheduler.totalAgents * 0.8) {
+        if (optimizationMetrics.agents.scheduler.enabled
+            && optimizationMetrics.agents.scheduler.averageUpdatesPerFrame > optimizationMetrics.agents.scheduler.totalAgents * 0.8) {
             summary.issues.push('High agent processing load');
         }
 
@@ -1256,36 +1256,36 @@ export class PerformanceMonitor {
      */
     dispose() {
         this.stopMonitoring();
-        
+
         if (this.frameRateTracker) {
             this.frameRateTracker.dispose();
         }
-        
+
         if (this.memoryMonitor) {
             this.memoryMonitor.dispose();
         }
-        
+
         if (this.cpuProfiler) {
             this.cpuProfiler.dispose();
         }
-        
+
         if (this.agentPerformanceTracker) {
             this.agentPerformanceTracker.dispose();
         }
-        
+
         if (this.dataStore) {
             this.dataStore.dispose();
         }
-        
+
         if (this.thresholdMonitor) {
             this.thresholdMonitor.dispose();
         }
-        
+
         // Clear optimization system references
         for (const systemName in this.optimizationSystems) {
             this.optimizationSystems[systemName] = null;
         }
-        
+
         this.updateCallbacks = [];
         this.alertCallbacks = [];
         this.metricsHistory = [];

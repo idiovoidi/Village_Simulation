@@ -1,6 +1,6 @@
 /**
  * HardwareCapabilities - Data models and interfaces for hardware capability management
- * 
+ *
  * This module provides:
  * - HardwareCapabilities data structure definitions
  * - Capability scoring and tier assignment
@@ -26,21 +26,21 @@ class HardwareCapabilities {
      */
     static fromDetectionData(rawData) {
         const capabilities = new HardwareCapabilities();
-        
+
         if (rawData.webgl) {
             capabilities.webgl = WebGLCapabilities.fromRawData(rawData.webgl);
         }
-        
+
         if (rawData.memory) {
             capabilities.memory = MemoryCapabilities.fromRawData(rawData.memory);
         }
-        
+
         if (rawData.performance) {
             capabilities.performance = PerformanceCapabilities.fromRawData(rawData.performance);
         }
-        
+
         capabilities.timestamp = rawData.timestamp || Date.now();
-        
+
         return capabilities;
     }
 
@@ -65,22 +65,22 @@ class HardwareCapabilities {
      */
     static fromJSON(jsonData) {
         const capabilities = new HardwareCapabilities();
-        
+
         if (jsonData.webgl) {
             capabilities.webgl = WebGLCapabilities.fromJSON(jsonData.webgl);
         }
-        
+
         if (jsonData.memory) {
             capabilities.memory = MemoryCapabilities.fromJSON(jsonData.memory);
         }
-        
+
         if (jsonData.performance) {
             capabilities.performance = PerformanceCapabilities.fromJSON(jsonData.performance);
         }
-        
+
         capabilities.timestamp = jsonData.timestamp || Date.now();
         capabilities.version = jsonData.version || '1.0.0';
-        
+
         return capabilities;
     }
 
@@ -110,22 +110,22 @@ class WebGLCapabilities {
     static fromRawData(rawData) {
         const capabilities = new WebGLCapabilities();
         Object.assign(capabilities, rawData);
-        
+
         if (rawData.limits) {
             capabilities.limits = WebGLLimits.fromRawData(rawData.limits);
         }
-        
+
         return capabilities;
     }
 
     static fromJSON(jsonData) {
         const capabilities = new WebGLCapabilities();
         Object.assign(capabilities, jsonData);
-        
+
         if (jsonData.limits) {
             capabilities.limits = WebGLLimits.fromJSON(jsonData.limits);
         }
-        
+
         return capabilities;
     }
 
@@ -162,7 +162,7 @@ class WebGLCapabilities {
             'EXT_texture_filter_anisotropic'
         ];
 
-        const supportedImportant = importantExtensions.filter(ext => 
+        const supportedImportant = importantExtensions.filter(ext =>
             this.extensions.includes(ext)
         ).length;
         score += (supportedImportant / importantExtensions.length) * 20;
@@ -190,14 +190,14 @@ class WebGLLimits {
         this.maxTextureImageUnits = 0;
         this.maxVertexTextureImageUnits = 0;
         this.maxCombinedTextureImageUnits = 0;
-        
+
         // WebGL2 specific
         this.maxDrawBuffers = 0;
         this.maxColorAttachments = 0;
         this.maxSamples = 0;
         this.max3DTextureSize = 0;
         this.maxArrayTextureLayers = 0;
-        
+
         // Extension capabilities
         this.hasFloatTextures = false;
         this.hasHalfFloatTextures = false;
@@ -437,9 +437,9 @@ class CapabilityScorer {
 
         // Weighted average: WebGL 40%, Memory 30%, Performance 30%
         return Math.round(
-            (webglScore * 0.4) + 
-            (memoryScore * 0.3) + 
-            (performanceScore * 0.3)
+            (webglScore * 0.4)
+            + (memoryScore * 0.3)
+            + (performanceScore * 0.3)
         );
     }
 
@@ -450,7 +450,7 @@ class CapabilityScorer {
      */
     static assignPerformanceTier(capabilities) {
         const overallScore = this.calculateOverallScore(capabilities);
-        
+
         if (overallScore >= 70) return 'high';
         else if (overallScore >= 40) return 'medium';
         else return 'low';
@@ -474,8 +474,8 @@ class CapabilityScorer {
                 memory: {
                     score: capabilities.memory.getCapabilityScore(),
                     tier: capabilities.memory.getMemoryTier(),
-                    availableGB: capabilities.memory.estimatedAvailableMemory ? 
-                        (capabilities.memory.estimatedAvailableMemory / (1024 * 1024 * 1024)).toFixed(1) : 'unknown'
+                    availableGB: capabilities.memory.estimatedAvailableMemory
+                        ? (capabilities.memory.estimatedAvailableMemory / (1024 * 1024 * 1024)).toFixed(1) : 'unknown'
                 },
                 performance: {
                     score: capabilities.performance.getCapabilityScore(),
@@ -568,7 +568,7 @@ class CapabilityCache {
     }
 }
 
-export { 
+export {
     HardwareCapabilities,
     WebGLCapabilities,
     WebGLLimits,

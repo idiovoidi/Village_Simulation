@@ -8,12 +8,12 @@ export class VortexBall {
 
     createVortexBall() {
         // Create the vortex sphere
-        this.mesh = BABYLON.MeshBuilder.CreateSphere("vortexBall", {
+        this.mesh = BABYLON.MeshBuilder.CreateSphere('vortexBall', {
             diameter: 2
         }, this.scene);
 
         // Create glowing material for the vortex
-        this.material = new BABYLON.StandardMaterial("vortexMat", this.scene);
+        this.material = new BABYLON.StandardMaterial('vortexMat', this.scene);
         this.material.emissiveColor = new BABYLON.Color3(0.5, 0, 0.5);
         this.material.alpha = 0.7;
         this.mesh.material = this.material;
@@ -27,15 +27,15 @@ export class VortexBall {
         );
 
         // Create glow layer
-        const gl = new BABYLON.GlowLayer("glow", this.scene);
+        const gl = new BABYLON.GlowLayer('glow', this.scene);
         gl.intensity = 0.5;
 
         this.createParticleSystem();
     }
 
     createParticleSystem() {
-        const particleSystem = new BABYLON.ParticleSystem("vortexParticles", 2000, this.scene);
-        particleSystem.particleTexture = new BABYLON.Texture("https://www.babylonjs-playground.com/textures/flare.png");
+        const particleSystem = new BABYLON.ParticleSystem('vortexParticles', 2000, this.scene);
+        particleSystem.particleTexture = new BABYLON.Texture('https://www.babylonjs-playground.com/textures/flare.png');
         particleSystem.emitter = this.mesh;
         particleSystem.minEmitBox = new BABYLON.Vector3(-1, -1, -1);
         particleSystem.maxEmitBox = new BABYLON.Vector3(1, 1, 1);
@@ -53,28 +53,28 @@ export class VortexBall {
     }
 
     setupControls() {
-        this.scene.onKeyboardObservable.add((kbInfo) => {
+        this.scene.onKeyboardObservable.add(kbInfo => {
             const speed = 10;
             switch (kbInfo.type) {
                 case BABYLON.KeyboardEventTypes.KEYDOWN:
                     switch (kbInfo.event.key) {
-                        case "ArrowUp":
+                        case 'ArrowUp':
                             this.physicsAggregate.body.setLinearVelocity(new BABYLON.Vector3(0, 0, -speed));
                             break;
-                        case "ArrowDown":
+                        case 'ArrowDown':
                             this.physicsAggregate.body.setLinearVelocity(new BABYLON.Vector3(0, 0, speed));
                             break;
-                        case "ArrowLeft":
+                        case 'ArrowLeft':
                             this.physicsAggregate.body.setLinearVelocity(new BABYLON.Vector3(-speed, 0, 0));
                             break;
-                        case "ArrowRight":
+                        case 'ArrowRight':
                             this.physicsAggregate.body.setLinearVelocity(new BABYLON.Vector3(speed, 0, 0));
                             break;
-                        case " ": // Spacebar
+                        case ' ': // Spacebar
                             this.isAttracting = !this.isAttracting;
-                            this.material.emissiveColor = this.isAttracting ? 
-                                new BABYLON.Color3(0, 0.5, 0) : 
-                                new BABYLON.Color3(0.5, 0, 0);
+                            this.material.emissiveColor = this.isAttracting
+                                ? new BABYLON.Color3(0, 0.5, 0)
+                                : new BABYLON.Color3(0.5, 0, 0);
                             break;
                     }
                     break;
@@ -108,4 +108,4 @@ export class VortexBall {
             }
         });
     }
-} 
+}

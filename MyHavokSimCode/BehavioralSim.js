@@ -16,13 +16,13 @@ export class BehavioralSim {
         this.dinosaurBehaviour = null;
         this.navigationMesh = new NavigationMesh(scene);
         this.basicAgent = new BasicAgent(scene);
-        
+
         // Performance optimization integration
         this.performanceOptimizer = null;
         this.optimizationEnabled = true;
         this.lastOptimizationUpdate = 0;
         this.optimizationUpdateInterval = 1000; // Update every second
-        
+
         // Agent performance tracking
         this.agentPerformanceData = {
             totalAgents: 0,
@@ -31,7 +31,7 @@ export class BehavioralSim {
             updateTime: 0,
             lastFrameTime: 0
         };
-        
+
         // Distance-based optimization settings
         this.distanceOptimization = {
             enabled: true,
@@ -40,7 +40,7 @@ export class BehavioralSim {
             farDistance: 100,    // Minimal update frequency
             cullingDistance: 150 // Don't update at all
         };
-        
+
         // Return the initialization promise
         return this.init();
     }
@@ -78,7 +78,7 @@ export class BehavioralSim {
             throw error;
         }
     }
-    
+
     /**
      * Set performance optimizer reference for integration
      * @param {PerformanceOptimizer} optimizer - Performance optimizer instance
@@ -87,7 +87,7 @@ export class BehavioralSim {
         this.performanceOptimizer = optimizer;
         console.log('BehavioralSim integrated with PerformanceOptimizer');
     }
-    
+
     /**
      * Enable or disable optimization features
      * @param {boolean} enabled - Whether to enable optimization
@@ -96,7 +96,7 @@ export class BehavioralSim {
         this.optimizationEnabled = enabled;
         console.log(`BehavioralSim optimization ${enabled ? 'enabled' : 'disabled'}`);
     }
-    
+
     /**
      * Configure distance-based optimization settings
      * @param {Object} settings - Distance optimization settings
@@ -105,46 +105,45 @@ export class BehavioralSim {
         this.distanceOptimization = { ...this.distanceOptimization, ...settings };
         console.log('Distance optimization configured:', this.distanceOptimization);
     }
-    
+
     /**
      * Optimized behavior update method
      */
     updateBehaviorsOptimized() {
         const startTime = performance.now();
-        
+
         try {
             // Get camera position for distance calculations
             const camera = this.scene.activeCamera;
             const cameraPosition = camera ? camera.position : new BABYLON.Vector3(0, 0, 0);
-            
+
             // Update agent performance tracking
             this.updateAgentPerformanceTracking(cameraPosition);
-            
+
             // Update behaviors with optimization
             if (this.optimizationEnabled) {
                 this.updateBehaviorsWithOptimization(cameraPosition);
             } else {
                 this.updateBehaviors(); // Fallback to original method
             }
-            
+
             // Track performance
             const endTime = performance.now();
             this.agentPerformanceData.updateTime = endTime - startTime;
             this.agentPerformanceData.lastFrameTime = endTime;
-            
+
             // Update optimization system periodically
             if (endTime - this.lastOptimizationUpdate > this.optimizationUpdateInterval) {
                 this.updateOptimizationMetrics();
                 this.lastOptimizationUpdate = endTime;
             }
-            
         } catch (error) {
             console.error('Error in optimized behavior update:', error);
             // Fallback to original method
             this.updateBehaviors();
         }
     }
-    
+
     /**
      * Update behaviors with distance-based optimization
      * @param {BABYLON.Vector3} cameraPosition - Camera position for distance calculations
@@ -157,61 +156,61 @@ export class BehavioralSim {
         this.updateVillagersWithOptimization(cameraPosition);
         this.updateDinosaursWithOptimization(cameraPosition);
     }
-    
+
     /**
      * Update basic agents with distance-based optimization
      * @param {BABYLON.Vector3} cameraPosition - Camera position
      */
     updateAgentsWithOptimization(cameraPosition) {
         if (!this.agents || this.agents.length === 0) return;
-        
+
         for (let i = 0; i < this.agents.length; i++) {
             const agent = this.agents[i];
             if (!agent || !agent.mesh) continue;
-            
+
             const distance = BABYLON.Vector3.Distance(agent.mesh.position, cameraPosition);
             const updateFrequency = this.getUpdateFrequencyForDistance(distance);
-            
+
             // Skip update based on distance and frame timing
             if (updateFrequency < 1.0 && Math.random() > updateFrequency) {
                 continue;
             }
-            
+
             // Update agent behavior
             this.updateAgentBehavior(agent, distance < this.distanceOptimization.nearDistance);
         }
     }
-    
+
     /**
      * Update zombies with distance-based optimization
      * @param {BABYLON.Vector3} cameraPosition - Camera position
      */
     updateZombiesWithOptimization(cameraPosition) {
         if (!this.zombies || this.zombies.length === 0) return;
-        
+
         for (let i = 0; i < this.zombies.length; i++) {
             const zombie = this.zombies[i];
             if (!zombie || !zombie.mesh) continue;
-            
+
             const distance = BABYLON.Vector3.Distance(zombie.mesh.position, cameraPosition);
             const updateFrequency = this.getUpdateFrequencyForDistance(distance);
-            
+
             if (updateFrequency < 1.0 && Math.random() > updateFrequency) {
                 continue;
             }
-            
+
             // Update zombie behavior (simplified for distant zombies)
             this.updateZombieBehavior(zombie, distance < this.distanceOptimization.nearDistance);
         }
     }
-    
+
     /**
      * Update dogs with distance-based optimization
      * @param {BABYLON.Vector3} cameraPosition - Camera position
      */
     updateDogsWithOptimization(cameraPosition) {
         if (!this.dogBehaviour) return;
-        
+
         // Let the dog behavior system handle its own optimization
         if (this.dogBehaviour.updateWithOptimization) {
             this.dogBehaviour.updateWithOptimization(cameraPosition, this.distanceOptimization);
@@ -219,14 +218,14 @@ export class BehavioralSim {
             this.dogBehaviour.update();
         }
     }
-    
+
     /**
      * Update villagers with distance-based optimization
      * @param {BABYLON.Vector3} cameraPosition - Camera position
      */
     updateVillagersWithOptimization(cameraPosition) {
         if (!this.villagerBehaviour) return;
-        
+
         // Let the villager behavior system handle its own optimization
         if (this.villagerBehaviour.updateWithOptimization) {
             this.villagerBehaviour.updateWithOptimization(cameraPosition, this.distanceOptimization);
@@ -234,14 +233,14 @@ export class BehavioralSim {
             this.villagerBehaviour.update();
         }
     }
-    
+
     /**
      * Update dinosaurs with distance-based optimization
      * @param {BABYLON.Vector3} cameraPosition - Camera position
      */
     updateDinosaursWithOptimization(cameraPosition) {
         if (!this.dinosaurBehaviour) return;
-        
+
         // Let the dinosaur behavior system handle its own optimization
         if (this.dinosaurBehaviour.updateWithOptimization) {
             this.dinosaurBehaviour.updateWithOptimization(cameraPosition, this.distanceOptimization);
@@ -249,7 +248,7 @@ export class BehavioralSim {
             this.dinosaurBehaviour.update();
         }
     }
-    
+
     /**
      * Get update frequency based on distance from camera
      * @param {number} distance - Distance from camera
@@ -268,7 +267,7 @@ export class BehavioralSim {
             return 0.0; // No updates
         }
     }
-    
+
     /**
      * Update agent performance tracking
      * @param {BABYLON.Vector3} cameraPosition - Camera position
@@ -277,7 +276,7 @@ export class BehavioralSim {
         let totalAgents = 0;
         let activeAgents = 0;
         let visibleAgents = 0;
-        
+
         // Count basic agents
         if (this.agents) {
             totalAgents += this.agents.length;
@@ -291,7 +290,7 @@ export class BehavioralSim {
                 }
             }
         }
-        
+
         // Count zombies
         if (this.zombies) {
             totalAgents += this.zombies.length;
@@ -305,7 +304,7 @@ export class BehavioralSim {
                 }
             }
         }
-        
+
         // Count dogs
         if (this.dogBehaviour && this.dogBehaviour.dogs) {
             totalAgents += this.dogBehaviour.dogs.length;
@@ -319,7 +318,7 @@ export class BehavioralSim {
                 }
             }
         }
-        
+
         // Count villagers
         if (this.villagerBehaviour && this.villagerBehaviour.villagers) {
             totalAgents += this.villagerBehaviour.villagers.length;
@@ -333,7 +332,7 @@ export class BehavioralSim {
                 }
             }
         }
-        
+
         // Count dinosaurs
         if (this.dinosaurBehaviour && this.dinosaurBehaviour.dinosaurs) {
             totalAgents += this.dinosaurBehaviour.dinosaurs.length;
@@ -347,19 +346,19 @@ export class BehavioralSim {
                 }
             }
         }
-        
+
         // Update performance data
         this.agentPerformanceData.totalAgents = totalAgents;
         this.agentPerformanceData.activeAgents = activeAgents;
         this.agentPerformanceData.visibleAgents = visibleAgents;
     }
-    
+
     /**
      * Update optimization metrics for the performance optimizer
      */
     updateOptimizationMetrics() {
         if (!this.performanceOptimizer) return;
-        
+
         // Send agent performance data to the optimizer
         const metrics = {
             agentCount: this.agentPerformanceData.totalAgents,
@@ -369,7 +368,7 @@ export class BehavioralSim {
             optimizationEnabled: this.optimizationEnabled,
             distanceOptimization: this.distanceOptimization
         };
-        
+
         // This would integrate with the AI processing optimizer
         if (this.performanceOptimizer.aiProcessingOptimizer) {
             // Send metrics to AI processing optimizer
@@ -378,7 +377,7 @@ export class BehavioralSim {
             }
         }
     }
-    
+
     /**
      * Get agent performance data for monitoring
      * @returns {Object} Agent performance data
@@ -386,7 +385,7 @@ export class BehavioralSim {
     getAgentPerformanceData() {
         return { ...this.agentPerformanceData };
     }
-    
+
     /**
      * Update individual agent behavior with optimization
      * @param {Object} agent - Agent object
@@ -394,12 +393,12 @@ export class BehavioralSim {
      */
     updateAgentBehavior(agent, fullUpdate = true) {
         if (!agent || !agent.mesh) return;
-        
+
         try {
             if (fullUpdate) {
                 // Full behavior update for nearby agents
                 const flockingForce = this.calculateFlockingForce(agent);
-                
+
                 switch (agent.state) {
                     case 'seeking':
                         this.updateSeekingBehavior(agent, flockingForce);
@@ -408,7 +407,7 @@ export class BehavioralSim {
                         this.updateWaitingBehavior(agent);
                         break;
                 }
-                
+
                 this.updateAgentPhysics(agent);
                 this.updateLimbAnimations(agent);
             } else {
@@ -419,7 +418,7 @@ export class BehavioralSim {
             console.error('Error updating agent behavior:', error);
         }
     }
-    
+
     /**
      * Update individual zombie behavior with optimization
      * @param {Object} zombie - Zombie object
@@ -427,7 +426,7 @@ export class BehavioralSim {
      */
     updateZombieBehavior(zombie, fullUpdate = true) {
         if (!zombie || !zombie.mesh) return;
-        
+
         try {
             if (fullUpdate) {
                 // Full zombie behavior update
@@ -443,29 +442,29 @@ export class BehavioralSim {
             console.error('Error updating zombie behavior:', error);
         }
     }
-    
+
     /**
      * Simplified physics update for distant agents
      * @param {Object} agent - Agent object
      */
     updateAgentPhysicsSimplified(agent) {
         if (!agent || !agent.mesh || !agent.currentTarget) return;
-        
+
         // Simple movement towards target without complex calculations
         const direction = agent.currentTarget.subtract(agent.mesh.position);
         direction.normalize();
         direction.scaleInPlace(agent.speed * 0.5); // Reduced speed for distant agents
-        
+
         agent.mesh.position.addInPlace(direction);
     }
-    
+
     /**
      * Simplified physics update for distant zombies
      * @param {Object} zombie - Zombie object
      */
     updateZombiePhysicsSimplified(zombie) {
         if (!zombie || !zombie.mesh) return;
-        
+
         // Very basic movement for distant zombies
         if (zombie.targetPosition) {
             const direction = zombie.targetPosition.subtract(zombie.mesh.position);
@@ -487,23 +486,23 @@ export class BehavioralSim {
     initializeVillagers() {
         // Create villager behavior manager
         this.villagerBehaviour = new VillagerBehaviour(this.scene);
-        
+
         // Initialize with 20 villagers (increased from 10 for more interactions)
         console.log('Initializing Villager Behavior System with enhanced AI...');
         this.villagerBehaviour.initialize(20);
-        
+
         // Set up a scheduled event to update day/night-specific behaviors
         const checkTimeInterval = setInterval(() => {
             if (this.scene.isDisposed) {
                 clearInterval(checkTimeInterval);
                 return;
             }
-            
+
             // Get current time from the villager's day/night cycle
             if (this.villagerBehaviour && this.villagerBehaviour.dayNightCycle) {
                 const gameTime = this.villagerBehaviour.dayNightCycle.getGameTime();
                 const hour = Math.floor(gameTime / 60);
-                
+
                 // Log time of day transitions for debugging
                 if (hour === 6 || hour === 9 || hour === 17 || hour === 22) {
                     console.log(`Time transition: ${hour}:00 - Villagers updating schedule`);
@@ -535,13 +534,13 @@ export class BehavioralSim {
         // Create points in a circle around the bowl
         const radius = 80;
         const pointCount = 8;
-        
+
         for (let i = 0; i < pointCount; i++) {
             const angle = (i / pointCount) * Math.PI * 2;
             const x = Math.cos(angle) * radius;
             const z = Math.sin(angle) * radius;
             const y = this.getTerrainHeight(x, z);
-            
+
             this.targetPoints.push({
                 position: new BABYLON.Vector3(x, y, z),
                 priority: 1
@@ -558,7 +557,7 @@ export class BehavioralSim {
     createZombies() {
         for (let i = 0; i < this.zombieCount; i++) {
             // Create zombie mesh
-            const zombie = BABYLON.MeshBuilder.CreateBox("zombie" + i, {
+            const zombie = BABYLON.MeshBuilder.CreateBox(`zombie${i}`, {
                 height: 2,
                 width: 0.6,
                 depth: 0.3
@@ -582,7 +581,7 @@ export class BehavioralSim {
             );
 
             // Add material
-            const zombieMaterial = new BABYLON.StandardMaterial("zombieMat" + i, this.scene);
+            const zombieMaterial = new BABYLON.StandardMaterial(`zombieMat${i}`, this.scene);
             zombieMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.8, 0.4);
             zombie.material = zombieMaterial;
 
@@ -604,7 +603,7 @@ export class BehavioralSim {
         for (const zombie of this.zombies) {
             // Get current position
             const pos = zombie.mesh.position;
-            
+
             // Simple wandering behavior
             const angle = Math.random() * Math.PI * 2;
             const force = new BABYLON.Vector3(
@@ -617,8 +616,8 @@ export class BehavioralSim {
             zombie.physics.body.applyForce(force, pos);
 
             // Keep zombies upright
-            const rotation = zombie.mesh.rotationQuaternion || 
-                           BABYLON.Quaternion.FromEulerAngles(zombie.mesh.rotation.x, zombie.mesh.rotation.y, zombie.mesh.rotation.z);
+            const rotation = zombie.mesh.rotationQuaternion
+                           || BABYLON.Quaternion.FromEulerAngles(zombie.mesh.rotation.x, zombie.mesh.rotation.y, zombie.mesh.rotation.z);
             const upright = BABYLON.Quaternion.Identity();
             BABYLON.Quaternion.SlerpToRef(rotation, upright, 0.1, rotation);
             zombie.mesh.rotationQuaternion = rotation;
@@ -629,7 +628,7 @@ export class BehavioralSim {
         this.agents.forEach(agent => {
             // Calculate flocking forces
             const flockingForce = this.calculateFlockingForce(agent);
-            
+
             switch (agent.state) {
                 case 'seeking':
                     this.updateSeekingBehavior(agent, flockingForce);
@@ -638,7 +637,7 @@ export class BehavioralSim {
                     this.updateWaitingBehavior(agent);
                     break;
             }
-            
+
             // Update physics, orientation, and animations
             this.updateAgentPhysics(agent);
             this.updateLimbAnimations(agent);
@@ -658,7 +657,7 @@ export class BehavioralSim {
     }
 
     calculateSeparation(agent) {
-        let separationForce = new BABYLON.Vector3(0, 0, 0);
+        const separationForce = new BABYLON.Vector3(0, 0, 0);
         let neighborCount = 0;
 
         this.agents.forEach(other => {
@@ -667,7 +666,7 @@ export class BehavioralSim {
                     agent.mesh.position,
                     other.mesh.position
                 );
-                
+
                 if (distance < agent.flockingParams.separationRadius) {
                     const away = agent.mesh.position.subtract(other.mesh.position);
                     away.normalize();
@@ -685,7 +684,7 @@ export class BehavioralSim {
     }
 
     calculateAlignment(agent) {
-        let averageVelocity = new BABYLON.Vector3(0, 0, 0);
+        const averageVelocity = new BABYLON.Vector3(0, 0, 0);
         let neighborCount = 0;
 
         this.agents.forEach(other => {
@@ -694,7 +693,7 @@ export class BehavioralSim {
                     agent.mesh.position,
                     other.mesh.position
                 );
-                
+
                 if (distance < agent.flockingParams.alignmentRadius) {
                     const velocity = other.physics.body.getLinearVelocity();
                     averageVelocity.addInPlace(velocity);
@@ -711,7 +710,7 @@ export class BehavioralSim {
     }
 
     calculateCohesion(agent) {
-        let centerOfMass = new BABYLON.Vector3(0, 0, 0);
+        const centerOfMass = new BABYLON.Vector3(0, 0, 0);
         let neighborCount = 0;
 
         this.agents.forEach(other => {
@@ -720,7 +719,7 @@ export class BehavioralSim {
                     agent.mesh.position,
                     other.mesh.position
                 );
-                
+
                 if (distance < agent.flockingParams.cohesionRadius) {
                     centerOfMass.addInPlace(other.mesh.position);
                     neighborCount++;
@@ -755,12 +754,12 @@ export class BehavioralSim {
 
             // Blend velocities
             const combinedVelocity = desiredVelocity.add(flockingVelocity).scale(0.5);
-            
+
             // Apply movement
             const currentVel = agent.physics.body.getLinearVelocity();
             const newVel = BABYLON.Vector3.Lerp(currentVel, combinedVelocity, 0.1);
             newVel.y = currentVel.y; // Keep vertical velocity for terrain following
-            
+
             agent.physics.body.setLinearVelocity(newVel);
 
             // Update orientation
@@ -785,7 +784,7 @@ export class BehavioralSim {
     updateAgentPhysics(agent) {
         const pos = agent.mesh.position;
         const desiredHeight = this.getTerrainHeight(pos.x, pos.z) + 2;
-        
+
         // Apply upward force to stay above terrain
         const velocity = agent.physics.body.getLinearVelocity();
         if (pos.y < desiredHeight) {
@@ -800,11 +799,11 @@ export class BehavioralSim {
     updateLimbAnimations(agent) {
         const velocity = agent.physics.body.getLinearVelocity();
         const speed = new BABYLON.Vector3(velocity.x, 0, velocity.z).length();
-        
+
         if (speed > 0.1) {
             // Animate legs and arms based on movement
             const cycle = (performance.now() * 0.01 * speed) % (Math.PI * 2);
-            
+
             agent.parts.leftLeg.rotation.x = Math.sin(cycle) * 0.5;
             agent.parts.rightLeg.rotation.x = Math.sin(cycle + Math.PI) * 0.5;
             agent.parts.leftArm.rotation.x = Math.sin(cycle + Math.PI) * 0.3;
@@ -832,11 +831,11 @@ export class BehavioralSim {
         const bowlRadius = 100;
         const bowlDepth = 25;
         const distFromCenter = Math.sqrt(x * x + z * z);
-        
+
         // Base bowl shape with terrain features
         let height = -Math.pow(distFromCenter / bowlRadius, 0.8) * bowlDepth;
-        height += Math.sin(x/20) * Math.cos(z/20) * 3;
-        
+        height += Math.sin(x / 20) * Math.cos(z / 20) * 3;
+
         return height;
     }
 
@@ -855,22 +854,22 @@ export class BehavioralSim {
 
     getHeightAtPoint(x, z) {
         // Simplified height calculation - replace with actual terrain height
-        return Math.sin(x/20) * Math.cos(z/20) * 5;
+        return Math.sin(x / 20) * Math.cos(z / 20) * 5;
     }
 
     dispose() {
         if (this.dogBehaviour) {
             this.dogBehaviour.dispose();
         }
-        
+
         if (this.villagerBehaviour) {
             this.villagerBehaviour.dispose();
         }
-        
+
         if (this.dinosaurBehaviour) {
             this.dinosaurBehaviour.dispose();
         }
-        
+
         this.zombies.forEach(zombie => {
             if (zombie.physics) {
                 zombie.physics.dispose();
@@ -879,7 +878,7 @@ export class BehavioralSim {
                 zombie.mesh.dispose();
             }
         });
-        
+
         this.agents.forEach(agent => {
             if (agent.mesh) {
                 if (agent.physics) {
@@ -888,13 +887,13 @@ export class BehavioralSim {
                 agent.mesh.dispose();
             }
         });
-        
+
         if (this.navigationMesh) {
             this.navigationMesh.dispose();
         }
-        
+
         this.zombies = [];
         this.agents = [];
         this.targetPoints = [];
     }
-} 
+}

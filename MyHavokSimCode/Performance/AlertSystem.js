@@ -29,7 +29,7 @@ export class AlertSystem {
                     info: { min: 0, max: 250, message: 'Agent count elevated' }
                 }
             },
-            
+
             // Alert configuration
             alertConfig: {
                 cooldownPeriod: 30000, // 30 seconds between same alerts
@@ -39,33 +39,33 @@ export class AlertSystem {
                 enableConsoleAlerts: true,
                 persistAlerts: true
             },
-            
+
             // Audio settings
             audioConfig: {
                 criticalSound: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT',
                 warningSound: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT',
                 infoSound: null // No sound for info alerts
             },
-            
+
             ...options
         };
-        
+
         // Alert state
         this.activeAlerts = new Map();
         this.alertHistory = [];
         this.alertCounts = new Map(); // Track alerts per minute
         this.callbacks = [];
         this.isEnabled = true;
-        
+
         // UI elements
         this.alertContainer = null;
         this.alertQueue = [];
         this.maxVisibleAlerts = 5;
-        
+
         // Audio context for sound alerts
         this.audioContext = null;
         this.audioBuffers = new Map();
-        
+
         this.initialize();
     }
 
@@ -77,7 +77,7 @@ export class AlertSystem {
         this.setupAudioContext();
         this.loadAudioBuffers();
         this.setupKeyboardShortcuts();
-        
+
         // Clean up old alert counts every minute
         setInterval(() => {
             this.cleanupAlertCounts();
@@ -91,22 +91,22 @@ export class AlertSystem {
         if (!this.options.alertConfig.enableVisualAlerts) {
             return;
         }
-        
+
         // Check if container already exists
         let container = document.getElementById('performance-alerts-container');
         if (container) {
             this.alertContainer = container;
             return;
         }
-        
+
         // Create new container
         container = document.createElement('div');
         container.id = 'performance-alerts-container';
         container.className = 'performance-alerts-container';
-        
+
         // Add styles
         this.addAlertStyles();
-        
+
         // Append to body
         document.body.appendChild(container);
         this.alertContainer = container;
@@ -120,7 +120,7 @@ export class AlertSystem {
         if (document.getElementById(styleId)) {
             return; // Styles already added
         }
-        
+
         const style = document.createElement('style');
         style.id = styleId;
         style.textContent = `
@@ -238,7 +238,7 @@ export class AlertSystem {
                 animation: alertFadeOut 0.3s ease-in forwards;
             }
         `;
-        
+
         document.head.appendChild(style);
     }
 
@@ -249,7 +249,7 @@ export class AlertSystem {
         if (!this.options.alertConfig.enableAudioAlerts) {
             return;
         }
-        
+
         try {
             this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
         } catch (error) {
@@ -265,22 +265,22 @@ export class AlertSystem {
         if (!this.audioContext || !this.options.alertConfig.enableAudioAlerts) {
             return;
         }
-        
-        const audioConfig = this.options.audioConfig;
-        
+
+        const { audioConfig } = this.options;
+
         try {
             // Load critical sound
             if (audioConfig.criticalSound) {
                 const criticalBuffer = await this.loadAudioBuffer(audioConfig.criticalSound);
                 this.audioBuffers.set('critical', criticalBuffer);
             }
-            
+
             // Load warning sound
             if (audioConfig.warningSound) {
                 const warningBuffer = await this.loadAudioBuffer(audioConfig.warningSound);
                 this.audioBuffers.set('warning', warningBuffer);
             }
-            
+
             // Load info sound
             if (audioConfig.infoSound) {
                 const infoBuffer = await this.loadAudioBuffer(audioConfig.infoSound);
@@ -304,13 +304,13 @@ export class AlertSystem {
      * Setup keyboard shortcuts for alert management
      */
     setupKeyboardShortcuts() {
-        document.addEventListener('keydown', (event) => {
+        document.addEventListener('keydown', event => {
             // Ctrl+Shift+A to toggle alerts
             if (event.ctrlKey && event.shiftKey && event.key === 'A') {
                 event.preventDefault();
                 this.toggle();
             }
-            
+
             // Escape to dismiss all alerts
             if (event.key === 'Escape') {
                 this.dismissAllAlerts();
@@ -325,30 +325,30 @@ export class AlertSystem {
         if (!this.isEnabled || !metrics) {
             return [];
         }
-        
+
         const alerts = [];
         const timestamp = Date.now();
-        
+
         // Check each metric type
         Object.keys(this.options.thresholds).forEach(metricType => {
             const metricValue = this.extractMetricValue(metrics, metricType);
             if (metricValue === null || metricValue === undefined) {
                 return;
             }
-            
+
             const thresholds = this.options.thresholds[metricType];
             const alert = this.evaluateThreshold(metricType, metricValue, thresholds, timestamp);
-            
+
             if (alert) {
                 alerts.push(alert);
             }
         });
-        
+
         // Process alerts
         alerts.forEach(alert => {
             this.processAlert(alert);
         });
-        
+
         return alerts;
     }
 
@@ -376,26 +376,26 @@ export class AlertSystem {
     evaluateThreshold(metricType, value, thresholds, timestamp) {
         // Check thresholds in order of severity
         const severityLevels = ['critical', 'warning', 'info'];
-        
+
         for (const severity of severityLevels) {
             const threshold = thresholds[severity];
             if (!threshold) continue;
-            
+
             const isViolated = this.isThresholdViolated(value, threshold, metricType);
-            
+
             if (isViolated) {
                 const alertId = `${metricType}-${severity}`;
-                
+
                 // Check cooldown
                 if (this.isInCooldown(alertId)) {
                     return null;
                 }
-                
+
                 // Check rate limiting
                 if (this.isRateLimited()) {
                     return null;
                 }
-                
+
                 return {
                     id: alertId,
                     metricType,
@@ -408,7 +408,7 @@ export class AlertSystem {
                 };
             }
         }
-        
+
         return null;
     }
 
@@ -433,7 +433,7 @@ export class AlertSystem {
         if (!lastAlert) {
             return false;
         }
-        
+
         const timeSinceLastAlert = Date.now() - lastAlert.timestamp;
         return timeSinceLastAlert < this.options.alertConfig.cooldownPeriod;
     }
@@ -444,7 +444,7 @@ export class AlertSystem {
     isRateLimited() {
         const now = Date.now();
         const oneMinuteAgo = now - 60000;
-        
+
         // Count alerts in the last minute
         let alertCount = 0;
         for (const [timestamp, count] of this.alertCounts.entries()) {
@@ -452,7 +452,7 @@ export class AlertSystem {
                 alertCount += count;
             }
         }
-        
+
         return alertCount >= this.options.alertConfig.maxAlertsPerMinute;
     }
 
@@ -462,16 +462,16 @@ export class AlertSystem {
     generateAlertDetails(metricType, value, threshold) {
         const details = {
             currentValue: value,
-            threshold: threshold,
-            metricType: metricType
+            threshold,
+            metricType
         };
-        
+
         switch (metricType) {
             case 'frameRate':
                 details.unit = 'FPS';
-                details.recommendation = value < 15 ? 
-                    'Consider reducing scene complexity or agent count' :
-                    'Optimize rendering performance';
+                details.recommendation = value < 15
+                    ? 'Consider reducing scene complexity or agent count'
+                    : 'Optimize rendering performance';
                 break;
             case 'memory':
                 details.unit = '%';
@@ -486,7 +486,7 @@ export class AlertSystem {
                 details.recommendation = 'Consider reducing agent count or optimizing agent behaviors';
                 break;
         }
-        
+
         return details;
     }
 
@@ -496,32 +496,32 @@ export class AlertSystem {
     processAlert(alert) {
         // Update active alerts
         this.activeAlerts.set(alert.id, alert);
-        
+
         // Add to history
         if (this.options.alertConfig.persistAlerts) {
             this.alertHistory.push({ ...alert });
-            
+
             // Limit history size
             if (this.alertHistory.length > 1000) {
                 this.alertHistory.shift();
             }
         }
-        
+
         // Update alert counts for rate limiting
         const minute = Math.floor(Date.now() / 60000) * 60000;
         this.alertCounts.set(minute, (this.alertCounts.get(minute) || 0) + 1);
-        
+
         // Display alert
         this.displayAlert(alert);
-        
+
         // Play sound
         this.playAlertSound(alert.severity);
-        
+
         // Console log
         if (this.options.alertConfig.enableConsoleAlerts) {
             this.logAlert(alert);
         }
-        
+
         // Notify callbacks
         this.notifyCallbacks(alert);
     }
@@ -533,16 +533,16 @@ export class AlertSystem {
         if (!this.options.alertConfig.enableVisualAlerts || !this.alertContainer) {
             return;
         }
-        
+
         // Create alert element
         const alertElement = this.createAlertElement(alert);
-        
+
         // Add to container
         this.alertContainer.appendChild(alertElement);
-        
+
         // Manage visible alerts count
         this.manageVisibleAlerts();
-        
+
         // Auto-dismiss after timeout
         const timeout = this.getAlertTimeout(alert.severity);
         if (timeout > 0) {
@@ -559,9 +559,9 @@ export class AlertSystem {
         const element = document.createElement('div');
         element.className = `performance-alert ${alert.severity}`;
         element.dataset.alertId = alert.id;
-        
+
         const timeString = new Date(alert.timestamp).toLocaleTimeString();
-        
+
         element.innerHTML = `
             <button class="alert-close" onclick="this.parentElement.remove()">&times;</button>
             <div class="alert-header">
@@ -574,12 +574,12 @@ export class AlertSystem {
                 ${alert.details.recommendation ? `<br>💡 ${alert.details.recommendation}` : ''}
             </div>
         `;
-        
+
         // Add click to dismiss
         element.addEventListener('click', () => {
             this.dismissAlert(element);
         });
-        
+
         return element;
     }
 
@@ -588,7 +588,7 @@ export class AlertSystem {
      */
     manageVisibleAlerts() {
         const alerts = this.alertContainer.querySelectorAll('.performance-alert');
-        
+
         if (alerts.length > this.maxVisibleAlerts) {
             // Remove oldest alerts
             const alertsToRemove = alerts.length - this.maxVisibleAlerts;
@@ -621,9 +621,9 @@ export class AlertSystem {
         if (!element || !element.parentNode) {
             return;
         }
-        
+
         element.classList.add('removing');
-        
+
         setTimeout(() => {
             if (element.parentNode) {
                 element.parentNode.removeChild(element);
@@ -638,7 +638,7 @@ export class AlertSystem {
         if (!this.alertContainer) {
             return;
         }
-        
+
         const alerts = this.alertContainer.querySelectorAll('.performance-alert');
         alerts.forEach(alert => {
             this.dismissAlert(alert);
@@ -652,12 +652,12 @@ export class AlertSystem {
         if (!this.options.alertConfig.enableAudioAlerts || !this.audioContext) {
             return;
         }
-        
+
         const buffer = this.audioBuffers.get(severity);
         if (!buffer) {
             return;
         }
-        
+
         try {
             const source = this.audioContext.createBufferSource();
             source.buffer = buffer;
@@ -674,7 +674,7 @@ export class AlertSystem {
     logAlert(alert) {
         const prefix = `🚨 [${alert.severity.toUpperCase()}]`;
         const message = `${prefix} ${alert.message} (${alert.metricType}: ${alert.details.currentValue}${alert.details.unit})`;
-        
+
         switch (alert.severity) {
             case 'critical':
                 console.error(message);
@@ -697,7 +697,7 @@ export class AlertSystem {
         if (!this.options.thresholds[metricType]) {
             this.options.thresholds[metricType] = {};
         }
-        
+
         Object.assign(this.options.thresholds[metricType], thresholds);
     }
 
@@ -746,12 +746,12 @@ export class AlertSystem {
                 if (options.severity && options.severity !== alert.severity) {
                     return;
                 }
-                
+
                 // Filter by metric type if specified
                 if (options.metricType && options.metricType !== alert.metricType) {
                     return;
                 }
-                
+
                 callback(alert);
             } catch (error) {
                 console.error('Error in alert callback:', error);
@@ -764,31 +764,31 @@ export class AlertSystem {
      */
     getAlertHistory(options = {}) {
         let history = [...this.alertHistory];
-        
+
         // Filter by time range
         if (options.startTime) {
             history = history.filter(alert => alert.timestamp >= options.startTime);
         }
-        
+
         if (options.endTime) {
             history = history.filter(alert => alert.timestamp <= options.endTime);
         }
-        
+
         // Filter by severity
         if (options.severity) {
             history = history.filter(alert => alert.severity === options.severity);
         }
-        
+
         // Filter by metric type
         if (options.metricType) {
             history = history.filter(alert => alert.metricType === options.metricType);
         }
-        
+
         // Limit results
         if (options.limit) {
             history = history.slice(-options.limit);
         }
-        
+
         return history;
     }
 
@@ -812,11 +812,11 @@ export class AlertSystem {
      */
     toggle() {
         this.isEnabled = !this.isEnabled;
-        
+
         if (!this.isEnabled) {
             this.dismissAllAlerts();
         }
-        
+
         console.log(`Alert system ${this.isEnabled ? 'enabled' : 'disabled'}`);
     }
 
@@ -840,7 +840,7 @@ export class AlertSystem {
      */
     cleanupAlertCounts() {
         const oneHourAgo = Date.now() - 3600000; // 1 hour
-        
+
         for (const [timestamp] of this.alertCounts.entries()) {
             if (timestamp < oneHourAgo) {
                 this.alertCounts.delete(timestamp);
@@ -855,13 +855,13 @@ export class AlertSystem {
         const now = Date.now();
         const oneHour = 3600000;
         const oneDay = 86400000;
-        
+
         const hourAgo = now - oneHour;
         const dayAgo = now - oneDay;
-        
+
         const recentAlerts = this.alertHistory.filter(alert => alert.timestamp >= hourAgo);
         const dailyAlerts = this.alertHistory.filter(alert => alert.timestamp >= dayAgo);
-        
+
         const stats = {
             total: this.alertHistory.length,
             lastHour: recentAlerts.length,
@@ -879,18 +879,18 @@ export class AlertSystem {
                 agents: 0
             }
         };
-        
+
         // Count by severity and metric type
         this.alertHistory.forEach(alert => {
             if (stats.bySeverity[alert.severity] !== undefined) {
                 stats.bySeverity[alert.severity]++;
             }
-            
+
             if (stats.byMetricType[alert.metricType] !== undefined) {
                 stats.byMetricType[alert.metricType]++;
             }
         });
-        
+
         return stats;
     }
 
@@ -904,7 +904,7 @@ export class AlertSystem {
             thresholds: this.options.thresholds,
             exportTime: new Date().toISOString()
         };
-        
+
         switch (format.toLowerCase()) {
             case 'json':
                 return JSON.stringify(data, null, 2);
@@ -921,7 +921,7 @@ export class AlertSystem {
     exportAlertsAsCSV(alerts) {
         const headers = ['Timestamp', 'Severity', 'Metric Type', 'Value', 'Message'];
         const rows = [headers.join(',')];
-        
+
         alerts.forEach(alert => {
             const row = [
                 new Date(alert.timestamp).toISOString(),
@@ -932,7 +932,7 @@ export class AlertSystem {
             ];
             rows.push(row.join(','));
         });
-        
+
         return rows.join('\n');
     }
 
@@ -942,17 +942,17 @@ export class AlertSystem {
     dispose() {
         // Clear intervals and timeouts
         this.dismissAllAlerts();
-        
+
         // Remove DOM elements
         if (this.alertContainer && this.alertContainer.parentNode) {
             this.alertContainer.parentNode.removeChild(this.alertContainer);
         }
-        
+
         // Close audio context
         if (this.audioContext) {
             this.audioContext.close();
         }
-        
+
         // Clear data
         this.activeAlerts.clear();
         this.alertHistory = [];

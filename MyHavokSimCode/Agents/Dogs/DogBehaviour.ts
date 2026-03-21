@@ -41,17 +41,17 @@ export class DogBehaviour {
         const y = BowlCreator.getTerrainHeight(x, z) + 1;
 
         const position = new BABYLON.Vector3(x, y, z);
-        
+
         const dog = new DogModel(this.scene) as DogWithBehavior;
         dog.create(position);
-        
+
         // Add behavior properties
         dog.wanderAngle = Math.random() * Math.PI * 2;
         dog.wanderRadius = 5 + Math.random() * 10;
         dog.restTimer = 0;
         dog.isResting = false;
         dog.targetPosition = null;
-        
+
         this.dogs.push(dog);
     }
 
@@ -93,20 +93,20 @@ export class DogBehaviour {
             direction.normalize();
             const targetY = BowlCreator.getTerrainHeight(currentPos.x, currentPos.z) + 1;
             const heightDiff = targetY - currentPos.y;
-            
+
             // Create movement force
             const force = new BABYLON.Vector3(
                 direction.x * dog.speed * 40,
                 heightDiff * 10, // Vertical force to follow terrain
                 direction.z * dog.speed * 40
             );
-            
+
             // Apply force for movement
             dog.physics.body.applyForce(force, currentPos);
 
             // Keep dog upright
-            const rotation = dog.mesh.rotationQuaternion || 
-                           BABYLON.Quaternion.FromEulerAngles(dog.mesh.rotation.x, dog.mesh.rotation.y, dog.mesh.rotation.z);
+            const rotation = dog.mesh.rotationQuaternion
+                           || BABYLON.Quaternion.FromEulerAngles(dog.mesh.rotation.x, dog.mesh.rotation.y, dog.mesh.rotation.z);
             const upright = BABYLON.Quaternion.Identity();
             BABYLON.Quaternion.SlerpToRef(rotation, upright, 0.1, rotation);
             dog.mesh.rotationQuaternion = rotation;
@@ -129,14 +129,14 @@ export class DogBehaviour {
 
     private setNewWanderTarget(dog: DogWithBehavior): void {
         const currentPos = dog.getPosition();
-        
+
         // Update wander angle with some randomness
         dog.wanderAngle += (Math.random() - 0.5) * Math.PI / 2;
-        
+
         // Calculate new target position
         const targetX = currentPos.x + Math.cos(dog.wanderAngle) * dog.wanderRadius;
         const targetZ = currentPos.z + Math.sin(dog.wanderAngle) * dog.wanderRadius;
-        
+
         // Keep within bounds
         const distanceFromCenter = Math.sqrt(targetX * targetX + targetZ * targetZ);
         if (distanceFromCenter > this.wanderRadius) {

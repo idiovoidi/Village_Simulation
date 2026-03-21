@@ -9,7 +9,7 @@
  * @returns {Function} - Error-handling wrapped function
  */
 export function handleAgentError(originalMethod) {
-    return function(...args) {
+    return function (...args) {
         try {
             return originalMethod.apply(this, args);
         } catch (error) {
@@ -32,7 +32,7 @@ export function handleAgentError(originalMethod) {
  * @returns {Function} - Performance-measuring wrapped function
  */
 export function measurePerformance(originalMethod) {
-    return function(...args) {
+    return function (...args) {
         const start = performance.now();
         const result = originalMethod.apply(this, args);
         const end = performance.now();
@@ -57,14 +57,14 @@ export function measurePerformance(originalMethod) {
 export function throttle(interval, originalMethod) {
     if (typeof originalMethod !== 'function') {
         // If called without a method (as a configuration function)
-        return function(method) {
+        return function (method) {
             return throttle(interval, method);
         };
     }
 
     let lastExecutionTime = 0;
 
-    return function(...args) {
+    return function (...args) {
         const now = Date.now();
 
         if (now - lastExecutionTime >= interval) {

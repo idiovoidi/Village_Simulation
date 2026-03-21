@@ -1,6 +1,6 @@
 /**
  * HardwareDetector - Detects GPU and system capabilities for performance optimization
- * 
+ *
  * This class provides comprehensive hardware detection including:
  * - WebGL capability detection (version, extensions, limits)
  * - Memory detection and estimation
@@ -103,10 +103,10 @@ class HardwareDetector {
         return {
             supported: true,
             version: webglVersion,
-            vendor: vendor,
-            renderer: renderer,
-            extensions: extensions,
-            limits: limits
+            vendor,
+            renderer,
+            extensions,
+            limits
         };
     }
 
@@ -147,7 +147,6 @@ class HardwareDetector {
             limits.hasDepthTextures = gl.getExtension('WEBGL_depth_texture') !== null;
             limits.hasInstancedArrays = gl.getExtension('ANGLE_instanced_arrays') !== null;
             limits.hasVertexArrayObjects = gl.getExtension('OES_vertex_array_object') !== null;
-
         } catch (error) {
             console.warn('Error getting WebGL limits:', error);
         }
@@ -187,7 +186,6 @@ class HardwareDetector {
 
             // Estimate available memory for our application
             memoryInfo.estimatedAvailableMemory = this.estimateAvailableMemory(memoryInfo);
-
         } catch (error) {
             console.warn('Error detecting memory capabilities:', error);
         }
@@ -203,13 +201,13 @@ class HardwareDetector {
         if (!this.webglContext) return null;
 
         const gl = this.webglContext;
-        
+
         try {
             // Try to get memory info extension
             const memoryInfo = gl.getExtension('WEBGL_debug_renderer_info');
             if (memoryInfo) {
                 const renderer = gl.getParameter(memoryInfo.UNMASKED_RENDERER_WEBGL).toLowerCase();
-                
+
                 // Rough estimates based on common GPU patterns
                 if (renderer.includes('nvidia') || renderer.includes('geforce')) {
                     if (renderer.includes('rtx') || renderer.includes('gtx 1')) {
@@ -237,7 +235,6 @@ class HardwareDetector {
             } else {
                 return 1 * 1024 * 1024 * 1024; // 1GB
             }
-
         } catch (error) {
             console.warn('Error estimating GPU memory:', error);
             return 2 * 1024 * 1024 * 1024; // Default 2GB
@@ -364,7 +361,7 @@ class HardwareDetector {
         }
 
         // WebGL capabilities
-        const limits = capabilities.webgl.limits;
+        const { limits } = capabilities.webgl;
         if (limits.maxTextureSize >= 8192) score += 10;
         if (limits.hasInstancedArrays) score += 10;
         if (limits.hasFloatTextures) score += 5;

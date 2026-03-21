@@ -6,24 +6,24 @@
 export class FrameRateTracker {
     constructor(engine) {
         this.engine = engine;
-        
+
         // Frame rate tracking
         this.isTracking = false;
         this.frameCount = 0;
         this.lastFrameTime = 0;
         this.frameTimeHistory = [];
         this.maxHistorySize = 60; // Keep 60 frame times for smoothing
-        
+
         // Current metrics
         this.currentFPS = 0;
         this.averageFPS = 0;
         this.minFPS = Infinity;
         this.maxFPS = 0;
-        
+
         // Frame time statistics
         this.frameTime = 0;
         this.averageFrameTime = 0;
-        
+
         // Tracking interval
         this.trackingInterval = null;
         this.updateInterval = 100; // Update every 100ms
@@ -41,12 +41,12 @@ export class FrameRateTracker {
         this.isTracking = true;
         this.lastFrameTime = performance.now();
         this.frameCount = 0;
-        
+
         // Reset statistics
         this.minFPS = Infinity;
         this.maxFPS = 0;
         this.frameTimeHistory = [];
-        
+
         // Start periodic updates
         this.trackingInterval = setInterval(() => {
             this.updateMetrics();
@@ -63,7 +63,7 @@ export class FrameRateTracker {
 
         console.log('Stopping frame rate tracking...');
         this.isTracking = false;
-        
+
         if (this.trackingInterval) {
             clearInterval(this.trackingInterval);
             this.trackingInterval = null;
@@ -79,7 +79,7 @@ export class FrameRateTracker {
         }
 
         const currentTime = performance.now();
-        
+
         // Calculate frame time and FPS using engine statistics
         if (this.engine.getFps) {
             // Use Babylon.js built-in FPS calculation if available
@@ -91,28 +91,28 @@ export class FrameRateTracker {
                 this.currentFPS = 1000 / deltaTime;
             }
         }
-        
+
         // Calculate frame time
         this.frameTime = this.currentFPS > 0 ? 1000 / this.currentFPS : 0;
-        
+
         // Update frame time history
         this.frameTimeHistory.push(this.frameTime);
         if (this.frameTimeHistory.length > this.maxHistorySize) {
             this.frameTimeHistory.shift();
         }
-        
+
         // Calculate average frame time and FPS
         if (this.frameTimeHistory.length > 0) {
             this.averageFrameTime = this.frameTimeHistory.reduce((a, b) => a + b, 0) / this.frameTimeHistory.length;
             this.averageFPS = this.averageFrameTime > 0 ? 1000 / this.averageFrameTime : 0;
         }
-        
+
         // Update min/max FPS
         if (this.currentFPS > 0) {
             this.minFPS = Math.min(this.minFPS, this.currentFPS);
             this.maxFPS = Math.max(this.maxFPS, this.currentFPS);
         }
-        
+
         this.lastFrameTime = currentTime;
         this.frameCount++;
     }
@@ -123,7 +123,7 @@ export class FrameRateTracker {
     getCurrentMetrics() {
         // Ensure we have recent data
         this.updateMetrics();
-        
+
         return {
             current: Math.round(this.currentFPS * 100) / 100,
             average: Math.round(this.averageFPS * 100) / 100,
@@ -143,12 +143,12 @@ export class FrameRateTracker {
         if (this.frameTimeHistory.length < 10) {
             return false;
         }
-        
+
         const recent = this.frameTimeHistory.slice(-10);
         const avg = recent.reduce((a, b) => a + b, 0) / recent.length;
         const variance = recent.reduce((sum, val) => sum + Math.pow(val - avg, 2), 0) / recent.length;
         const stdDev = Math.sqrt(variance);
-        
+
         // Consider stable if standard deviation is less than threshold
         return stdDev < threshold;
     }
@@ -158,7 +158,7 @@ export class FrameRateTracker {
      */
     getStatistics(sampleCount = null) {
         const samples = sampleCount ? this.frameTimeHistory.slice(-sampleCount) : this.frameTimeHistory;
-        
+
         if (samples.length === 0) {
             return {
                 sampleCount: 0,
@@ -170,13 +170,13 @@ export class FrameRateTracker {
                 standardDeviation: 0
             };
         }
-        
+
         const avg = samples.reduce((a, b) => a + b, 0) / samples.length;
         const min = Math.min(...samples);
         const max = Math.max(...samples);
         const variance = samples.reduce((sum, val) => sum + Math.pow(val - avg, 2), 0) / samples.length;
         const stdDev = Math.sqrt(variance);
-        
+
         return {
             sampleCount: samples.length,
             averageFrameTime: Math.round(avg * 100) / 100,
@@ -204,7 +204,7 @@ export class FrameRateTracker {
      */
     setUpdateInterval(intervalMs) {
         this.updateInterval = Math.max(50, intervalMs); // Minimum 50ms
-        
+
         if (this.isTracking) {
             // Restart with new interval
             this.stop();
@@ -219,17 +219,17 @@ export class FrameRateTracker {
         if (this.frameTimeHistory.length < sampleCount) {
             return 'insufficient_data';
         }
-        
+
         const recent = this.frameTimeHistory.slice(-sampleCount);
         const firstHalf = recent.slice(0, sampleCount / 2);
         const secondHalf = recent.slice(sampleCount / 2);
-        
+
         const firstAvg = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
         const secondAvg = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
-        
+
         const difference = firstAvg - secondAvg;
         const threshold = 2; // 2ms threshold
-        
+
         if (Math.abs(difference) < threshold) {
             return 'stable';
         } else if (difference > 0) {

@@ -29,10 +29,10 @@ export class DinosaurBehaviour {
         const y = BowlCreator.getTerrainHeight(x, z) + 2; // Higher off ground
 
         const position = new BABYLON.Vector3(x, y, z);
-        
+
         const dinosaur = new DinosaurModel(this.scene);
         dinosaur.create(position);
-        
+
         // Add behavior properties
         dinosaur.wanderAngle = Math.random() * Math.PI * 2;
         dinosaur.wanderRadius = 10 + Math.random() * 20; // Larger individual wander radius
@@ -41,7 +41,7 @@ export class DinosaurBehaviour {
         dinosaur.targetPosition = null;
         dinosaur.lastRoarTime = 0;
         dinosaur.roarInterval = 5000 + Math.random() * 5000; // Roar every 5-10 seconds
-        
+
         this.dinosaurs.push(dinosaur);
     }
 
@@ -50,7 +50,7 @@ export class DinosaurBehaviour {
             if (!dino.mesh || !dino.physics) return;
 
             const currentTime = performance.now();
-            
+
             // Handle roaring
             if (currentTime - dino.lastRoarTime > dino.roarInterval) {
                 this.roar(dino);
@@ -91,20 +91,20 @@ export class DinosaurBehaviour {
             direction.normalize();
             const targetY = BowlCreator.getTerrainHeight(currentPos.x, currentPos.z) + 2;
             const heightDiff = targetY - currentPos.y;
-            
+
             // Create movement force - stronger than dogs due to size
             const force = new BABYLON.Vector3(
                 direction.x * dino.speed * 100,
                 heightDiff * 20, // Stronger vertical force
                 direction.z * dino.speed * 100
             );
-            
+
             // Apply force for movement
             dino.physics.body.applyForce(force, currentPos);
 
             // Keep dinosaur upright
-            const rotation = dino.mesh.rotationQuaternion || 
-                           BABYLON.Quaternion.FromEulerAngles(dino.mesh.rotation.x, dino.mesh.rotation.y, dino.mesh.rotation.z);
+            const rotation = dino.mesh.rotationQuaternion
+                           || BABYLON.Quaternion.FromEulerAngles(dino.mesh.rotation.x, dino.mesh.rotation.y, dino.mesh.rotation.z);
             const upright = BABYLON.Quaternion.Identity();
             BABYLON.Quaternion.SlerpToRef(rotation, upright, 0.1, rotation);
             dino.mesh.rotationQuaternion = rotation;
@@ -128,8 +128,8 @@ export class DinosaurBehaviour {
     roar(dino) {
         // Visual feedback for roar - make the dinosaur's head move
         const roarAnimation = new BABYLON.Animation(
-            "dinoRoar",
-            "rotation.x",
+            'dinoRoar',
+            'rotation.x',
             60,
             BABYLON.Animation.ANIMATIONTYPE_FLOAT,
             BABYLON.Animation.ANIMATIONLOOPMODE_RELATIVE
@@ -143,8 +143,8 @@ export class DinosaurBehaviour {
 
         // Animate the jaw
         const jawAnimation = new BABYLON.Animation(
-            "jawRoar",
-            "rotation.x",
+            'jawRoar',
+            'rotation.x',
             60,
             BABYLON.Animation.ANIMATIONTYPE_FLOAT,
             BABYLON.Animation.ANIMATIONLOOPMODE_RELATIVE
@@ -158,21 +158,21 @@ export class DinosaurBehaviour {
 
         dino.head.animations = [roarAnimation];
         dino.jaw.animations = [jawAnimation];
-        
+
         this.scene.beginAnimation(dino.head, 0, 20, false);
         this.scene.beginAnimation(dino.jaw, 0, 20, false);
     }
 
     setNewWanderTarget(dino) {
         const currentPos = dino.getPosition();
-        
+
         // Update wander angle with some randomness
         dino.wanderAngle += (Math.random() - 0.5) * Math.PI / 2;
-        
+
         // Calculate new target position
         const targetX = currentPos.x + Math.cos(dino.wanderAngle) * dino.wanderRadius;
         const targetZ = currentPos.z + Math.sin(dino.wanderAngle) * dino.wanderRadius;
-        
+
         // Keep within bounds
         const distanceFromCenter = Math.sqrt(targetX * targetX + targetZ * targetZ);
         if (distanceFromCenter > this.wanderRadius) {
@@ -197,4 +197,4 @@ export class DinosaurBehaviour {
         });
         this.dinosaurs = [];
     }
-} 
+}

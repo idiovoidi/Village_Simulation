@@ -22,9 +22,9 @@ export class HouseModel {
     createHouse(position: BABYLON.Vector3, rotation: number, variant: HouseVariant = 'basic'): BABYLON.TransformNode {
         // House dimensions based on variant
         const dimensions = this.getHouseDimensions(variant);
-        
+
         // Create house container
-        const house = new BABYLON.TransformNode("house", this.scene);
+        const house = new BABYLON.TransformNode('house', this.scene);
         house.position = position;
         house.rotation.y = rotation;
 
@@ -80,16 +80,16 @@ export class HouseModel {
     }
 
     private createFoundation(house: BABYLON.TransformNode, dimensions: HouseDimensions): void {
-        const foundation = BABYLON.MeshBuilder.CreateBox("foundation", {
+        const foundation = BABYLON.MeshBuilder.CreateBox('foundation', {
             width: dimensions.width * 1.2,
             height: 1,
             depth: dimensions.depth * 1.2
         }, this.scene);
-        
+
         foundation.parent = house;
         foundation.position.y = 0.5;
 
-        const foundationMat = new BABYLON.StandardMaterial("foundationMat", this.scene);
+        const foundationMat = new BABYLON.StandardMaterial('foundationMat', this.scene);
         foundationMat.diffuseColor = new BABYLON.Color3(0.4, 0.4, 0.4);
         foundation.material = foundationMat;
 
@@ -97,16 +97,16 @@ export class HouseModel {
     }
 
     private createMainBuilding(house: BABYLON.TransformNode, dimensions: HouseDimensions): void {
-        const building = BABYLON.MeshBuilder.CreateBox("building", {
+        const building = BABYLON.MeshBuilder.CreateBox('building', {
             width: dimensions.width,
             height: dimensions.height,
             depth: dimensions.depth
         }, this.scene);
-        
+
         building.parent = house;
         building.position.y = dimensions.height / 2 + 1;
 
-        const buildingMat = new BABYLON.StandardMaterial("buildingMat", this.scene);
+        const buildingMat = new BABYLON.StandardMaterial('buildingMat', this.scene);
         buildingMat.diffuseColor = new BABYLON.Color3(
             0.8 + Math.random() * 0.2,
             0.7 + Math.random() * 0.2,
@@ -119,32 +119,32 @@ export class HouseModel {
 
     private createDoor(house: BABYLON.TransformNode, dimensions: HouseDimensions): void {
         // Door
-        const door = BABYLON.MeshBuilder.CreatePlane("door", {
+        const door = BABYLON.MeshBuilder.CreatePlane('door', {
             height: dimensions.doorHeight,
             width: dimensions.doorWidth
         }, this.scene);
-        
+
         door.parent = house;
         door.position.y = dimensions.doorHeight / 2 + 1;
         door.position.z = dimensions.depth / 2 + 0.01;
 
         // Door frame
-        const doorFrame = BABYLON.MeshBuilder.CreateBox("doorFrame", {
+        const doorFrame = BABYLON.MeshBuilder.CreateBox('doorFrame', {
             height: dimensions.doorHeight + 0.2,
             width: dimensions.doorWidth + 0.2,
             depth: 0.1
         }, this.scene);
-        
+
         doorFrame.parent = house;
         doorFrame.position.y = dimensions.doorHeight / 2 + 1;
         doorFrame.position.z = dimensions.depth / 2;
 
         // Materials
-        const doorMat = new BABYLON.StandardMaterial("doorMat", this.scene);
+        const doorMat = new BABYLON.StandardMaterial('doorMat', this.scene);
         doorMat.diffuseColor = new BABYLON.Color3(0.4, 0.2, 0.1);
         door.material = doorMat;
 
-        const doorFrameMat = new BABYLON.StandardMaterial("doorFrameMat", this.scene);
+        const doorFrameMat = new BABYLON.StandardMaterial('doorFrameMat', this.scene);
         doorFrameMat.diffuseColor = new BABYLON.Color3(0.35, 0.15, 0.05);
         doorFrame.material = doorFrameMat;
 
@@ -157,7 +157,7 @@ export class HouseModel {
 
         // Front windows
         for (let i = -1; i <= 1; i += 2) {
-            const frontWindow = BABYLON.MeshBuilder.CreatePlane("windowFront", {
+            const frontWindow = BABYLON.MeshBuilder.CreatePlane('windowFront', {
                 height: dimensions.windowSize,
                 width: dimensions.windowSize
             }, this.scene);
@@ -168,7 +168,7 @@ export class HouseModel {
             windows.push(frontWindow);
 
             // Window frame
-            const windowFrame = BABYLON.MeshBuilder.CreateBox("windowFrame", {
+            const windowFrame = BABYLON.MeshBuilder.CreateBox('windowFrame', {
                 height: dimensions.windowSize + 0.2,
                 width: dimensions.windowSize + 0.2,
                 depth: 0.1
@@ -183,7 +183,7 @@ export class HouseModel {
         // Side windows
         for (let side = -1; side <= 1; side += 2) {
             for (let pos = -1; pos <= 1; pos += 2) {
-                const sideWindow = BABYLON.MeshBuilder.CreatePlane("windowSide", {
+                const sideWindow = BABYLON.MeshBuilder.CreatePlane('windowSide', {
                     height: dimensions.windowSize,
                     width: dimensions.windowSize
                 }, this.scene);
@@ -195,7 +195,7 @@ export class HouseModel {
                 windows.push(sideWindow);
 
                 // Window frame
-                const windowFrame = BABYLON.MeshBuilder.CreateBox("windowFrame", {
+                const windowFrame = BABYLON.MeshBuilder.CreateBox('windowFrame', {
                     height: dimensions.windowSize + 0.2,
                     width: dimensions.windowSize + 0.2,
                     depth: 0.1
@@ -210,7 +210,7 @@ export class HouseModel {
         }
 
         // Window materials
-        const windowMat = new BABYLON.StandardMaterial("windowMat", this.scene);
+        const windowMat = new BABYLON.StandardMaterial('windowMat', this.scene);
         windowMat.diffuseColor = new BABYLON.Color3(0.3, 0.4, 1.0);
         windowMat.alpha = 0.7;
         windowMat.specularColor = new BABYLON.Color3(0.2, 0.3, 1.0);
@@ -219,12 +219,12 @@ export class HouseModel {
         windowMat.ambientColor = new BABYLON.Color3(0.4, 0.6, 1.0);
         windowMat.backFaceCulling = false;
 
-        const windowFrameMat = new BABYLON.StandardMaterial("windowFrameMat", this.scene);
+        const windowFrameMat = new BABYLON.StandardMaterial('windowFrameMat', this.scene);
         windowFrameMat.diffuseColor = new BABYLON.Color3(0.35, 0.15, 0.05);
         windowFrameMat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
 
         windows.forEach(window => {
-            if (window.name.includes("Frame")) {
+            if (window.name.includes('Frame')) {
                 window.material = windowFrameMat;
             } else {
                 window.material = windowMat;
@@ -235,17 +235,17 @@ export class HouseModel {
     }
 
     private createRoof(house: BABYLON.TransformNode, dimensions: HouseDimensions): void {
-        const roof = BABYLON.MeshBuilder.CreateCylinder("roof", {
+        const roof = BABYLON.MeshBuilder.CreateCylinder('roof', {
             height: dimensions.roofHeight,
             diameter: Math.sqrt(dimensions.width * dimensions.width + dimensions.depth * dimensions.depth),
             tessellation: 4
         }, this.scene);
-        
+
         roof.parent = house;
         roof.position.y = dimensions.height + dimensions.roofHeight / 2 + 1;
         roof.rotation.y = Math.PI / 4;
 
-        const roofMat = new BABYLON.StandardMaterial("roofMat", this.scene);
+        const roofMat = new BABYLON.StandardMaterial('roofMat', this.scene);
         roofMat.diffuseColor = new BABYLON.Color3(
             0.4 + Math.random() * 0.2,
             0.2 + Math.random() * 0.2,
@@ -258,18 +258,18 @@ export class HouseModel {
 
     private createChimney(house: BABYLON.TransformNode, dimensions: HouseDimensions): void {
         const chimneyHeight = dimensions.roofHeight;
-        const chimney = BABYLON.MeshBuilder.CreateBox("chimney", {
+        const chimney = BABYLON.MeshBuilder.CreateBox('chimney', {
             width: 0.6,
             height: chimneyHeight,
             depth: 0.6
         }, this.scene);
-        
+
         chimney.parent = house;
         chimney.position.x = dimensions.width * 0.3;
         chimney.position.y = dimensions.height + dimensions.roofHeight + 1;
         chimney.position.z = dimensions.depth * 0.3;
 
-        const chimneyMat = new BABYLON.StandardMaterial("chimneyMat", this.scene);
+        const chimneyMat = new BABYLON.StandardMaterial('chimneyMat', this.scene);
         chimneyMat.diffuseColor = new BABYLON.Color3(0.3, 0.3, 0.3);
         chimney.material = chimneyMat;
 
@@ -279,9 +279,9 @@ export class HouseModel {
 
     private createChimneyEffects(position: BABYLON.Vector3): void {
         // Fire particles
-        const fireSystem = new BABYLON.ParticleSystem("fire", 100, this.scene);
-        fireSystem.particleTexture = new BABYLON.Texture("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=", this.scene);
-        
+        const fireSystem = new BABYLON.ParticleSystem('fire', 100, this.scene);
+        fireSystem.particleTexture = new BABYLON.Texture('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=', this.scene);
+
         fireSystem.emitter = new BABYLON.Vector3(position.x, position.y + 0.3, position.z);
         fireSystem.minEmitBox = new BABYLON.Vector3(-0.2, 0, -0.2);
         fireSystem.maxEmitBox = new BABYLON.Vector3(0.2, 0, 0.2);
@@ -307,27 +307,27 @@ export class HouseModel {
         this.particleSystems.push(fireSystem);
 
         // Smoke particles
-        const smokeSystem = new BABYLON.ParticleSystem("smoke", 50, this.scene);
+        const smokeSystem = new BABYLON.ParticleSystem('smoke', 50, this.scene);
         smokeSystem.particleTexture = fireSystem.particleTexture;
         smokeSystem.emitter = new BABYLON.Vector3(position.x, position.y + 1, position.z);
-        
+
         smokeSystem.color1 = new BABYLON.Color4(0.3, 0.3, 0.3, 0.3);
         smokeSystem.color2 = new BABYLON.Color4(0.2, 0.2, 0.2, 0.2);
         smokeSystem.colorDead = new BABYLON.Color4(0.1, 0.1, 0.1, 0);
-        
+
         smokeSystem.minSize = 0.5;
         smokeSystem.maxSize = 1.0;
         smokeSystem.minLifeTime = 2.0;
         smokeSystem.maxLifeTime = 4.0;
         smokeSystem.emitRate = 20;
-        
+
         smokeSystem.direction1 = new BABYLON.Vector3(-0.4, 2, -0.4);
         smokeSystem.direction2 = new BABYLON.Vector3(0.4, 4, 0.4);
-        
+
         smokeSystem.minEmitPower = 0.5;
         smokeSystem.maxEmitPower = 1.5;
         smokeSystem.updateSpeed = 0.01;
-        
+
         smokeSystem.start();
         this.particleSystems.push(smokeSystem);
     }

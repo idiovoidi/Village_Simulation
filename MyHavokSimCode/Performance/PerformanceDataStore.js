@@ -10,12 +10,12 @@ export class PerformanceDataStore {
         this.compressionThreshold = options.compressionThreshold || 5000; // When to start compressing old data
         this.retentionPeriod = options.retentionPeriod || 24 * 60 * 60 * 1000; // 24 hours in ms
         this.storageKey = options.storageKey || 'performance_metrics';
-        
+
         // Data storage
         this.metrics = [];
         this.aggregatedData = new Map(); // Time period -> aggregated metrics
         this.indices = new Map(); // For fast lookups
-        
+
         // Compression settings
         this.compressionIntervals = [
             { period: 60 * 1000, label: '1min' },      // 1 minute intervals
@@ -23,14 +23,14 @@ export class PerformanceDataStore {
             { period: 15 * 60 * 1000, label: '15min' }, // 15 minute intervals
             { period: 60 * 60 * 1000, label: '1hour' }  // 1 hour intervals
         ];
-        
+
         // Statistics cache
         this.statsCache = new Map();
         this.cacheTimeout = 30 * 1000; // 30 seconds
-        
+
         // Initialize storage
         this.loadFromStorage();
-        
+
         // Set up periodic maintenance
         this.maintenanceInterval = setInterval(() => {
             this.performMaintenance();
@@ -101,7 +101,7 @@ export class PerformanceDataStore {
         if (compressed) {
             results = this.getCompressedMetrics(startTime, endTime);
         } else {
-            results = this.metrics.filter(metric => 
+            results = this.metrics.filter(metric =>
                 metric.timestamp >= startTime && metric.timestamp <= endTime
             );
         }
@@ -110,7 +110,7 @@ export class PerformanceDataStore {
         if (offset > 0) {
             results = results.slice(offset);
         }
-        
+
         if (limit && limit > 0) {
             results = results.slice(0, limit);
         }
@@ -138,7 +138,7 @@ export class PerformanceDataStore {
         if (count === 1) {
             return this.metrics.length > 0 ? this.metrics[this.metrics.length - 1] : null;
         }
-        
+
         return this.metrics.slice(-count);
     }
 
@@ -147,7 +147,7 @@ export class PerformanceDataStore {
      */
     getAggregatedMetrics(startTime, endTime, interval = '5min') {
         const cacheKey = `agg_${startTime}_${endTime}_${interval}`;
-        
+
         // Check cache
         if (this.statsCache.has(cacheKey)) {
             const cached = this.statsCache.get(cacheKey);
@@ -159,13 +159,13 @@ export class PerformanceDataStore {
         const metrics = this.getMetrics(startTime, endTime);
         const intervalMs = this.parseInterval(interval);
         const aggregated = this.aggregateMetrics(metrics, intervalMs);
-        
+
         // Cache result
         this.statsCache.set(cacheKey, {
             data: aggregated,
             timestamp: Date.now()
         });
-        
+
         return aggregated;
     }
 
@@ -178,10 +178,10 @@ export class PerformanceDataStore {
         }
 
         const buckets = new Map();
-        
+
         metrics.forEach(metric => {
             const bucketTime = Math.floor(metric.timestamp / intervalMs) * intervalMs;
-            
+
             if (!buckets.has(bucketTime)) {
                 buckets.set(bucketTime, {
                     timestamp: bucketTime,
@@ -192,35 +192,35 @@ export class PerformanceDataStore {
                     agents: { values: [], sum: 0 }
                 });
             }
-            
+
             const bucket = buckets.get(bucketTime);
             bucket.count++;
-            
+
             // Aggregate frame rate
             if (metric.frameRate && typeof metric.frameRate.current === 'number') {
                 bucket.frameRate.values.push(metric.frameRate.current);
                 bucket.frameRate.sum += metric.frameRate.current;
             }
-            
+
             // Aggregate memory usage
             if (metric.memory && typeof metric.memory.usagePercentage === 'number') {
                 bucket.memory.values.push(metric.memory.usagePercentage);
                 bucket.memory.sum += metric.memory.usagePercentage;
             }
-            
+
             // Aggregate CPU utilization (if available)
             if (metric.cpu && typeof metric.cpu.utilization === 'number') {
                 bucket.cpu.values.push(metric.cpu.utilization);
                 bucket.cpu.sum += metric.cpu.utilization;
             }
-            
+
             // Aggregate agent count
             if (metric.scene && typeof metric.scene.meshCount === 'number') {
                 bucket.agents.values.push(metric.scene.meshCount);
                 bucket.agents.sum += metric.scene.meshCount;
             }
         });
-        
+
         // Calculate statistics for each bucket
         const result = [];
         for (const [timestamp, bucket] of buckets) {
@@ -233,7 +233,7 @@ export class PerformanceDataStore {
                 agents: this.calculateBucketStats(bucket.agents)
             });
         }
-        
+
         return result.sort((a, b) => a.timestamp - b.timestamp);
     }
 
@@ -249,9 +249,9 @@ export class PerformanceDataStore {
                 count: 0
             };
         }
-        
+
         const sorted = bucket.values.sort((a, b) => a - b);
-        
+
         return {
             average: Math.round((bucket.sum / bucket.values.length) * 100) / 100,
             min: sorted[0],
@@ -266,7 +266,7 @@ export class PerformanceDataStore {
      */
     getStatistics(startTime, endTime) {
         const cacheKey = `stats_${startTime}_${endTime}`;
-        
+
         // Check cache
         if (this.statsCache.has(cacheKey)) {
             const cached = this.statsCache.get(cacheKey);
@@ -276,7 +276,7 @@ export class PerformanceDataStore {
         }
 
         const metrics = this.getMetrics(startTime, endTime);
-        
+
         if (metrics.length === 0) {
             return {
                 count: 0,
@@ -291,15 +291,15 @@ export class PerformanceDataStore {
         const frameRates = metrics
             .filter(m => m.frameRate && typeof m.frameRate.current === 'number')
             .map(m => m.frameRate.current);
-            
+
         const memoryUsages = metrics
             .filter(m => m.memory && typeof m.memory.usagePercentage === 'number')
             .map(m => m.memory.usagePercentage);
 
         const statistics = {
             count: metrics.length,
-            timeRange: { 
-                start: startTime, 
+            timeRange: {
+                start: startTime,
                 end: endTime,
                 duration: endTime - startTime
             },
@@ -307,13 +307,13 @@ export class PerformanceDataStore {
             memory: this.calculateStatistics(memoryUsages, '%'),
             performance: this.analyzePerformanceTrends(metrics)
         };
-        
+
         // Cache result
         this.statsCache.set(cacheKey, {
             data: statistics,
             timestamp: Date.now()
         });
-        
+
         return statistics;
     }
 
@@ -328,11 +328,11 @@ export class PerformanceDataStore {
         const sorted = [...values].sort((a, b) => a - b);
         const sum = values.reduce((a, b) => a + b, 0);
         const mean = sum / values.length;
-        
+
         // Calculate variance and standard deviation
         const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
         const stdDev = Math.sqrt(variance);
-        
+
         return {
             count: values.length,
             mean: Math.round(mean * 100) / 100,
@@ -370,30 +370,30 @@ export class PerformanceDataStore {
             .map(m => m.memory.usagePercentage);
 
         const issues = [];
-        
+
         // Analyze frame rate trend
         const frameRateTrend = this.calculateTrend(frameRates);
         const memoryTrend = this.calculateTrend(memoryUsages);
-        
+
         // Check for performance issues
         if (frameRates.length > 0) {
             const avgFPS = frameRates.reduce((a, b) => a + b, 0) / frameRates.length;
             if (avgFPS < 30) {
                 issues.push('Low frame rate detected (< 30 FPS)');
             }
-            
+
             const fpsVariance = this.calculateVariance(frameRates);
             if (fpsVariance > 100) {
                 issues.push('High frame rate variance detected');
             }
         }
-        
+
         if (memoryUsages.length > 0) {
             const avgMemory = memoryUsages.reduce((a, b) => a + b, 0) / memoryUsages.length;
             if (avgMemory > 80) {
                 issues.push('High memory usage detected (> 80%)');
             }
-            
+
             if (memoryTrend === 'increasing') {
                 issues.push('Memory usage is trending upward');
             }
@@ -418,13 +418,13 @@ export class PerformanceDataStore {
         const midpoint = Math.floor(values.length / 2);
         const firstHalf = values.slice(0, midpoint);
         const secondHalf = values.slice(midpoint);
-        
+
         const firstAvg = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
         const secondAvg = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
-        
+
         const difference = secondAvg - firstAvg;
         const threshold = Math.abs(firstAvg) * 0.05; // 5% threshold
-        
+
         if (Math.abs(difference) < threshold) {
             return 'stable';
         } else if (difference > 0) {
@@ -439,7 +439,7 @@ export class PerformanceDataStore {
      */
     calculateVariance(values) {
         if (values.length === 0) return 0;
-        
+
         const mean = values.reduce((a, b) => a + b, 0) / values.length;
         return values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
     }
@@ -450,27 +450,27 @@ export class PerformanceDataStore {
     assessStability(frameRates, memoryUsages) {
         let stabilityScore = 0;
         let factors = 0;
-        
+
         if (frameRates.length > 0) {
             const fpsVariance = this.calculateVariance(frameRates);
             const fpsStability = Math.max(0, 100 - fpsVariance);
             stabilityScore += fpsStability;
             factors++;
         }
-        
+
         if (memoryUsages.length > 0) {
             const memoryVariance = this.calculateVariance(memoryUsages);
             const memoryStability = Math.max(0, 100 - memoryVariance);
             stabilityScore += memoryStability;
             factors++;
         }
-        
+
         if (factors === 0) {
             return 'unknown';
         }
-        
+
         const avgStability = stabilityScore / factors;
-        
+
         if (avgStability >= 80) {
             return 'excellent';
         } else if (avgStability >= 60) {
@@ -503,7 +503,7 @@ export class PerformanceDataStore {
         }
 
         const alerts = [];
-        
+
         // Check frame rate
         if (metrics.frameRate && metrics.frameRate.current < this.thresholds.frameRate.min) {
             alerts.push({
@@ -515,7 +515,7 @@ export class PerformanceDataStore {
                 timestamp: metrics.timestamp
             });
         }
-        
+
         // Check memory usage
         if (metrics.memory && metrics.memory.usagePercentage > this.thresholds.memory.max) {
             alerts.push({
@@ -527,7 +527,7 @@ export class PerformanceDataStore {
                 timestamp: metrics.timestamp
             });
         }
-        
+
         return alerts;
     }
 
@@ -536,32 +536,32 @@ export class PerformanceDataStore {
      */
     performMaintenance() {
         const now = Date.now();
-        
+
         // Remove old data beyond retention period
         const cutoffTime = now - this.retentionPeriod;
         this.metrics = this.metrics.filter(metric => metric.stored > cutoffTime);
-        
+
         // Compress old data if needed or enforce max storage size
         if (this.metrics.length > this.compressionThreshold) {
             this.compressOldData();
         }
-        
+
         // Enforce maximum storage size
         if (this.metrics.length > this.maxStorageSize) {
             const excessCount = this.metrics.length - this.maxStorageSize;
             this.metrics.splice(0, excessCount);
         }
-        
+
         // Clear old cache entries
         for (const [key, cached] of this.statsCache) {
             if (now - cached.timestamp > this.cacheTimeout * 2) {
                 this.statsCache.delete(key);
             }
         }
-        
+
         // Update storage
         this.saveToStorage();
-        
+
         console.log(`Performance data maintenance completed. Metrics: ${this.metrics.length}, Cache entries: ${this.statsCache.size}`);
     }
 
@@ -588,11 +588,11 @@ export class PerformanceDataStore {
     updateIndices(metrics) {
         // Simple timestamp-based indexing
         const timeKey = Math.floor(metrics.timestamp / 60000) * 60000; // 1-minute buckets
-        
+
         if (!this.indices.has(timeKey)) {
             this.indices.set(timeKey, []);
         }
-        
+
         this.indices.get(timeKey).push(this.metrics.length - 1);
     }
 
@@ -608,12 +608,12 @@ export class PerformanceDataStore {
             'h': 60 * 60 * 1000,
             'hour': 60 * 60 * 1000
         };
-        
+
         const match = interval.match(/^(\d+)(s|sec|m|min|h|hour)$/);
         if (match) {
             return parseInt(match[1]) * units[match[2]];
         }
-        
+
         // Default to 5 minutes
         return 5 * 60 * 1000;
     }
@@ -659,17 +659,17 @@ export class PerformanceDataStore {
      * Export data for analysis
      */
     exportData(format = 'json', startTime = null, endTime = null) {
-        const data = startTime && endTime ? 
-            this.getMetrics(startTime, endTime) : 
-            this.metrics;
-        
+        const data = startTime && endTime
+            ? this.getMetrics(startTime, endTime)
+            : this.metrics;
+
         switch (format.toLowerCase()) {
             case 'json':
                 return JSON.stringify(data, null, 2);
-            
+
             case 'csv':
                 return this.convertToCSV(data);
-            
+
             default:
                 throw new Error(`Unsupported export format: ${format}`);
         }
@@ -682,10 +682,10 @@ export class PerformanceDataStore {
         if (data.length === 0) {
             return '';
         }
-        
+
         const headers = ['timestamp', 'frameRate', 'memoryUsage', 'meshCount'];
         const rows = [headers.join(',')];
-        
+
         data.forEach(metric => {
             const row = [
                 metric.timestamp,
@@ -695,7 +695,7 @@ export class PerformanceDataStore {
             ];
             rows.push(row.join(','));
         });
-        
+
         return rows.join('\n');
     }
 
@@ -707,7 +707,7 @@ export class PerformanceDataStore {
         this.aggregatedData.clear();
         this.indices.clear();
         this.statsCache.clear();
-        
+
         // Clear persistent storage
         try {
             if (typeof localStorage !== 'undefined') {
@@ -749,12 +749,12 @@ export class PerformanceDataStore {
      */
     formatBytes(bytes) {
         if (bytes === 0) return '0 B';
-        
+
         const k = 1024;
         const sizes = ['B', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
-        
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+
+        return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
     }
 
     /**
@@ -765,7 +765,7 @@ export class PerformanceDataStore {
             clearInterval(this.maintenanceInterval);
             this.maintenanceInterval = null;
         }
-        
+
         this.saveToStorage();
         this.clear();
     }

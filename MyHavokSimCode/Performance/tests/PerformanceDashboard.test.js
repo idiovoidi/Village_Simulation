@@ -32,18 +32,18 @@ class MockDOM {
                 const key = `${element.id || 'anonymous'}-${event}`;
                 this.eventListeners.delete(key);
             },
-            appendChild: (child) => {
+            appendChild: child => {
                 element.children.push(child);
                 child.parentNode = element;
             },
-            removeChild: (child) => {
+            removeChild: child => {
                 const index = element.children.indexOf(child);
                 if (index > -1) {
                     element.children.splice(index, 1);
                     child.parentNode = null;
                 }
             },
-            querySelector: (selector) => {
+            querySelector: selector => {
                 // Simple selector implementation for testing
                 if (selector.startsWith('#')) {
                     const id = selector.substring(1);
@@ -55,10 +55,9 @@ class MockDOM {
                 }
                 return this.findElementByTag(element, selector);
             },
-            querySelectorAll: (selector) => {
+            querySelectorAll: selector =>
                 // Return array of matching elements
-                return [element.querySelector(selector)].filter(Boolean);
-            },
+                [element.querySelector(selector)].filter(Boolean),
             getBoundingClientRect: () => ({
                 width: 300,
                 height: 120,
@@ -70,7 +69,7 @@ class MockDOM {
         };
 
         if (tagName.toLowerCase() === 'canvas') {
-            element.getContext = (type) => ({
+            element.getContext = type => ({
                 clearRect: () => {},
                 fillRect: () => {},
                 strokeRect: () => {},
@@ -192,8 +191,8 @@ describe('PerformanceDashboard', () => {
         // Setup mock DOM
         mockDOM = new MockDOM();
         global.document = {
-            getElementById: (id) => mockDOM.getElementById(id),
-            createElement: (tag) => mockDOM.createElement(tag),
+            getElementById: id => mockDOM.getElementById(id),
+            createElement: tag => mockDOM.createElement(tag),
             head: { appendChild: () => {} },
             addEventListener: () => {},
             removeEventListener: () => {}
@@ -342,9 +341,9 @@ describe('PerformanceDashboard', () => {
     describe('Performance Monitoring Integration', () => {
         test('should respond to performance monitor updates', () => {
             dashboard.show();
-            
+
             const updateSpy = jest.spyOn(dashboard, 'updateMetrics');
-            
+
             mockPerformanceMonitor.simulateMetricsUpdate({
                 frameRate: { current: 35 },
                 memory: { used: 80 }
@@ -355,9 +354,9 @@ describe('PerformanceDashboard', () => {
 
         test('should not update when hidden', () => {
             dashboard.hide();
-            
+
             const updateSpy = jest.spyOn(dashboard, 'updateMetrics');
-            
+
             mockPerformanceMonitor.simulateMetricsUpdate();
 
             // updateMetrics should be called but should return early
@@ -415,7 +414,7 @@ describe('PerformanceDashboard', () => {
 
         test('should update chart data when metrics change', () => {
             dashboard.show();
-            
+
             const frameRateChart = dashboard.charts.get('frameRate');
             const updateSpy = jest.spyOn(frameRateChart, 'updateData');
 
@@ -434,7 +433,7 @@ describe('PerformanceDashboard', () => {
     describe('Reset Functionality', () => {
         test('should reset all data', () => {
             dashboard.show();
-            
+
             // Add some data
             dashboard.updateMetrics({
                 timestamp: performance.now(),
@@ -458,9 +457,9 @@ describe('PerformanceDashboard', () => {
         test('should reset widgets to zero', () => {
             const frameRateWidget = dashboard.widgets.get('frameRate');
             frameRateWidget.updateValue(45);
-            
+
             dashboard.reset();
-            
+
             expect(frameRateWidget.currentValue).toBe(0);
         });
     });
@@ -481,9 +480,9 @@ describe('PerformanceDashboard', () => {
         test('should restart updates when frequency changes', () => {
             dashboard.show();
             const oldInterval = dashboard.updateInterval;
-            
+
             dashboard.setUpdateFrequency(30);
-            
+
             expect(dashboard.updateInterval).not.toBe(oldInterval);
         });
     });
@@ -491,19 +490,19 @@ describe('PerformanceDashboard', () => {
     describe('Event Handling', () => {
         test('should handle toggle button click', () => {
             const toggleSpy = jest.spyOn(dashboard, 'toggle');
-            
+
             // Simulate button click
             mockDOM.triggerEvent('dashboard-toggle', 'click');
-            
+
             expect(toggleSpy).toHaveBeenCalled();
         });
 
         test('should handle reset button click', () => {
             const resetSpy = jest.spyOn(dashboard, 'reset');
-            
+
             // Simulate button click
             mockDOM.triggerEvent('dashboard-reset', 'click');
-            
+
             expect(resetSpy).toHaveBeenCalled();
         });
     });
@@ -511,9 +510,9 @@ describe('PerformanceDashboard', () => {
     describe('Responsiveness', () => {
         test('should handle rapid metric updates', () => {
             dashboard.show();
-            
+
             const startTime = performance.now();
-            
+
             // Simulate rapid updates
             for (let i = 0; i < 100; i++) {
                 dashboard.updateMetrics({
@@ -527,7 +526,7 @@ describe('PerformanceDashboard', () => {
 
             // Should maintain data limit
             expect(dashboard.chartData.frameRate.length).toBeLessThanOrEqual(dashboard.maxDataPoints);
-            
+
             // Should have latest data
             const latestData = dashboard.chartData.frameRate[dashboard.chartData.frameRate.length - 1];
             expect(latestData.value).toBe(60 - (99 % 20));
@@ -536,9 +535,9 @@ describe('PerformanceDashboard', () => {
         test('should perform well with large datasets', () => {
             dashboard.show();
             dashboard.maxDataPoints = 1000;
-            
+
             const startTime = performance.now();
-            
+
             // Add maximum data points
             for (let i = 0; i < 1000; i++) {
                 dashboard.updateMetrics({
@@ -549,9 +548,9 @@ describe('PerformanceDashboard', () => {
                     agents: { count: Math.floor(Math.random() * 500) }
                 });
             }
-            
+
             const updateStartTime = performance.now();
-            
+
             // Test update performance
             dashboard.updateMetrics({
                 timestamp: performance.now(),
@@ -560,9 +559,9 @@ describe('PerformanceDashboard', () => {
                 cpu: { utilization: 40 },
                 agents: { count: 200 }
             });
-            
+
             const updateTime = performance.now() - updateStartTime;
-            
+
             // Update should be fast (less than 10ms)
             expect(updateTime).toBeLessThan(10);
         });
@@ -571,12 +570,12 @@ describe('PerformanceDashboard', () => {
     describe('Memory Management', () => {
         test('should dispose properly', () => {
             dashboard.show();
-            
+
             const widgetDisposeSpy = jest.spyOn(dashboard.widgets.get('frameRate'), 'dispose');
             const chartDisposeSpy = jest.spyOn(dashboard.charts.get('frameRate'), 'dispose');
-            
+
             dashboard.dispose();
-            
+
             expect(widgetDisposeSpy).toHaveBeenCalled();
             expect(chartDisposeSpy).toHaveBeenCalled();
             expect(dashboard.widgets.size).toBe(0);
@@ -586,9 +585,9 @@ describe('PerformanceDashboard', () => {
 
         test('should clean up performance monitor callbacks', () => {
             const initialCallbackCount = mockPerformanceMonitor.callbacks.length;
-            
+
             dashboard.dispose();
-            
+
             // Note: In real implementation, we'd need to track and remove the callback
             // This test verifies the dispose method is called
             expect(dashboard.updateInterval).toBeNull();
@@ -604,7 +603,7 @@ describe('PerformanceDashboard', () => {
 
         test('should handle null metrics', () => {
             dashboard.show();
-            
+
             expect(() => {
                 dashboard.updateMetrics(null);
             }).not.toThrow();
@@ -612,13 +611,13 @@ describe('PerformanceDashboard', () => {
 
         test('should handle malformed metrics', () => {
             dashboard.show();
-            
+
             const malformedMetrics = {
                 timestamp: 'invalid',
                 frameRate: 'not-an-object',
                 memory: null
             };
-            
+
             expect(() => {
                 dashboard.updateMetrics(malformedMetrics);
             }).not.toThrow();
@@ -633,13 +632,13 @@ describe('MetricWidget', () => {
     beforeEach(() => {
         mockDOM = new MockDOM();
         global.document = {
-            createElement: (tag) => mockDOM.createElement(tag)
+            createElement: tag => mockDOM.createElement(tag)
         };
 
         const config = {
             title: 'Test Metric',
             unit: 'units',
-            format: (value) => Math.round(value),
+            format: value => Math.round(value),
             thresholds: { critical: 90, warning: 75, good: 60 }
         };
 
@@ -673,7 +672,7 @@ describe('MetricWidget', () => {
             }
 
             getStatus(value) {
-                const thresholds = this.config.thresholds;
+                const { thresholds } = this.config;
                 if (value > thresholds.critical) return 'critical';
                 if (value > thresholds.warning) return 'warning';
                 return 'good';

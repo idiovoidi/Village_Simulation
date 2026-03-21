@@ -10,32 +10,31 @@ export class OptimizationConfig {
         this.currentConfig = null;
         this.presets = this.getDefaultPresets();
         this.callbacks = [];
-        
+
         console.log('OptimizationConfig initialized');
     }
-    
+
     /**
      * Initialize the configuration system
      */
     async initialize() {
         try {
             console.log('Initializing OptimizationConfig...');
-            
+
             // Load configuration from storage
             await this.loadConfiguration();
-            
+
             // Validate and migrate if necessary
             this.validateConfiguration();
-            
+
             console.log('OptimizationConfig initialization complete');
-            
         } catch (error) {
             console.error('Failed to initialize OptimizationConfig:', error);
             // Fall back to default configuration
             this.currentConfig = { ...this.defaultConfig };
         }
     }
-    
+
     /**
      * Get default configuration
      */
@@ -116,7 +115,7 @@ export class OptimizationConfig {
             }
         };
     }
-    
+
     /**
      * Get default presets
      */
@@ -252,7 +251,7 @@ export class OptimizationConfig {
             }
         };
     }
-    
+
     /**
      * Load configuration from storage
      */
@@ -272,7 +271,7 @@ export class OptimizationConfig {
             this.currentConfig = { ...this.defaultConfig };
         }
     }
-    
+
     /**
      * Save configuration to storage
      */
@@ -281,16 +280,15 @@ export class OptimizationConfig {
             const configToSave = { ...this.currentConfig };
             localStorage.setItem(this.configKey, JSON.stringify(configToSave));
             console.log('Configuration saved to storage');
-            
+
             // Notify callbacks
             this.notifyCallbacks('configurationSaved', configToSave);
-            
         } catch (error) {
             console.error('Failed to save configuration:', error);
             throw error;
         }
     }
-    
+
     /**
      * Validate and migrate configuration
      */
@@ -299,13 +297,13 @@ export class OptimizationConfig {
             this.currentConfig = { ...this.defaultConfig };
             return;
         }
-        
+
         // Check version and migrate if necessary
         if (!this.currentConfig.version || this.currentConfig.version !== this.defaultConfig.version) {
             console.log('Migrating configuration to new version');
             this.migrateConfiguration();
         }
-        
+
         // Validate required fields
         const requiredFields = [
             'optimizationLevel',
@@ -315,26 +313,26 @@ export class OptimizationConfig {
             'performanceTargets',
             'qualitySettings'
         ];
-        
+
         for (const field of requiredFields) {
             if (!(field in this.currentConfig)) {
                 console.warn(`Missing configuration field: ${field}, using default`);
                 this.currentConfig[field] = this.defaultConfig[field];
             }
         }
-        
+
         // Validate ranges
         this.currentConfig.targetFPS = Math.max(15, Math.min(120, this.currentConfig.targetFPS));
         this.currentConfig.qualitySettings.level = Math.max(0, Math.min(100, this.currentConfig.qualitySettings.level));
     }
-    
+
     /**
      * Migrate configuration to new version
      */
     migrateConfiguration() {
         // Add migration logic here as the configuration format evolves
         this.currentConfig.version = this.defaultConfig.version;
-        
+
         // Ensure all new fields are present
         for (const [key, value] of Object.entries(this.defaultConfig)) {
             if (!(key in this.currentConfig)) {
@@ -342,7 +340,7 @@ export class OptimizationConfig {
             }
         }
     }
-    
+
     /**
      * Get current configuration
      * @returns {Object} Current configuration
@@ -350,7 +348,7 @@ export class OptimizationConfig {
     getConfiguration() {
         return { ...this.currentConfig };
     }
-    
+
     /**
      * Update configuration
      * @param {Object} updates - Configuration updates
@@ -358,20 +356,20 @@ export class OptimizationConfig {
     updateConfiguration(updates) {
         const oldConfig = { ...this.currentConfig };
         this.currentConfig = { ...this.currentConfig, ...updates };
-        
+
         // Validate after update
         this.validateConfiguration();
-        
+
         // Notify callbacks
         this.notifyCallbacks('configurationUpdated', {
             oldConfig,
             newConfig: this.currentConfig,
             updates
         });
-        
+
         console.log('Configuration updated:', updates);
     }
-    
+
     /**
      * Apply preset configuration
      * @param {string} presetName - Name of preset to apply
@@ -380,25 +378,25 @@ export class OptimizationConfig {
         if (!(presetName in this.presets)) {
             throw new Error(`Unknown preset: ${presetName}`);
         }
-        
+
         const preset = this.presets[presetName];
         const updates = {
             qualitySettings: preset.qualitySettings,
             optimizationLevel: preset.optimizationLevel,
             targetFPS: preset.targetFPS
         };
-        
+
         this.updateConfiguration(updates);
-        
+
         console.log(`Applied preset: ${preset.name}`);
-        
+
         // Notify callbacks
         this.notifyCallbacks('presetApplied', {
             presetName,
             preset
         });
     }
-    
+
     /**
      * Get available presets
      * @returns {Object} Available presets
@@ -406,7 +404,7 @@ export class OptimizationConfig {
     getPresets() {
         return { ...this.presets };
     }
-    
+
     /**
      * Create custom preset
      * @param {string} name - Preset name
@@ -421,16 +419,16 @@ export class OptimizationConfig {
             targetFPS: settings.targetFPS || this.currentConfig.targetFPS,
             custom: true
         };
-        
+
         console.log(`Created custom preset: ${name}`);
-        
+
         // Notify callbacks
         this.notifyCallbacks('presetCreated', {
             name,
             preset: this.presets[name]
         });
     }
-    
+
     /**
      * Delete custom preset
      * @param {string} name - Preset name
@@ -439,35 +437,35 @@ export class OptimizationConfig {
         if (!(name in this.presets)) {
             throw new Error(`Preset not found: ${name}`);
         }
-        
+
         if (!this.presets[name].custom) {
             throw new Error(`Cannot delete built-in preset: ${name}`);
         }
-        
+
         delete this.presets[name];
-        
+
         console.log(`Deleted custom preset: ${name}`);
-        
+
         // Notify callbacks
         this.notifyCallbacks('presetDeleted', { name });
     }
-    
+
     /**
      * Reset configuration to defaults
      */
     resetToDefaults() {
         const oldConfig = { ...this.currentConfig };
         this.currentConfig = { ...this.defaultConfig };
-        
+
         console.log('Configuration reset to defaults');
-        
+
         // Notify callbacks
         this.notifyCallbacks('configurationReset', {
             oldConfig,
             newConfig: this.currentConfig
         });
     }
-    
+
     /**
      * Export configuration
      * @returns {string} Configuration as JSON string
@@ -475,7 +473,7 @@ export class OptimizationConfig {
     exportConfiguration() {
         return JSON.stringify(this.currentConfig, null, 2);
     }
-    
+
     /**
      * Import configuration
      * @param {string} configJson - Configuration as JSON string
@@ -484,24 +482,23 @@ export class OptimizationConfig {
         try {
             const imported = JSON.parse(configJson);
             const oldConfig = { ...this.currentConfig };
-            
+
             this.currentConfig = { ...this.defaultConfig, ...imported };
             this.validateConfiguration();
-            
+
             console.log('Configuration imported successfully');
-            
+
             // Notify callbacks
             this.notifyCallbacks('configurationImported', {
                 oldConfig,
                 newConfig: this.currentConfig
             });
-            
         } catch (error) {
             console.error('Failed to import configuration:', error);
             throw new Error(`Invalid configuration format: ${error.message}`);
         }
     }
-    
+
     /**
      * Register callback for configuration changes
      * @param {Function} callback - Callback function
@@ -511,7 +508,7 @@ export class OptimizationConfig {
             this.callbacks.push(callback);
         }
     }
-    
+
     /**
      * Remove callback
      * @param {Function} callback - Callback function to remove
@@ -522,7 +519,7 @@ export class OptimizationConfig {
             this.callbacks.splice(index, 1);
         }
     }
-    
+
     /**
      * Notify callbacks of configuration changes
      * @param {string} event - Event type
@@ -537,7 +534,7 @@ export class OptimizationConfig {
             }
         });
     }
-    
+
     /**
      * Get optimization settings for a specific system
      * @param {string} system - System name ('rendering', 'ai', 'physics', etc.)
@@ -572,24 +569,24 @@ export class OptimizationConfig {
                 return {};
         }
     }
-    
+
     /**
      * Dispose of the configuration system
      */
     dispose() {
         console.log('Disposing OptimizationConfig...');
-        
+
         // Save current configuration
         try {
             this.saveConfiguration();
         } catch (error) {
             console.error('Failed to save configuration on dispose:', error);
         }
-        
+
         // Clear callbacks
         this.callbacks = [];
         this.currentConfig = null;
-        
+
         console.log('OptimizationConfig disposed');
     }
 }

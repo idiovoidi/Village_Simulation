@@ -8,7 +8,7 @@ export class PhysicsPerformanceMonitor {
         this.performanceMonitor = performanceMonitor;
         this.physicsOptimizer = physicsOptimizer;
         this.collisionOptimizer = collisionOptimizer;
-        
+
         // Physics-specific metrics
         this.physicsMetrics = {
             // Timing metrics
@@ -16,30 +16,30 @@ export class PhysicsPerformanceMonitor {
             collisionDetectionTime: 0,
             constraintSolvingTime: 0,
             integrationTime: 0,
-            
+
             // Body metrics
             totalBodies: 0,
             activeBodies: 0,
             sleepingBodies: 0,
             staticBodies: 0,
-            
+
             // Collision metrics
             collisionPairs: 0,
             activeCollisions: 0,
             broadPhaseChecks: 0,
             narrowPhaseChecks: 0,
-            
+
             // Optimization metrics
             optimizationLevel: 0,
             spatialGridCells: 0,
             cachedCollisions: 0,
-            
+
             // Performance indicators
             physicsLoad: 0, // 0-100%
             bottleneckType: 'none', // 'collision', 'integration', 'constraints', 'none'
             recommendedActions: []
         };
-        
+
         // Performance thresholds for physics
         this.physicsThresholds = {
             updateTime: {
@@ -58,15 +58,15 @@ export class PhysicsPerformanceMonitor {
                 critical: 500
             }
         };
-        
+
         // Bottleneck detection
         this.bottleneckHistory = [];
         this.bottleneckHistorySize = 60; // 1 second at 60fps
-        
+
         // Recommendation system
         this.lastRecommendationTime = 0;
         this.recommendationCooldown = 10000; // 10 seconds
-        
+
         // Initialize monitoring
         this.initialize();
     }
@@ -81,7 +81,7 @@ export class PhysicsPerformanceMonitor {
         }
 
         // Register for performance updates
-        this.performanceMonitor.onMetricsUpdate((metrics) => {
+        this.performanceMonitor.onMetricsUpdate(metrics => {
             this.updatePhysicsMetrics(metrics);
         });
 
@@ -119,47 +119,47 @@ export class PhysicsPerformanceMonitor {
      */
     updatePhysicsMetrics(generalMetrics) {
         const startTime = performance.now();
-        
+
         // Collect physics optimizer metrics
         if (this.physicsOptimizer) {
             const optimizerMetrics = this.physicsOptimizer.getMetrics();
-            
+
             this.physicsMetrics.totalBodies = optimizerMetrics.totalBodies;
             this.physicsMetrics.activeBodies = optimizerMetrics.activeBodies;
             this.physicsMetrics.sleepingBodies = optimizerMetrics.sleepingBodies;
             this.physicsMetrics.physicsUpdateTime = optimizerMetrics.lastUpdateTime;
-            
+
             // Calculate optimization level (0-3 scale to 0-100%)
             this.physicsMetrics.optimizationLevel = this.calculateOptimizationLevel(optimizerMetrics);
         }
-        
+
         // Collect collision optimizer metrics
         if (this.collisionOptimizer) {
             const collisionMetrics = this.collisionOptimizer.getMetrics();
-            
+
             this.physicsMetrics.broadPhaseChecks = collisionMetrics.totalChecks;
             this.physicsMetrics.cachedCollisions = collisionMetrics.cacheHits;
             this.physicsMetrics.collisionPairs = collisionMetrics.activePairs;
-            
+
             if (collisionMetrics.spatial) {
                 this.physicsMetrics.spatialGridCells = collisionMetrics.spatial.occupiedCells;
             }
         }
-        
+
         // Calculate physics load
         this.physicsMetrics.physicsLoad = this.calculatePhysicsLoad();
-        
+
         // Detect bottlenecks
         this.detectBottlenecks();
-        
+
         // Generate recommendations
         this.generateRecommendations();
-        
+
         // Add physics metrics to general metrics
         if (generalMetrics) {
             generalMetrics.physics = { ...this.physicsMetrics };
         }
-        
+
         const updateTime = performance.now() - startTime;
         this.physicsMetrics.monitoringOverhead = updateTime;
     }
@@ -171,14 +171,14 @@ export class PhysicsPerformanceMonitor {
         if (!optimizerMetrics.settings) {
             return 0;
         }
-        
-        const settings = optimizerMetrics.settings;
-        
+
+        const { settings } = optimizerMetrics;
+
         // Calculate how much we've deviated from base settings
         const freqRatio = settings.currentUpdateFrequency / settings.baseUpdateFrequency;
         const accuracyRatio = settings.currentCollisionAccuracy / settings.baseCollisionAccuracy;
         const iterRatio = settings.currentSolverIterations / settings.baseSolverIterations;
-        
+
         // Average the ratios and convert to optimization level (lower = more optimized)
         const avgRatio = (freqRatio + accuracyRatio + iterRatio) / 3;
         return Math.round((1 - avgRatio) * 100);
@@ -189,15 +189,15 @@ export class PhysicsPerformanceMonitor {
      */
     calculatePhysicsLoad() {
         let load = 0;
-        
+
         // Factor in update time
         if (this.physicsMetrics.physicsUpdateTime > 0) {
-            const timeLoad = Math.min(100, 
+            const timeLoad = Math.min(100,
                 (this.physicsMetrics.physicsUpdateTime / this.physicsThresholds.updateTime.critical) * 100
             );
             load += timeLoad * 0.4; // 40% weight
         }
-        
+
         // Factor in body count
         if (this.physicsMetrics.totalBodies > 0) {
             const bodyLoad = Math.min(100,
@@ -205,7 +205,7 @@ export class PhysicsPerformanceMonitor {
             );
             load += bodyLoad * 0.3; // 30% weight
         }
-        
+
         // Factor in collision pairs
         if (this.physicsMetrics.collisionPairs > 0) {
             const collisionLoad = Math.min(100,
@@ -213,7 +213,7 @@ export class PhysicsPerformanceMonitor {
             );
             load += collisionLoad * 0.3; // 30% weight
         }
-        
+
         return Math.round(Math.min(100, load));
     }
 
@@ -222,30 +222,30 @@ export class PhysicsPerformanceMonitor {
      */
     detectBottlenecks() {
         let bottleneck = 'none';
-        
+
         // Check update time bottleneck
         if (this.physicsMetrics.physicsUpdateTime > this.physicsThresholds.updateTime.warning) {
             bottleneck = 'integration';
         }
-        
+
         // Check collision bottleneck
         if (this.physicsMetrics.broadPhaseChecks > this.physicsThresholds.collisionPairs.warning * 10) {
             bottleneck = 'collision';
         }
-        
+
         // Check body count bottleneck
         if (this.physicsMetrics.totalBodies > this.physicsThresholds.bodyCount.warning) {
             if (bottleneck === 'none') {
                 bottleneck = 'bodies';
             }
         }
-        
+
         // Update bottleneck history
         this.bottleneckHistory.push(bottleneck);
         if (this.bottleneckHistory.length > this.bottleneckHistorySize) {
             this.bottleneckHistory.shift();
         }
-        
+
         // Determine persistent bottleneck
         this.physicsMetrics.bottleneckType = this.getMostFrequentBottleneck();
     }
@@ -257,22 +257,22 @@ export class PhysicsPerformanceMonitor {
         if (this.bottleneckHistory.length === 0) {
             return 'none';
         }
-        
+
         const counts = {};
         this.bottleneckHistory.forEach(bottleneck => {
             counts[bottleneck] = (counts[bottleneck] || 0) + 1;
         });
-        
+
         let maxCount = 0;
         let mostFrequent = 'none';
-        
+
         for (const [bottleneck, count] of Object.entries(counts)) {
             if (count > maxCount) {
                 maxCount = count;
                 mostFrequent = bottleneck;
             }
         }
-        
+
         // Only consider it a bottleneck if it occurs frequently enough
         const threshold = this.bottleneckHistorySize * 0.3; // 30% of the time
         return maxCount >= threshold ? mostFrequent : 'none';
@@ -283,14 +283,14 @@ export class PhysicsPerformanceMonitor {
      */
     generateRecommendations() {
         const currentTime = performance.now();
-        
+
         // Throttle recommendations
         if (currentTime - this.lastRecommendationTime < this.recommendationCooldown) {
             return;
         }
-        
+
         const recommendations = [];
-        
+
         // High physics load recommendations
         if (this.physicsMetrics.physicsLoad > 80) {
             recommendations.push({
@@ -299,7 +299,7 @@ export class PhysicsPerformanceMonitor {
                 action: 'Consider reducing physics quality or body count'
             });
         }
-        
+
         // Bottleneck-specific recommendations
         switch (this.physicsMetrics.bottleneckType) {
             case 'collision':
@@ -309,7 +309,7 @@ export class PhysicsPerformanceMonitor {
                     action: 'Enable spatial partitioning or reduce collision accuracy'
                 });
                 break;
-                
+
             case 'integration':
                 recommendations.push({
                     type: 'warning',
@@ -317,7 +317,7 @@ export class PhysicsPerformanceMonitor {
                     action: 'Reduce physics update frequency or solver iterations'
                 });
                 break;
-                
+
             case 'bodies':
                 recommendations.push({
                     type: 'warning',
@@ -326,7 +326,7 @@ export class PhysicsPerformanceMonitor {
                 });
                 break;
         }
-        
+
         // Low optimization recommendations
         if (this.physicsMetrics.optimizationLevel < 20 && this.physicsMetrics.physicsLoad > 60) {
             recommendations.push({
@@ -335,7 +335,7 @@ export class PhysicsPerformanceMonitor {
                 action: 'Enable automatic physics optimization'
             });
         }
-        
+
         // Spatial partitioning recommendations
         if (!this.collisionOptimizer && this.physicsMetrics.totalBodies > 50) {
             recommendations.push({
@@ -344,9 +344,9 @@ export class PhysicsPerformanceMonitor {
                 action: 'Enable spatial partitioning for better collision performance'
             });
         }
-        
+
         this.physicsMetrics.recommendedActions = recommendations;
-        
+
         if (recommendations.length > 0) {
             this.lastRecommendationTime = currentTime;
         }
@@ -379,7 +379,7 @@ export class PhysicsPerformanceMonitor {
                 optimizationLevel: this.physicsMetrics.optimizationLevel
             }
         };
-        
+
         // Determine overall health
         if (this.physicsMetrics.physicsLoad > 80) {
             summary.overallHealth = 'critical';
@@ -390,33 +390,33 @@ export class PhysicsPerformanceMonitor {
         } else if (this.physicsMetrics.physicsLoad > 40) {
             summary.overallHealth = 'fair';
         }
-        
+
         // Check for specific issues
         if (this.physicsMetrics.physicsUpdateTime > this.physicsThresholds.updateTime.warning) {
             summary.primaryConcerns.push('Slow physics updates');
         }
-        
+
         if (this.physicsMetrics.totalBodies > this.physicsThresholds.bodyCount.warning) {
             summary.primaryConcerns.push('High body count');
         }
-        
+
         if (this.physicsMetrics.bottleneckType !== 'none') {
             summary.primaryConcerns.push(`${this.physicsMetrics.bottleneckType} bottleneck detected`);
         }
-        
+
         // Identify strengths
         if (this.physicsMetrics.optimizationLevel > 50) {
             summary.strengths.push('Active physics optimization');
         }
-        
+
         if (this.collisionOptimizer && this.physicsMetrics.cachedCollisions > 0) {
             summary.strengths.push('Collision caching active');
         }
-        
+
         if (this.physicsMetrics.sleepingBodies > this.physicsMetrics.activeBodies) {
             summary.strengths.push('Good body sleep management');
         }
-        
+
         return summary;
     }
 
@@ -459,7 +459,7 @@ export class PhysicsPerformanceMonitor {
             bottleneckType: 'none',
             recommendedActions: []
         };
-        
+
         this.bottleneckHistory = [];
     }
 
@@ -474,14 +474,14 @@ export class PhysicsPerformanceMonitor {
             bottleneckHistory: this.bottleneckHistory,
             report: this.getPhysicsReport()
         };
-        
+
         switch (format.toLowerCase()) {
             case 'json':
                 return JSON.stringify(data, null, 2);
-                
+
             case 'csv':
                 return this.convertToCSV(data);
-                
+
             default:
                 return data;
         }
@@ -496,7 +496,7 @@ export class PhysicsPerformanceMonitor {
             'physicsUpdateTime', 'collisionPairs', 'optimizationLevel',
             'bottleneckType', 'recommendationCount'
         ];
-        
+
         const values = [
             data.timestamp,
             data.metrics.physicsLoad,
@@ -508,8 +508,8 @@ export class PhysicsPerformanceMonitor {
             data.metrics.bottleneckType,
             data.metrics.recommendedActions.length
         ];
-        
-        return headers.join(',') + '\n' + values.join(',');
+
+        return `${headers.join(',')}\n${values.join(',')}`;
     }
 
     /**
@@ -520,11 +520,11 @@ export class PhysicsPerformanceMonitor {
         this.performanceMonitor = null;
         this.physicsOptimizer = null;
         this.collisionOptimizer = null;
-        
+
         // Clear data
         this.physicsMetrics = null;
         this.bottleneckHistory = [];
-        
+
         console.log('PhysicsPerformanceMonitor: Disposed');
     }
 }
@@ -537,16 +537,16 @@ export class PhysicsPerformanceDashboard {
     constructor(physicsPerformanceMonitor, container = null) {
         this.monitor = physicsPerformanceMonitor;
         this.container = container;
-        
+
         // Dashboard state
         this.isVisible = false;
         this.updateInterval = null;
         this.updateFrequency = 2; // Hz
-        
+
         // UI elements
         this.dashboardElement = null;
         this.metricsElements = {};
-        
+
         // Chart data (simplified for this implementation)
         this.chartData = {
             physicsLoad: [],
@@ -554,7 +554,7 @@ export class PhysicsPerformanceDashboard {
             bodyCount: [],
             maxDataPoints: 60
         };
-        
+
         this.initialize();
     }
 
@@ -592,14 +592,14 @@ export class PhysicsPerformanceDashboard {
             z-index: 10000;
             display: none;
         `;
-        
+
         // Add to container or body
         if (this.container) {
             this.container.appendChild(this.dashboardElement);
         } else {
             document.body.appendChild(this.dashboardElement);
         }
-        
+
         // Create metrics display
         this.createMetricsDisplay();
     }
@@ -622,9 +622,9 @@ export class PhysicsPerformanceDashboard {
                 <div id="recommendation-list"></div>
             </div>
         `;
-        
+
         this.dashboardElement.innerHTML = metricsHTML;
-        
+
         // Store references to metric elements
         this.metricsElements = {
             physicsLoad: this.dashboardElement.querySelector('#physics-load span'),
@@ -645,16 +645,16 @@ export class PhysicsPerformanceDashboard {
         if (this.isVisible) {
             return;
         }
-        
+
         this.isVisible = true;
         this.dashboardElement.style.display = 'block';
-        
+
         // Start update loop
         const intervalMs = 1000 / this.updateFrequency;
         this.updateInterval = setInterval(() => {
             this.updateDisplay();
         }, intervalMs);
-        
+
         console.log('PhysicsPerformanceDashboard: Shown');
     }
 
@@ -665,15 +665,15 @@ export class PhysicsPerformanceDashboard {
         if (!this.isVisible) {
             return;
         }
-        
+
         this.isVisible = false;
         this.dashboardElement.style.display = 'none';
-        
+
         if (this.updateInterval) {
             clearInterval(this.updateInterval);
             this.updateInterval = null;
         }
-        
+
         console.log('PhysicsPerformanceDashboard: Hidden');
     }
 
@@ -695,13 +695,13 @@ export class PhysicsPerformanceDashboard {
         if (!this.monitor || !this.isVisible) {
             return;
         }
-        
+
         const metrics = this.monitor.getCurrentPhysicsMetrics();
-        
+
         // Update metric displays
         this.metricsElements.physicsLoad.textContent = `${metrics.physicsLoad}%`;
         this.metricsElements.physicsLoad.style.color = this.getLoadColor(metrics.physicsLoad);
-        
+
         this.metricsElements.activeBodies.textContent = metrics.activeBodies;
         this.metricsElements.sleepingBodies.textContent = metrics.sleepingBodies;
         this.metricsElements.updateTime.textContent = `${metrics.physicsUpdateTime.toFixed(1)}ms`;
@@ -709,10 +709,10 @@ export class PhysicsPerformanceDashboard {
         this.metricsElements.optimizationLevel.textContent = `${metrics.optimizationLevel}%`;
         this.metricsElements.bottleneck.textContent = metrics.bottleneckType;
         this.metricsElements.bottleneck.style.color = metrics.bottleneckType === 'none' ? '#4CAF50' : '#FF9800';
-        
+
         // Update recommendations
         this.updateRecommendations(metrics.recommendedActions);
-        
+
         // Update chart data
         this.updateChartData(metrics);
     }
@@ -731,21 +731,21 @@ export class PhysicsPerformanceDashboard {
      */
     updateRecommendations(recommendations) {
         const listElement = this.metricsElements.recommendationList;
-        
+
         if (recommendations.length === 0) {
             listElement.innerHTML = '<div style="color: #4CAF50;">No issues detected</div>';
             return;
         }
-        
+
         const recommendationHTML = recommendations.map(rec => {
-            const color = rec.type === 'critical' ? '#F44336' : 
-                         rec.type === 'warning' ? '#FF9800' : '#2196F3';
-            
+            const color = rec.type === 'critical' ? '#F44336'
+                : rec.type === 'warning' ? '#FF9800' : '#2196F3';
+
             return `<div style="color: ${color}; margin: 2px 0;">
                 ${rec.message}: ${rec.action}
             </div>`;
         }).join('');
-        
+
         listElement.innerHTML = recommendationHTML;
     }
 
@@ -757,7 +757,7 @@ export class PhysicsPerformanceDashboard {
         this.chartData.physicsLoad.push(metrics.physicsLoad);
         this.chartData.updateTime.push(metrics.physicsUpdateTime);
         this.chartData.bodyCount.push(metrics.activeBodies);
-        
+
         // Maintain max data points
         Object.keys(this.chartData).forEach(key => {
             if (Array.isArray(this.chartData[key])) {
@@ -773,17 +773,17 @@ export class PhysicsPerformanceDashboard {
      */
     dispose() {
         this.hide();
-        
+
         if (this.dashboardElement && this.dashboardElement.parentNode) {
             this.dashboardElement.parentNode.removeChild(this.dashboardElement);
         }
-        
+
         this.monitor = null;
         this.container = null;
         this.dashboardElement = null;
         this.metricsElements = {};
         this.chartData = null;
-        
+
         console.log('PhysicsPerformanceDashboard: Disposed');
     }
 }

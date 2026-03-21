@@ -73,7 +73,7 @@ export class BirdBehaviour {
 
             // Update velocity
             bird.velocity.addInPlace(direction.scale(deltaTime));
-            
+
             // Maintain speed limits
             const speed = bird.velocity.length();
             if (speed > bird.speed) {
@@ -87,7 +87,7 @@ export class BirdBehaviour {
             if (bird.velocity.length() > 0.01) {
                 const desiredRotation = Math.atan2(bird.velocity.x, bird.velocity.z);
                 bird.model.mesh.rotation.y = desiredRotation;
-                
+
                 // Bank the bird based on turning
                 const bankAmount = this.clamp(
                     bird.velocity.cross(new BABYLON.Vector3(0, 1, 0)).length() * 2,

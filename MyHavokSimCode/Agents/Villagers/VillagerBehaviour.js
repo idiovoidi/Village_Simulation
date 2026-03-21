@@ -358,6 +358,8 @@ export class VillagerBehaviour {
         const velocity = direction.scale(villager.speed);
         if (villager.physics && villager.physics.body) {
             villager.physics.body.setLinearVelocity(new BABYLON.Vector3(velocity.x, 0, velocity.z));
+            // Prevent rolling/spinning by zeroing angular velocity
+            villager.physics.body.setAngularVelocity(BABYLON.Vector3.Zero());
         }
 
         // Update rotation to face movement direction

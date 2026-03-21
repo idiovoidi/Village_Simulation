@@ -13,6 +13,19 @@ interface ZombieAnimationGroups {
     suspicious?: BABYLON.AnimationGroup;
 }
 
+interface ZombieAnimationState {
+    time: number;
+    twitchTimer: number;
+    nextTwitch: number;
+    dragOffset: number;
+    limbPhases: {
+        leftArm: number;
+        rightArm: number;
+        leftLeg: number;
+        rightLeg: number;
+    };
+}
+
 type ZombieState = 'idle' | 'attacking' | 'suspicious' | 'pursuing';
 
 export class ZombieModel {
@@ -22,9 +35,22 @@ export class ZombieModel {
     private legs: ZombieLegs = { left: null, right: null };
     private bloodStains: BABYLON.Mesh[] = [];
     private animationGroups: ZombieAnimationGroups = {};
+    private animState: ZombieAnimationState;
 
     constructor(scene: BABYLON.Scene) {
         this.scene = scene;
+        this.animState = {
+            time: Math.random() * 100,
+            twitchTimer: 0,
+            nextTwitch: Math.random() * 3 + 2,
+            dragOffset: Math.random() * 0.5,
+            limbPhases: {
+                leftArm: Math.random() * Math.PI,
+                rightArm: Math.random() * Math.PI,
+                leftLeg: Math.random() * Math.PI,
+                rightLeg: Math.random() * Math.PI
+            }
+        };
     }
 
     create(position: BABYLON.Vector3): BABYLON.TransformNode {
@@ -263,12 +289,30 @@ export class ZombieModel {
     animate(deltaTime: number, speed: number, state: ZombieState = 'idle'): void {
         if (!this.mesh) return;
 
-        const angle = deltaTime * (speed > 1 ? 6 : 2);
+        // Accumulate time for animation (keep it continuous)
+        this.animState.time += deltaTime;
+
+        // Update twitch timer
+        this.animState.twitchTimer += deltaTime;
+        if (this.animState.twitchTimer >= this.animState.nextTwitch) {
+            this.animState.twitchTimer = 0;
+            this.animState.nextTwitch = Math.random() * 4 + 2; // Random twitch every 2-6 seconds
+        }
+
+        // Calculate twitch intensity (brief spike when timer is near 0)
+        const twitchIntensity = this.animState.twitchTimer < 0.2
+            ? Math.sin(this.animState.twitchTimer * Math.PI * 5) * 0.3
+            : 0;
 
         // Stop all animations before playing a new one
         for (const group of Object.values(this.animationGroups)) {
             group?.stop();
         }
+
+        // Animation parameters based on state and speed
+        const isMoving = speed > 0.5; // Actually walking, not just standing idle
+        const isLurching = speed > 1.5;
+        const baseSpeed = isLurching ? 10 : (state === 'pursuing' ? 6 : 3);
 
         switch (state) {
             case 'attacking':
@@ -280,38 +324,112 @@ export class ZombieModel {
             case 'pursuing':
             case 'idle':
             default:
-                // Slower base shambling, more dramatic lurge
-                if (this.arms.left) this.arms.left.rotation.x = Math.sin(angle) * 0.5;
-                if (this.arms.right) this.arms.right.rotation.x = -Math.sin(angle) * 0.5;
-                if (this.legs.left) this.legs.left.rotation.x = -Math.sin(angle) * 0.5;
-                if (this.legs.right) this.legs.right.rotation.x = Math.sin(angle) * 0.5;
+                if (isMoving) {
+                    // SHAMBLING GAIT - irregular, uncoordinated zombie movement
+
+                    // Leg movements with staggered timing and different frequencies
+                    // Left leg: slower, more deliberate
+                    const leftLegCycle = Math.sin(this.animState.time * baseSpeed * 0.8 + this.animState.limbPhases.leftLeg);
+                    // Right leg: slightly faster, creates shamble
+                    const rightLegCycle = Math.sin(this.animState.time * baseSpeed * 1.1 + this.animState.limbPhases.rightLeg + 0.5);
+
+                    // Add irregularity with secondary sine waves
+                    const leftLegIrregular = Math.sin(this.animState.time * baseSpeed * 0.3) * 0.5;
+                    const rightLegIrregular = Math.cos(this.animState.time * baseSpeed * 0.4) * 0.5;
+
+                    // Apply leg rotations with drag and irregularity - INCREASED amplitude for visibility
+                    if (this.legs.left) {
+                        this.legs.left.rotation.x = (leftLegCycle + leftLegIrregular) * 0.9 + twitchIntensity * 0.3;
+                        // Slight outward splay for zombie stance
+                        this.legs.left.rotation.z = -0.08 + Math.sin(this.animState.time * 0.5) * 0.03;
+                    }
+                    if (this.legs.right) {
+                        this.legs.right.rotation.x = (rightLegCycle + rightLegIrregular) * 0.9 + twitchIntensity * 0.3;
+                        this.legs.right.rotation.z = 0.08 - Math.sin(this.animState.time * 0.5) * 0.03;
+                    }
+
+                    // DRAGGING ARMS - zombies don't swing arms, they drag them
+                    // Arms hang down with slight sway and occasional twitch
+                    const armSwaySpeed = baseSpeed * 0.4;
+                    const leftArmSway = Math.sin(this.animState.time * armSwaySpeed + this.animState.limbPhases.leftArm);
+                    const rightArmSway = Math.sin(this.animState.time * armSwaySpeed * 0.9 + this.animState.limbPhases.rightArm + Math.PI * 0.3);
+
+                    // Arms hang down (positive X rotation) with irregular movement
+                    if (this.arms.left) {
+                        // Base hanging position + slight sway
+                        this.arms.left.rotation.x = 0.8 + leftArmSway * 0.3 + twitchIntensity;
+                        // Outward angle for dragging posture
+                        this.arms.left.rotation.z = 0.15 + Math.sin(this.animState.time * 0.3) * 0.05;
+                    }
+                    if (this.arms.right) {
+                        this.arms.right.rotation.x = 0.9 + rightArmSway * 0.3 + twitchIntensity * 0.8;
+                        this.arms.right.rotation.z = -0.15 - Math.sin(this.animState.time * 0.35) * 0.05;
+                    }
+
+                    // BODY BOBBING - vertical movement matching gait
+                    const bobFrequency = baseSpeed * 0.4;
+                    const bobAmplitude = isLurching ? 0.15 : 0.08;
+                    const bobOffset = Math.sin(this.animState.time * bobFrequency) * bobAmplitude;
+                    const shambleBob = Math.cos(this.animState.time * bobFrequency * 2.3) * (bobAmplitude * 0.5);
+                    this.mesh.position.y = bobOffset + shambleBob + Math.abs(twitchIntensity * 0.1);
+
+                } else {
+                    // IDLE STANCE - minimal movement, arms hang
+                    if (this.arms.left) {
+                        this.arms.left.rotation.x = 0.7 + Math.sin(this.animState.time * 0.5) * 0.05 + twitchIntensity * 0.5;
+                        this.arms.left.rotation.z = 0.1;
+                    }
+                    if (this.arms.right) {
+                        this.arms.right.rotation.x = 0.75 + Math.cos(this.animState.time * 0.4) * 0.05 + twitchIntensity * 0.5;
+                        this.arms.right.rotation.z = -0.1;
+                    }
+                    if (this.legs.left) {
+                        this.legs.left.rotation.x = twitchIntensity * 0.3;
+                        this.legs.left.rotation.z = -0.05;
+                    }
+                    if (this.legs.right) {
+                        this.legs.right.rotation.x = twitchIntensity * 0.3;
+                        this.legs.right.rotation.z = 0.05;
+                    }
+                }
                 break;
         }
 
-        // More pronounced forward lean during lurge
-        this.mesh.rotation.x = speed > 1 ? 0.4 : 0.2;
+        // FORWARD LEAN - more pronounced during pursuit
+        const targetLean = state === 'pursuing' ? 0.35 : (isLurching ? 0.4 : 0.25);
+        this.mesh.rotation.x = targetLean + twitchIntensity * 0.1;
 
-        // More intense body sway during lurge
-        this.mesh.rotation.y += Math.sin(angle * 0.5) * 0.01 * speed;
+        // BODY SWAY - irregular side-to-side movement
+        const swaySpeed = isLurching ? 3 : 1.5;
+        const swayAmount = isLurching ? 0.03 : 0.015;
+        const primarySway = Math.sin(this.animState.time * swaySpeed * 0.7) * swayAmount;
+        const secondarySway = Math.cos(this.animState.time * swaySpeed * 1.3 + 1) * (swayAmount * 0.5);
+        this.mesh.rotation.y += primarySway + secondarySway + twitchIntensity * 0.05;
 
-        // More dramatic head movement during lurge
-        const head = this.mesh.getChildMeshes().find(mesh => mesh.name === 'zombieHead') as BABYLON.Mesh | undefined;
+        // HEAD MOVEMENT - independent, searching motion
+        const head = this.mesh.getChildMeshes().find((mesh: BABYLON.Mesh) => mesh.name === 'zombieHead') as BABYLON.Mesh | undefined;
         if (head) {
-            if (speed > 1) {
-                head.rotation.z = Math.sin(angle * 0.7) * 0.2;
-                head.rotation.y = Math.sin(angle * 0.5) * 0.3;
-                head.rotation.x = 0.3 + Math.sin(angle * 0.3) * 0.2;
-            } else {
-                head.rotation.z = Math.sin(angle * 0.7) * 0.1;
-                head.rotation.y = Math.sin(angle * 0.5) * 0.2;
-                head.rotation.x = 0.2 + Math.sin(angle * 0.3) * 0.1;
-            }
+            // Head bob and tilt with more variation during movement
+            const headSpeed = isLurching ? 4 : 2;
+            const headTiltBase = isLurching ? 0.25 : 0.15;
+
+            // Vertical bob
+            head.rotation.x = headTiltBase + Math.sin(this.animState.time * headSpeed * 0.6) * 0.15 + twitchIntensity * 0.3;
+
+            // Horizontal searching motion
+            head.rotation.y = Math.sin(this.animState.time * headSpeed * 0.4) * 0.25 +
+                             Math.cos(this.animState.time * headSpeed * 0.25) * 0.15 +
+                             twitchIntensity * 0.2;
+
+            // Slight head tilt (z-axis) for instability
+            head.rotation.z = Math.sin(this.animState.time * headSpeed * 0.35) * 0.1 +
+                             twitchIntensity * 0.15;
         }
 
         // Animate blood drips slower for creepier effect
         this.bloodStains.forEach((drip, index) => {
-            drip.position.y -= Math.sin(deltaTime + index) * 0.0005;
-            drip.scaling.y = 1 + Math.sin(deltaTime * 1.5 + index) * 0.05;
+            drip.position.y -= Math.sin(this.animState.time + index) * 0.0005;
+            drip.scaling.y = 1 + Math.sin(this.animState.time * 1.5 + index) * 0.05;
         });
     }
 

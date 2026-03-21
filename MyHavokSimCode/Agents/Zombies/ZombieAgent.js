@@ -37,6 +37,8 @@ export class ZombieAgent {
         };
 
         // Initialize agent
+        this._currentSpeed = 0;
+        this._lastPos = null;
         this.initialize();
     }
 
@@ -77,9 +79,16 @@ export class ZombieAgent {
                 break;
         }
 
-        // Always animate model
-        const animationSpeed = this.config.lurge.isActive ? 2 : 1;
-        this.model.animate(deltaTime, animationSpeed, this.state);
+        // Calculate actual movement speed for animation
+        const currentPos = this.model.mesh.position.clone();
+        if (this._lastPos) {
+            const distMoved = BABYLON.Vector3.Distance(currentPos, this._lastPos);
+            this._currentSpeed = distMoved / deltaTime; // Actual speed in units/sec
+        }
+        this._lastPos = currentPos;
+
+        // Always animate model with actual speed
+        this.model.animate(deltaTime, this._currentSpeed || 0, this.state);
     }
 
     setTarget(target) {

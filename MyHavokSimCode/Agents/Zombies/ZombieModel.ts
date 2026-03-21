@@ -36,6 +36,7 @@ export class ZombieModel {
     private bloodStains: BABYLON.Mesh[] = [];
     private animationGroups: ZombieAnimationGroups = {};
     private animState: ZombieAnimationState;
+    private _baseY: number = 0;
 
     constructor(scene: BABYLON.Scene) {
         this.scene = scene;
@@ -367,11 +368,16 @@ export class ZombieModel {
                     }
 
                     // BODY BOBBING - vertical movement matching gait
+                    // Get current terrain Y (set by movement code before animate() called)
+                    const terrainY = this.mesh.position.y;
+                    
                     const bobFrequency = baseSpeed * 0.4;
                     const bobAmplitude = isLurching ? 0.15 : 0.08;
                     const bobOffset = Math.sin(this.animState.time * bobFrequency) * bobAmplitude;
                     const shambleBob = Math.cos(this.animState.time * bobFrequency * 2.3) * (bobAmplitude * 0.5);
-                    this.mesh.position.y = bobOffset + shambleBob + Math.abs(twitchIntensity * 0.1);
+                    
+                    // Apply bob as offset to terrain height (reset each frame from movement)
+                    this.mesh.position.y = terrainY + bobOffset + shambleBob + Math.abs(twitchIntensity * 0.05);
 
                 } else {
                     // IDLE STANCE - minimal movement, arms hang
@@ -395,16 +401,24 @@ export class ZombieModel {
                 break;
         }
 
-        // FORWARD LEAN - more pronounced during pursuit
-        const targetLean = state === 'pursuing' ? 0.35 : (isLurching ? 0.4 : 0.25);
-        this.mesh.rotation.x = targetLean + twitchIntensity * 0.1;
+        // FORWARD LEAN - only when moving, more pronounced during pursuit
+        if (isMoving) {
+            const targetLean = state === 'pursuing' ? 0.35 : (isLurching ? 0.4 : 0.25);
+            this.mesh.rotation.x = targetLean + twitchIntensity * 0.1;
+        } else {
+            // Standing upright when idle
+            this.mesh.rotation.x = 0.1 + twitchIntensity * 0.05;
+        }
 
-        // BODY SWAY - irregular side-to-side movement
-        const swaySpeed = isLurching ? 3 : 1.5;
-        const swayAmount = isLurching ? 0.03 : 0.015;
-        const primarySway = Math.sin(this.animState.time * swaySpeed * 0.7) * swayAmount;
-        const secondarySway = Math.cos(this.animState.time * swaySpeed * 1.3 + 1) * (swayAmount * 0.5);
-        this.mesh.rotation.y += primarySway + secondarySway + twitchIntensity * 0.05;
+        // BODY SWAY - irregular side-to-side movement (only when moving)
+        if (isMoving) {
+            const swaySpeed = isLurching ? 3 : 1.5;
+            const swayAmount = isLurching ? 0.03 : 0.015;
+            const primarySway = Math.sin(this.animState.time * swaySpeed * 0.7) * swayAmount;
+            const secondarySway = Math.cos(this.animState.time * swaySpeed * 1.3 + 1) * (swayAmount * 0.5);
+            // Use base rotation.y from movement, not cumulative
+            this.mesh.rotation.y = this.mesh.rotation.y + primarySway + secondarySway + twitchIntensity * 0.05;
+        }
 
         // HEAD MOVEMENT - independent, searching motion
         const head = this.mesh.getChildMeshes().find((mesh: BABYLON.Mesh) => mesh.name === 'zombieHead') as BABYLON.Mesh | undefined;

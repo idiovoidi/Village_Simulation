@@ -17,9 +17,9 @@ export class BoatAgentBehaviour {
         };
     }
 
-    update(deltaTime, otherBoats) {
+    update(deltaTime, _otherBoats) {
         // Get steering direction with terrain awareness
-        const steering = this.getSteeringDirection(otherBoats);
+        const steering = this.getSteeringDirection(_otherBoats);
 
         // Only move if we're in safe water
         if (this.isInSafeWater()) {
@@ -32,7 +32,7 @@ export class BoatAgentBehaviour {
         this.updateBoatVisuals(deltaTime);
     }
 
-    getSteeringDirection(otherBoats) {
+    getSteeringDirection(_otherBoats) {
         const direction = new BABYLON.Vector3(0, 0, 0);
         const pos = this.boat.mesh.position;
 
@@ -106,7 +106,6 @@ export class BoatAgentBehaviour {
     }
 
     reverseFromDanger() {
-        const pos = this.boat.mesh.position;
         const forward = new BABYLON.Vector3(
             Math.sin(this.boat.mesh.rotation.y),
             0,
@@ -185,7 +184,7 @@ export class BoatAgentBehaviour {
         );
     }
 
-    updateBoatVisuals(deltaTime) {
+    updateBoatVisuals(_deltaTime) {
         const pos = this.boat.mesh.position;
         const time = performance.now() * 0.001;
 

@@ -136,23 +136,52 @@ export class CityLayoutManager {
         }
 
         // Check occupancy grid
+        let isAvailable = true;
+        this._forEachGridCell(position, radius, (key) => {
+            if (!isAvailable) return;
+            if (this.occupancyGrid.has(key)) {
+                const existing = this.occupancyGrid.get(key);
+                if (existing.type !== type || this.getMinSeparation(existing.type, type) > 0) {
+                    isAvailable = false;
+                }
+            }
+        });
+
+        return isAvailable;
+    }
+
+    /**
+     * Helper: Iterate over grid cells within radius of a position
+     * @param {BABYLON.Vector3} position - Center position
+     * @param {number} radius - Radius to iterate
+     * @param {Function} callback - Called for each grid key
+     * @private
+     */
+    _forEachGridCell(position, radius, callback) {
         const gridX = Math.floor(position.x / this.gridSize);
         const gridZ = Math.floor(position.z / this.gridSize);
         const gridRadius = Math.ceil(radius / this.gridSize);
 
         for (let x = gridX - gridRadius; x <= gridX + gridRadius; x++) {
             for (let z = gridZ - gridRadius; z <= gridZ + gridRadius; z++) {
-                const key = `${x},${z}`;
-                if (this.occupancyGrid.has(key)) {
-                    const existing = this.occupancyGrid.get(key);
-                    if (existing.type !== type || this.getMinSeparation(existing.type, type) > 0) {
-                        return false;
-                    }
-                }
+                callback(`${x},${z}`);
             }
         }
+    }
 
-        return true;
+    /**
+     * Helper: Generate position from polar coordinates with terrain height
+     * @param {BABYLON.Vector3} center - Center point
+     * @param {number} angle - Angle in radians
+     * @param {number} radius - Distance from center
+     * @returns {BABYLON.Vector3} - Position with terrain height
+     * @private
+     */
+    _generatePositionFromPolar(center, angle, radius) {
+        const x = center.x + Math.cos(angle) * radius;
+        const z = center.z + Math.sin(angle) * radius;
+        const y = BowlCreator.getTerrainHeight(x, z);
+        return new BABYLON.Vector3(x, y, z);
     }
 
     /**
@@ -180,16 +209,9 @@ export class CityLayoutManager {
      * @param {string} type - Type of object
      */
     reservePosition(position, radius, type) {
-        const gridX = Math.floor(position.x / this.gridSize);
-        const gridZ = Math.floor(position.z / this.gridSize);
-        const gridRadius = Math.ceil(radius / this.gridSize);
-
-        for (let x = gridX - gridRadius; x <= gridX + gridRadius; x++) {
-            for (let z = gridZ - gridRadius; z <= gridZ + gridRadius; z++) {
-                const key = `${x},${z}`;
-                this.occupancyGrid.set(key, { type, position, radius });
-            }
-        }
+        this._forEachGridCell(position, radius, (key) => {
+            this.occupancyGrid.set(key, { type, position, radius });
+        });
 
         this.placedObjects.push({ position: position.clone(), radius, type });
     }
@@ -243,11 +265,7 @@ export class CityLayoutManager {
             const angle = Math.random() * Math.PI * 2;
             const radius = ring.innerRadius + Math.random() * (ring.outerRadius - ring.innerRadius);
 
-            const x = ring.center.x + Math.cos(angle) * radius;
-            const z = ring.center.z + Math.sin(angle) * radius;
-            const y = BowlCreator.getTerrainHeight(x, z);
-
-            const position = new BABYLON.Vector3(x, y, z);
+            const position = this._generatePositionFromPolar(ring.center, angle, radius);
 
             if (this.isPositionAvailable(position, objectRadius, objectType)) {
                 positions.push(position);
@@ -273,11 +291,7 @@ export class CityLayoutManager {
             const angle = Math.random() * Math.PI * 2;
             const radius = Math.random() * (area.radius - objectRadius);
 
-            const x = area.center.x + Math.cos(angle) * radius;
-            const z = area.center.z + Math.sin(angle) * radius;
-            const y = BowlCreator.getTerrainHeight(x, z);
-
-            const position = new BABYLON.Vector3(x, y, z);
+            const position = this._generatePositionFromPolar(area.center, angle, radius);
 
             if (this.isPositionAvailable(position, objectRadius, objectType)) {
                 positions.push(position);
@@ -395,11 +409,7 @@ export class CityLayoutManager {
                     // Trees on both sides of the road
                     for (const side of [-1, 1]) {
                         const radius = road.radius + (offset * side);
-                        const x = road.center.x + Math.cos(angle) * radius;
-                        const z = road.center.z + Math.sin(angle) * radius;
-                        const y = BowlCreator.getTerrainHeight(x, z);
-
-                        const position = new BABYLON.Vector3(x, y, z);
+                        const position = this._generatePositionFromPolar(road.center, angle, radius);
 
                         if (this.isPositionAvailable(position, treeRadius, 'tree')) {
                             positions.push(position);
@@ -430,11 +440,7 @@ export class CityLayoutManager {
                     const angle = Math.random() * Math.PI * 2;
                     const distance = 8 + Math.random() * 4; // 8-12 meters from house
 
-                    const x = obj.position.x + Math.cos(angle) * distance;
-                    const z = obj.position.z + Math.sin(angle) * distance;
-                    const y = BowlCreator.getTerrainHeight(x, z);
-
-                    const position = new BABYLON.Vector3(x, y, z);
+                    const position = this._generatePositionFromPolar(obj.position, angle, distance);
 
                     if (this.isPositionAvailable(position, treeRadius, 'tree')) {
                         positions.push(position);

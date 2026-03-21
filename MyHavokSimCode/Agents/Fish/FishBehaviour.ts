@@ -94,7 +94,7 @@ export class FishBehaviour {
         });
     }
 
-    private getNewTarget(fish: Fish): BABYLON.Vector3 {
+    private getNewTarget(_fish: Fish): BABYLON.Vector3 {
         const angle = Math.random() * Math.PI * 2;
         const radius = Math.random() * this.schoolRadius;
         const height = this.minDepth + Math.random() * (this.maxDepth - this.minDepth);

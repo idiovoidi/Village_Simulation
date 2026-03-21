@@ -367,36 +367,6 @@ export class LeoScene {
         }
     }
 
-    updateLoadingProgress(message, percent) {
-    // Update loading screen if it exists
-        const loadingScreen = document.getElementById('loadingScreen');
-        if (loadingScreen && loadingScreen.style.display !== 'none') {
-            const messageEl = loadingScreen.querySelector('p');
-            if (messageEl) {
-                messageEl.textContent = message;
-            }
-
-            // Add progress bar if it doesn't exist
-            let progressBar = loadingScreen.querySelector('.progress-bar');
-            if (!progressBar) {
-                const progressContainer = document.createElement('div');
-                progressContainer.className = 'progress-container';
-                progressContainer.style.cssText = 'width: 300px; height: 20px; background: rgba(255,255,255,0.2); border-radius: 10px; margin-top: 20px; overflow: hidden;';
-
-                progressBar = document.createElement('div');
-                progressBar.className = 'progress-bar';
-                progressBar.style.cssText = 'height: 100%; background: linear-gradient(90deg, #4CAF50, #45a049); transition: width 0.3s ease; width: 0%;';
-
-                progressContainer.appendChild(progressBar);
-                loadingScreen.appendChild(progressContainer);
-            }
-
-            progressBar.style.width = `${percent}%`;
-        }
-
-        console.log(`Loading: ${message} (${percent}%)`);
-    }
-
     async initializeDeferredSystems(level) {
         console.log('Initializing deferred systems...');
 
@@ -408,6 +378,31 @@ export class LeoScene {
                 console.log('Cloud system initialized (deferred)');
             } catch (error) {
                 console.warn('Failed to initialize cloud system:', error);
+            }
+        }
+    }
+
+    /**
+     * Helper: Categorize systems into critical or deferred arrays
+     * @param {Array} systems - System configurations
+     * @param {Array} deferredNames - Names of deferred systems
+     * @param {Array} criticalSystems - Array to populate with critical systems
+     * @param {Array} deferredSystems - Array to populate with deferred systems
+     * @private
+     */
+    _categorizeSystems(systems, deferredNames, criticalSystems, deferredSystems) {
+        for (const system of systems) {
+            const systemInfo = {
+                name: system.name,
+                class: system.class,
+                constructorArgs: system.constructorArgs,
+                initialize: system.initialize
+            };
+
+            if (deferredNames.includes(system.name)) {
+                deferredSystems.push(systemInfo);
+            } else {
+                criticalSystems.push(systemInfo);
             }
         }
     }
@@ -432,41 +427,14 @@ export class LeoScene {
                 }
 
                 // Initialize main systems
-                for (const system of config.systems) {
-                    const systemInfo = {
-                        name: system.name,
-                        class: system.class,
-                        constructorArgs: system.constructorArgs,
-                        initialize: system.initialize
-                    };
-
-                    if (deferredSystemNames.includes(system.name)) {
-                        deferredSystems.push(systemInfo);
-                    } else {
-                        criticalSystems.push(systemInfo);
-                    }
-                }
+                this._categorizeSystems(config.systems, deferredSystemNames, criticalSystems, deferredSystems);
 
                 // Add dependent systems if they exist
                 if (config.dependencies) {
                     for (const dep of config.dependencies) {
                         if (level[dep.condition]) {
                             console.log(`  - Initializing dependent system group: ${dep.condition}`);
-
-                            for (const system of dep.systems) {
-                                const systemInfo = {
-                                    name: system.name,
-                                    class: system.class,
-                                    constructorArgs: system.constructorArgs,
-                                    initialize: system.initialize
-                                };
-
-                                if (deferredSystemNames.includes(system.name)) {
-                                    deferredSystems.push(systemInfo);
-                                } else {
-                                    criticalSystems.push(systemInfo);
-                                }
-                            }
+                            this._categorizeSystems(dep.systems, deferredSystemNames, criticalSystems, deferredSystems);
                         }
                     }
                 }
@@ -506,6 +474,11 @@ export class LeoScene {
         if (this.villagerSystem && this.zombieSystem) {
             this.villagerSystem.zombieSystem = this.zombieSystem;
             this.zombieSystem.villagerSystem = this.villagerSystem;
+        }
+
+        // Link zombie system to behavioral sim for compatibility
+        if (this.behavioralSim && this.zombieSystem) {
+            this.behavioralSim.setZombieSystem(this.zombieSystem);
         }
     }
 

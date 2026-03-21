@@ -3,6 +3,7 @@ import { NavigationMesh } from './Navigation/NavigationMesh.js';
 import { BasicAgent } from './Agents/BasicAgent.js';
 import { VillagerBehaviour } from './Agents/Villagers/VillagerBehaviour.js';
 import { DinosaurBehaviour } from './Agents/Dinosaurs/DinosaurBehaviour.js';
+import { ZombieBehaviour } from './Agents/Zombies/ZombieBehaviour.js';
 
 export class BehavioralSim {
     constructor(scene) {
@@ -11,6 +12,7 @@ export class BehavioralSim {
         this.targetPoints = [];
         this.zombies = [];
         this.zombieCount = 10;
+        this.zombieBehaviour = null;
         this.dogBehaviour = null;
         this.villagerBehaviour = null;
         this.dinosaurBehaviour = null;
@@ -555,48 +557,16 @@ export class BehavioralSim {
     }
 
     createZombies() {
-        for (let i = 0; i < this.zombieCount; i++) {
-            // Create zombie mesh
-            const zombie = BABYLON.MeshBuilder.CreateBox(`zombie${i}`, {
-                height: 2,
-                width: 0.6,
-                depth: 0.3
-            }, this.scene);
+        // Zombies are now created by Havokimport.js via SYSTEM_CONFIGS
+        // This creates this.zombieSystem which is updated in the main render loop
+        // We just need to reference it for compatibility with existing code
+        console.log('Zombie system will be initialized by Havokimport.js');
+        // The zombies array will be set when zombieSystem is linked
+    }
 
-            // Random position within bowl
-            const angle = Math.random() * Math.PI * 2;
-            const radius = Math.random() * 30; // Keep zombies near center initially
-            zombie.position = new BABYLON.Vector3(
-                Math.cos(angle) * radius,
-                5, // Start above ground
-                Math.sin(angle) * radius
-            );
-
-            // Add physics
-            const zombieAggregate = new BABYLON.PhysicsAggregate(
-                zombie,
-                BABYLON.PhysicsShapeType.BOX,
-                { mass: 1, restitution: 0.5, friction: 0.1 },
-                this.scene
-            );
-
-            // Add material
-            const zombieMaterial = new BABYLON.StandardMaterial(`zombieMat${i}`, this.scene);
-            zombieMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.8, 0.4);
-            zombie.material = zombieMaterial;
-
-            this.zombies.push({
-                mesh: zombie,
-                physics: zombieAggregate,
-                speed: 2 + Math.random() * 2 // Random speed between 2 and 4
-            });
-        }
-
-        // PERFORMANCE FIX: Disabled duplicate zombie behavior loop
-        // Zombies are updated through their own ZombieBehaviour system
-        // this.scene.onBeforeRenderObservable.add(() => {
-        //     this.updateZombies();
-        // });
+    setZombieSystem(zombieSystem) {
+        this.zombieBehaviour = zombieSystem;
+        this.zombies = zombieSystem.zombies || [];
     }
 
     updateZombies() {
@@ -658,23 +628,12 @@ export class BehavioralSim {
 
     calculateSeparation(agent) {
         const separationForce = new BABYLON.Vector3(0, 0, 0);
-        let neighborCount = 0;
 
-        this.agents.forEach(other => {
-            if (other !== agent) {
-                const distance = BABYLON.Vector3.Distance(
-                    agent.mesh.position,
-                    other.mesh.position
-                );
-
-                if (distance < agent.flockingParams.separationRadius) {
-                    const away = agent.mesh.position.subtract(other.mesh.position);
-                    away.normalize();
-                    away.scaleInPlace(1 / Math.max(0.1, distance)); // Stronger force when closer
-                    separationForce.addInPlace(away);
-                    neighborCount++;
-                }
-            }
+        const neighborCount = this._forEachNeighbor(agent, agent.flockingParams.separationRadius, (other, distance) => {
+            const away = agent.mesh.position.subtract(other.mesh.position);
+            away.normalize();
+            away.scaleInPlace(1 / Math.max(0.1, distance)); // Stronger force when closer
+            separationForce.addInPlace(away);
         });
 
         if (neighborCount > 0) {
@@ -683,10 +642,16 @@ export class BehavioralSim {
         return separationForce;
     }
 
-    calculateAlignment(agent) {
-        const averageVelocity = new BABYLON.Vector3(0, 0, 0);
-        let neighborCount = 0;
-
+    /**
+     * Helper: Iterate over neighbors within radius and apply callback
+     * @param {Object} agent - Reference agent
+     * @param {number} radius - Neighbor detection radius
+     * @param {Function} callback - Called for each neighbor (receives other, distance)
+     * @returns {number} - Count of neighbors found
+     * @private
+     */
+    _forEachNeighbor(agent, radius, callback) {
+        let count = 0;
         this.agents.forEach(other => {
             if (other !== agent) {
                 const distance = BABYLON.Vector3.Distance(
@@ -694,12 +659,21 @@ export class BehavioralSim {
                     other.mesh.position
                 );
 
-                if (distance < agent.flockingParams.alignmentRadius) {
-                    const velocity = other.physics.body.getLinearVelocity();
-                    averageVelocity.addInPlace(velocity);
-                    neighborCount++;
+                if (distance < radius) {
+                    callback(other, distance);
+                    count++;
                 }
             }
+        });
+        return count;
+    }
+
+    calculateAlignment(agent) {
+        const averageVelocity = new BABYLON.Vector3(0, 0, 0);
+
+        const neighborCount = this._forEachNeighbor(agent, agent.flockingParams.alignmentRadius, (other) => {
+            const velocity = other.physics.body.getLinearVelocity();
+            averageVelocity.addInPlace(velocity);
         });
 
         if (neighborCount > 0) {
@@ -711,20 +685,9 @@ export class BehavioralSim {
 
     calculateCohesion(agent) {
         const centerOfMass = new BABYLON.Vector3(0, 0, 0);
-        let neighborCount = 0;
 
-        this.agents.forEach(other => {
-            if (other !== agent) {
-                const distance = BABYLON.Vector3.Distance(
-                    agent.mesh.position,
-                    other.mesh.position
-                );
-
-                if (distance < agent.flockingParams.cohesionRadius) {
-                    centerOfMass.addInPlace(other.mesh.position);
-                    neighborCount++;
-                }
-            }
+        const neighborCount = this._forEachNeighbor(agent, agent.flockingParams.cohesionRadius, (other) => {
+            centerOfMass.addInPlace(other.mesh.position);
         });
 
         if (neighborCount > 0) {

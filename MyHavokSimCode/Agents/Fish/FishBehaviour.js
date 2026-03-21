@@ -82,7 +82,7 @@ export class FishBehaviour {
         });
     }
 
-    getNewTarget(fish) {
+    getNewTarget(_fish) {
         const angle = Math.random() * Math.PI * 2;
         const radius = Math.random() * this.schoolRadius;
         const height = this.minDepth + Math.random() * (this.maxDepth - this.minDepth);

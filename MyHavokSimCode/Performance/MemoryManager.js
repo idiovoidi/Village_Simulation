@@ -3,6 +3,8 @@
  * Handles memory optimization through pooling, cleanup scheduling, and leak detection
  */
 
+import { FormatUtils } from '../utils/FormatUtils.js';
+
 export class MemoryManager {
     constructor(scene, memoryMonitor = null) {
         this.scene = scene;
@@ -352,7 +354,7 @@ export class MemoryManager {
 
         if (disposedCount > 0) {
             console.log(`Cleanup cycle completed: ${disposedCount} resources disposed, `
-                       + `${this.formatBytes(reclaimedMemory)} reclaimed in ${duration.toFixed(2)}ms`);
+                       + `${FormatUtils.formatBytes(reclaimedMemory)} reclaimed in ${duration.toFixed(2)}ms`);
         }
     }
 
@@ -676,16 +678,10 @@ export class MemoryManager {
     }
 
     /**
-     * Format bytes to human readable format
+     * Format bytes to human readable format (delegates to FormatUtils)
      */
     formatBytes(bytes) {
-        if (bytes === 0) return '0 B';
-
-        const k = 1024;
-        const sizes = ['B', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-        return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+        return FormatUtils.formatBytes(bytes);
     }
 
     /**

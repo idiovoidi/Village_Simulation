@@ -1,6 +1,7 @@
 import { BowlCreator } from '../BowlCreator.js';
 import { VillagerBehaviour } from '../Villagers/VillagerBehaviour.js';
 import { ZombieBehaviour } from './Zombies/ZombieBehaviour.js';
+import { TerrainUtils } from '../utils/TerrainUtils.js';
 
 export class SpawnSystem {
     constructor(scene) {
@@ -202,7 +203,7 @@ export class SpawnSystem {
 
         // Check slope
         const slopeThreshold = isFallback ? 0.8 : 0.5;
-        if (!this.isTerrainSlopeAcceptable(x, z, slopeThreshold)) {
+        if (!TerrainUtils.isTerrainSlopeAcceptable(x, z, slopeThreshold, BowlCreator.getTerrainHeight.bind(BowlCreator))) {
             return false;
         }
 
@@ -216,84 +217,23 @@ export class SpawnSystem {
         }
 
         // Check for obstacles using raycast
-        const rayStart = new BABYLON.Vector3(x, y + 5, z);
-        const rayEnd = new BABYLON.Vector3(x, y - 1, z);
-        const ray = new BABYLON.Ray(rayStart, rayEnd.subtract(rayStart).normalize(), 6);
-
-        const hit = this.scene.pickWithRay(ray);
-        if (hit.hit && hit.pickedMesh && hit.pickedMesh.id !== 'terrain') {
+        if (TerrainUtils.hasObstacles(this.scene, x, y, z)) {
             return false;
         }
 
         return true;
     }
 
-    isTerrainSlopeAcceptable(x, z, threshold) {
-        const sampleDistance = 0.5;
-        const centerHeight = BowlCreator.getTerrainHeight(x, z);
-
-        // Sample heights in a cross pattern
-        const samples = [
-            BowlCreator.getTerrainHeight(x + sampleDistance, z),
-            BowlCreator.getTerrainHeight(x - sampleDistance, z),
-            BowlCreator.getTerrainHeight(x, z + sampleDistance),
-            BowlCreator.getTerrainHeight(x, z - sampleDistance)
-        ];
-
-        // Check max slope difference
-        for (const height of samples) {
-            if (Math.abs(height - centerHeight) > threshold) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
     findLeastCrowdedPosition(existingPoints, maxRadius, minDistance, minRadius = 0) {
-        let bestPosition = null;
-        let maxMinDistance = 0;
-
-        // Grid search for position with maximum minimum distance to existing points
-        const gridSize = 20;
-        const stepSize = maxRadius * 2 / gridSize;
-
-        for (let i = 0; i < gridSize; i++) {
-            for (let j = 0; j < gridSize; j++) {
-                const x = -maxRadius + i * stepSize;
-                const z = -maxRadius + j * stepSize;
-
-                // Check if position is within allowed radius range
-                const distanceFromCenter = Math.sqrt(x * x + z * z);
-                if (distanceFromCenter < minRadius || distanceFromCenter > maxRadius) {
-                    continue;
-                }
-
-                // Skip if terrain is not suitable
-                if (!this.isTerrainSlopeAcceptable(x, z, 1.0)) {
-                    continue;
-                }
-
-                let minDistanceToExisting = Infinity;
-                const position = new BABYLON.Vector3(
-                    x,
-                    BowlCreator.getTerrainHeight(x, z),
-                    z
-                );
-
-                for (const point of existingPoints) {
-                    const distance = BABYLON.Vector3.Distance(position, point);
-                    minDistanceToExisting = Math.min(minDistanceToExisting, distance);
-                }
-
-                if (minDistanceToExisting > maxMinDistance) {
-                    maxMinDistance = minDistanceToExisting;
-                    bestPosition = position;
-                }
+        return TerrainUtils.findLeastCrowdedPosition(
+            existingPoints,
+            maxRadius,
+            BowlCreator.getTerrainHeight.bind(BowlCreator),
+            {
+                minRadius,
+                isValidPosition: (x, z) => this.isTerrainSlopeAcceptable(x, z, 1.0)
             }
-        }
-
-        return bestPosition;
+        );
     }
 
     createVillager(position) {

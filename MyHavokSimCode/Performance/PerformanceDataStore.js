@@ -3,6 +3,8 @@
  * Handles storage, retrieval, and analysis of historical performance metrics
  */
 
+import { FormatUtils } from '../utils/FormatUtils.js';
+
 export class PerformanceDataStore {
     constructor(options = {}) {
         // Configuration
@@ -740,21 +742,15 @@ export class PerformanceDataStore {
         const jsonString = JSON.stringify(this.metrics);
         return {
             bytes: jsonString.length * 2, // Rough estimate (UTF-16)
-            formatted: this.formatBytes(jsonString.length * 2)
+            formatted: FormatUtils.formatBytes(jsonString.length * 2)
         };
     }
 
     /**
-     * Format bytes to human readable format
+     * Format bytes to human readable format (delegates to FormatUtils)
      */
     formatBytes(bytes) {
-        if (bytes === 0) return '0 B';
-
-        const k = 1024;
-        const sizes = ['B', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-        return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+        return FormatUtils.formatBytes(bytes);
     }
 
     /**

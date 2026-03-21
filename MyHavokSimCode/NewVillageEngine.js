@@ -13,6 +13,7 @@ import {
 } from './core/ErrorHandling.js';
 import { SimulationSetup } from './core/SimulationSetup.js';
 import { PerformanceOptimizer } from './Performance/PerformanceOptimizer.js';
+import { CameraUtils } from './utils/CameraUtils.js';
 
 export class VillageEngine {
     constructor(canvas) {
@@ -141,22 +142,10 @@ export class VillageEngine {
    */
     createCamera() {
         try {
-            const camera = new BABYLON.ArcRotateCamera(
-                'Camera',
-                Math.PI / 1.5,
-                Math.PI / 4,
-                50,
-                new BABYLON.Vector3(0, 0, 0),
-                this.scene
-            );
-
-            camera.attachControl(this.canvas, true);
-            camera.lowerRadiusLimit = 10;
-            camera.upperRadiusLimit = 100;
-            camera.wheelPrecision = 10;
-            camera.pinchPrecision = 50;
-
-            return camera;
+            return CameraUtils.createDefaultCamera(this.scene, this.canvas, {
+                wheelPrecision: 10,
+                pinchPrecision: 50
+            });
         } catch (error) {
             throw new SimulationError(`Failed to create camera: ${error.message}`);
         }

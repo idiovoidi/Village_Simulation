@@ -1,4 +1,5 @@
 import { BowlCreator } from '../BowlCreator.js';
+import { TerrainUtils } from '../utils/TerrainUtils.js';
 
 export class RockSystem {
     constructor(scene) {
@@ -418,12 +419,7 @@ export class RockSystem {
         }
 
         // Check for obstacles using raycast
-        const rayStart = new BABYLON.Vector3(x, y + 5, z);
-        const rayEnd = new BABYLON.Vector3(x, y - 1, z);
-        const ray = new BABYLON.Ray(rayStart, rayEnd.subtract(rayStart).normalize(), 6);
-
-        const hit = this.scene.pickWithRay(ray);
-        if (hit.hit && hit.pickedMesh && hit.pickedMesh.id !== 'terrain') {
+        if (TerrainUtils.hasObstacles(this.scene, x, y, z)) {
             return false;
         }
 
@@ -431,62 +427,18 @@ export class RockSystem {
     }
 
     isTerrainSlopeAcceptable(x, z, threshold) {
-        const sampleDistance = 0.5;
-        const centerHeight = BowlCreator.getTerrainHeight(x, z);
-
-        // Sample heights in a cross pattern
-        const samples = [
-            BowlCreator.getTerrainHeight(x + sampleDistance, z),
-            BowlCreator.getTerrainHeight(x - sampleDistance, z),
-            BowlCreator.getTerrainHeight(x, z + sampleDistance),
-            BowlCreator.getTerrainHeight(x, z - sampleDistance)
-        ];
-
-        // Check max slope difference
-        for (const height of samples) {
-            if (Math.abs(height - centerHeight) > threshold) {
-                return false;
-            }
-        }
-
-        return true;
+        return TerrainUtils.isTerrainSlopeAcceptable(x, z, threshold, BowlCreator.getTerrainHeight.bind(BowlCreator));
     }
 
     findLeastCrowdedPosition(existingRocks) {
-        let bestPosition = null;
-        let maxMinDistance = 0;
-
-        // Grid search for position with maximum minimum distance to other rocks
-        const gridSize = 20;
-        const stepSize = this.safeSpawnRadius * 2 / gridSize;
-
-        for (let i = 0; i < gridSize; i++) {
-            for (let j = 0; j < gridSize; j++) {
-                const x = -this.safeSpawnRadius + i * stepSize;
-                const z = -this.safeSpawnRadius + j * stepSize;
-
-                // Skip if terrain is not suitable
-                if (!this.isTerrainSlopeAcceptable(x, z, 1.0)) {
-                    continue;
-                }
-
-                let minDistance = Infinity;
-                for (const rock of existingRocks) {
-                    const distance = BABYLON.Vector3.Distance(
-                        new BABYLON.Vector3(x, BowlCreator.getTerrainHeight(x, z), z),
-                        rock.position
-                    );
-                    minDistance = Math.min(minDistance, distance);
-                }
-
-                if (minDistance > maxMinDistance) {
-                    maxMinDistance = minDistance;
-                    bestPosition = new BABYLON.Vector3(x, 0, z);
-                }
+        return TerrainUtils.findLeastCrowdedPosition(
+            existingRocks,
+            this.safeSpawnRadius,
+            BowlCreator.getTerrainHeight.bind(BowlCreator),
+            {
+                isValidPosition: (x, z) => this.isTerrainSlopeAcceptable(x, z, 1.0)
             }
-        }
-
-        return bestPosition;
+        );
     }
 
     dispose() {

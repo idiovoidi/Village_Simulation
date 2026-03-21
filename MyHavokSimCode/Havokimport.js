@@ -13,6 +13,7 @@ import { DogBehaviour } from './Agents/Dogs/DogBehaviour.js';
 import { LevelConfig } from './LevelSystem/LevelConfig.js';
 import { LevelSelector } from './LevelSystem/LevelSelector.js';
 import { WorldClock } from './UI/WorldClock.js';
+import { CameraUtils } from './utils/CameraUtils.js';
 import { RTSIntegrationHelper } from './UI/RTSIntegrationHelper.js';
 import { VillageEngine } from './NewVillageEngine.js';
 import { VillagerBehaviour } from './Agents/Villagers/VillagerBehaviour.js';
@@ -151,17 +152,7 @@ export class LeoScene {
             });
 
             // Set up camera
-            const camera = new BABYLON.ArcRotateCamera(
-                'Camera',
-                Math.PI / 1.5,
-                Math.PI / 4,
-                50,
-                new BABYLON.Vector3(0, 0, 0),
-                this.scene
-            );
-            camera.attachControl(this.canvas, true);
-            camera.lowerRadiusLimit = 10;
-            camera.upperRadiusLimit = 100;
+            const camera = CameraUtils.createDefaultCamera(this.scene, this.canvas);
 
             // Add lighting
             const light = new BABYLON.HemisphericLight(

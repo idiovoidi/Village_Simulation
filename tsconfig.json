@@ -35,6 +35,7 @@
   "include": [
     "MyHavokSimCode/**/*.ts",
     "MyHavokSimCode/**/*.js",
+    "ecs-rebuild/**/*.ts",
     "assets/**/*.ts",
     "types/**/*.d.ts"
   ],
@@ -47,7 +48,6 @@
     "coverage",
     "docs",
     "memory-bank",
-    "ecs-rebuild",
     "MyHavokSimCode/Performance/tests/**",
     "**/*.test.ts",
     "**/*.test.js",

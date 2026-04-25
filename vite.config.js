@@ -4,7 +4,7 @@ import { resolve } from 'path';
 export default defineConfig({
   root: '.',
   publicDir: 'assets',
-  
+
   server: {
     port: 3000,
     open: true,
@@ -12,7 +12,7 @@ export default defineConfig({
       overlay: true
     }
   },
-  
+
   build: {
     outDir: 'dist',
     sourcemap: true,
@@ -31,19 +31,23 @@ export default defineConfig({
       ]
     }
   },
-  
+
   resolve: {
     alias: {
-      '@': resolve(__dirname, './MyHavokSimCode')
+      '@': resolve(__dirname, './MyHavokSimCode'),
+      '@ecs': resolve(__dirname, './ecs-rebuild/src')
     }
   },
-  
+
   // Handle TypeScript
   esbuild: {
     target: 'es2020',
-    format: 'esm'
+    format: 'esm',
+    loader: {
+      '.ts': 'ts'
+    }
   },
-  
+
   optimizeDeps: {
     exclude: [
       'babylon.js',

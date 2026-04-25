@@ -129,12 +129,12 @@
 
 ---
 
-## Phase 10: Navigation (PENDING ⏳)
+## Phase 10: Navigation (COMPLETED ✅)
 
 | # | Item | Status | Source File |
 |---|------|--------|-------------|
-| 10.1 | NavigationMesh | ⏳ Pending | MyHavokSimCode/Navigation/NavigationMesh.js |
-| 10.2 | Pathfinding utilities | ⏳ Pending | MyHavokSimCode/Navigation/ |
+| 10.1 | NavigationMesh | ✅ Done | ecs-rebuild/src/systems/navigation/NavigationMesh.ts |
+| 10.2 | Pathfinding utilities | ✅ Done | Already in PathfindingManager |
 
 ---
 

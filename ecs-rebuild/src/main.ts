@@ -1,68 +1,79 @@
 /**
- * Main entry point for the TypeScript ECS Village Simulation
+ * Main Entry Point for ECS Rebuild
  *
- * This file initializes the application and starts the simulation.
+ * This is the main entry point for the TypeScript-refactored village simulation.
+ * It initializes the Babylon.js scene, Havok Physics, and all ECS systems.
+ *
+ * Ported from MyHavokSimCode/Havokimport.js
  */
 
-import { GameManager } from './managers/GameManager';
-import { Logger } from './utils/Logger';
+import { GameManager } from './managers/GameManager.js';
 
-const logger = new Logger();
+console.log('📦 main.ts loaded');
 
-// Wait for DOM to be ready
-window.addEventListener('DOMContentLoaded', async () => {
-  logger.info('Main', 'DOM loaded, initializing simulation...');
+// Get canvas element
+const canvas = document.getElementById('renderCanvas') as HTMLCanvasElement;
 
+if (!canvas) {
+  throw new Error('Canvas element not found');
+}
+
+console.log('✓ Canvas found');
+
+// Create and initialize the game manager
+const gameManager = new GameManager(canvas);
+
+console.log('✓ GameManager created');
+
+// Initialize and start the simulation
+async function startSimulation() {
   try {
-    // Get canvas element
-    const canvas = document.getElementById('renderCanvas') as HTMLCanvasElement;
-    if (!canvas) {
-      throw new Error('Canvas element not found');
-    }
+    console.log('%c🎮 Starting 3D Village Simulation (ECS Rebuild)', 'background: #2196F3; color: white; font-size: 16px; padding: 10px;');
+    console.log('📍 Calling gameManager.initialize()...');
 
-    // Hide loading screen after initialization
-    const loadingElement = document.getElementById('loading');
-
-    // Create and initialize game manager
-    const gameManager = new GameManager(canvas);
-    
-    logger.info('Main', 'Initializing game systems...');
     await gameManager.initialize();
-    
-    logger.info('Main', 'Starting simulation...');
+
+    console.log('✓ gameManager.initialize() completed');
+
+    // Start the game loop
+    console.log('📍 Calling gameManager.start()...');
     gameManager.start();
+    console.log('✓ gameManager.start() completed');
 
     // Hide loading screen
-    if (loadingElement) {
-      loadingElement.style.display = 'none';
+    const loading = document.getElementById('loadingScreen');
+    if (loading) {
+      loading.style.display = 'none';
     }
 
-    logger.info('Main', 'Simulation started successfully!');
-
-    // Handle window resize
-    window.addEventListener('resize', () => {
-      gameManager.getRenderer().getEngine()?.resize();
-    });
-
-    // Expose game manager for debugging
-    (window as any).gameManager = gameManager;
-    logger.info('Main', 'Game manager available at window.gameManager');
-
+    console.log('%c✅ Simulation started successfully!', 'color: #4CAF50; font-size: 14px;');
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error('Main', 'Failed to initialize simulation', errorMessage);
-    
-    // Show error to user
-    const loadingElement = document.getElementById('loading');
-    if (loadingElement) {
-      loadingElement.innerHTML = `
-        <h2>Error Loading Simulation</h2>
-        <p style="color: #ff6b6b;">${errorMessage}</p>
-        <p>Check the console for more details (F12)</p>
-        <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; cursor: pointer;">
-          Reload
-        </button>
-      `;
+    console.error('%c❌ Failed to start simulation:', 'color: #F44336; font-size: 14px;', error);
+
+    // Show error screen
+    const loadingScreen = document.getElementById('loadingScreen');
+    const errorScreen = document.getElementById('errorScreen');
+    const errorMessage = document.getElementById('errorMessage');
+
+    if (loadingScreen) loadingScreen.style.display = 'none';
+    if (errorScreen) errorScreen.style.display = 'flex';
+    if (errorMessage) {
+      errorMessage.innerHTML = `<p><strong>Error:</strong> ${error instanceof Error ? error.message : 'Unknown error'}</p>
+                               <p><strong>Stack:</strong></p>
+                               <pre>${error instanceof Error ? error.stack || 'No stack trace available' : 'No stack trace available'}</pre>`;
     }
   }
-});
+}
+
+// Wait for DOM to be ready
+console.log('📍 DOM readyState:', document.readyState);
+if (document.readyState === 'loading') {
+  console.log('📍 Waiting for DOMContentLoaded...');
+  document.addEventListener('DOMContentLoaded', startSimulation);
+} else {
+  console.log('📍 DOM already ready, starting simulation...');
+  startSimulation();
+}
+
+// Export for debugging
+export { gameManager };

@@ -21,12 +21,9 @@ server.register(cors, {
 
 // Register static file serving
 server.register(staticFiles, {
-    root: path.join(__dirname),
+    root: path.join(__dirname, 'ecs-rebuild'),
     prefix: '/',
-    index: ['index.html'],
-    ignore: (file) => {
-        return file.includes('ecs-rebuild');
-    }
+    index: ['index.html']
 });
 
 // SSE endpoint for hot reload (no extra dependencies needed!)
@@ -97,9 +94,8 @@ function notifyReload(filename = null) {
  */
 function setupFileWatcher() {
     const watchPaths = [
-        'MyHavokSimCode',
-        'assets',
-        'index.html'
+        'ecs-rebuild',
+        'assets'
     ];
     
     let debounceTimer = null;

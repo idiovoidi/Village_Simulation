@@ -212,7 +212,7 @@ export class GameManager {
 
     // Physics System (200-299)
     const physicsSystem = new PhysicsSystem(this.world);
-    await physicsSystem.initializePhysics(havokInstance);
+    await physicsSystem.initializePhysics(havokInstance, this.renderer.getScene());
     this.world.registerSystem(physicsSystem);
     console.log('  ✓ PhysicsSystem (Priority: 200)');
 

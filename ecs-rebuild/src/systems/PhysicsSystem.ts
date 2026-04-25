@@ -1,7 +1,7 @@
 /**
  * PhysicsSystem
  * 
- * Manages Havok Physics integration for the ECS.
+ * Manages Havok Physics integration for the ECS using Babylon.js PhysicsAggregate.
  * Handles physics body creation, synchronization, and cleanup.
  * 
  * Requirements: 8.1, 8.2, 8.3, 8.7
@@ -22,29 +22,6 @@ import type {
 import { PhysicsBodyType, PhysicsShapeType } from '../components/PhysicsComponents.ts';
 
 /**
- * Havok Physics types (loaded from CDN)
- */
-interface HavokPhysics {
-  HP_BodyId: any;
-  HP_ShapeId: any;
-  HP_World_Create: (config: any) => any;
-  HP_World_Step: (world: any, deltaTime: number) => void;
-  HP_World_Release: (world: any) => void;
-  HP_Body_Create: (world: any, config: any) => any;
-  HP_Body_Release: (world: any, bodyId: any) => void;
-  HP_Body_GetPosition: (world: any, bodyId: any) => Float32Array;
-  HP_Body_SetPosition: (world: any, bodyId: any, position: Float32Array) => void;
-  HP_Body_GetLinearVelocity: (world: any, bodyId: any) => Float32Array;
-  HP_Body_SetLinearVelocity: (world: any, bodyId: any, velocity: Float32Array) => void;
-  HP_Shape_CreateBox: (halfExtents: Float32Array) => any;
-  HP_Shape_CreateSphere: (radius: number) => any;
-  HP_Shape_CreateCapsule: (radius: number, height: number) => any;
-  HP_Shape_Release: (shapeId: any) => void;
-  HP_World_CastRay: (world: any, origin: Float32Array, direction: Float32Array, maxDistance: number) => any;
-  HP_Body_SetCollisionFilterInfo: (world: any, bodyId: any, group: number, mask: number) => void;
-}
-
-/**
  * Raycast result interface.
  */
 export interface RaycastResult {
@@ -56,11 +33,11 @@ export interface RaycastResult {
 }
 
 /**
- * PhysicsSystem manages Havok Physics simulation.
+ * PhysicsSystem manages Havok Physics simulation using Babylon.js integration.
  * 
  * Responsibilities:
- * - Initialize Havok Physics engine
- * - Create physics bodies for entities with PhysicsBody components
+ * - Initialize Havok Physics plugin on the Babylon scene
+ * - Create physics aggregates for entities with PhysicsBody components
  * - Synchronize physics body positions to Position components
  * - Handle physics body cleanup on entity destruction
  * - Process collision events
@@ -69,10 +46,10 @@ export class PhysicsSystem extends System {
   readonly componentSignature = new Set(['PhysicsBody', 'Position']);
   readonly priority = 200; // Physics systems priority
 
-  private havok: HavokPhysics | null = null;
-  private physicsWorld: any = null;
-  private entityToBodyMap: Map<EntityId, any> = new Map();
-  private bodyToEntityMap: Map<any, EntityId> = new Map();
+  private scene: any = null; // Babylon.Scene
+  private havokInstance: any = null; // Havok instance
+  private entityToAggregateMap: Map<EntityId, any> = new Map();
+  private entityToMeshMap: Map<EntityId, any> = new Map();
   private initialized = false;
   private collisionPairs: Map<string, boolean> = new Map(); // Track collision pairs
 
@@ -86,21 +63,33 @@ export class PhysicsSystem extends System {
    * 
    * Requirement 8.1: Initialize Havok Physics plugin
    */
-  async initializePhysics(havokInstance: HavokPhysics): Promise<void> {
+  async initializePhysics(havokInstance: any, scene: any): Promise<void> {
     if (this.initialized) {
       console.warn('PhysicsSystem already initialized');
       return;
     }
 
-    this.havok = havokInstance;
+    this.havokInstance = havokInstance;
+    this.scene = scene;
 
-    // Create physics world with gravity
-    this.physicsWorld = this.havok.HP_World_Create({
-      gravity: new Float32Array([0, -9.81, 0])
-    });
+    // Enable physics on the scene using HavokPlugin
+    const BABYLON = (window as any).BABYLON;
+    if (typeof BABYLON.HavokPlugin === 'function') {
+      // Newer API (Babylon.js 5.0+)
+      console.log('Using modern Havok Physics API (HavokPlugin)');
+      const havokPlugin = new BABYLON.HavokPlugin(true, this.havokInstance);
+      this.scene.enablePhysics(new BABYLON.Vector3(0, -9.81, 0), havokPlugin);
+    } else if (typeof BABYLON.PhysicsEnginePlugin === 'function') {
+      // Older API
+      console.log('Using legacy Havok Physics API (PhysicsEnginePlugin)');
+      const physicsPlugin = new BABYLON.PhysicsEnginePlugin(this.havokInstance);
+      this.scene.enablePhysics(new BABYLON.Vector3(0, -9.81, 0), physicsPlugin);
+    } else {
+      throw new Error('No compatible Havok Physics API found in Babylon.js');
+    }
 
     this.initialized = true;
-    console.log('PhysicsSystem initialized');
+    console.log('PhysicsSystem initialized with Havok');
   }
 
   /**
@@ -111,15 +100,12 @@ export class PhysicsSystem extends System {
    * - 8.3: Synchronize physics body positions to Position components
    */
   update(deltaTime: number): void {
-    if (!this.initialized || !this.havok || !this.physicsWorld) {
+    if (!this.initialized || !this.scene) {
       return;
     }
 
-    // Create physics bodies for new entities
-    this.createPhysicsBodies();
-
-    // Step physics simulation
-    this.havok.HP_World_Step(this.physicsWorld, deltaTime);
+    // Create physics aggregates for new entities
+    this.createPhysicsAggregates();
 
     // Synchronize physics positions back to ECS components
     this.synchronizePositions();
@@ -129,13 +115,14 @@ export class PhysicsSystem extends System {
   }
 
   /**
-   * Create physics bodies for entities that don't have them yet.
+   * Create physics aggregates for entities that don't have them yet.
    * 
    * Requirement 8.2: Create physics bodies for entities with physics components
    */
-  private createPhysicsBodies(): void {
-    if (!this.havok || !this.physicsWorld) return;
+  private createPhysicsAggregates(): void {
+    if (!this.scene) return;
 
+    const BABYLON = (window as any).BABYLON;
     const entities = this.queryEntities();
 
     for (const entityId of entities) {
@@ -147,98 +134,105 @@ export class PhysicsSystem extends System {
         entityId,
         'Position'
       );
+      const model = this.world.getComponent(entityId, 'Model');
 
       if (!physicsBody || !position) continue;
 
-      // Skip if body already created
-      if (physicsBody.physicsBodyId !== null) continue;
+      // Skip if aggregate already created
+      if (this.entityToAggregateMap.has(entityId)) continue;
 
-      // Create physics shape
-      const shape = this.createPhysicsShape(physicsBody);
-      if (!shape) continue;
-
-      // Create physics body
-      const bodyConfig = {
-        shape,
-        position: new Float32Array([position.x, position.y, position.z]),
-        mass: physicsBody.bodyType === PhysicsBodyType.Static ? 0 : physicsBody.mass,
-        friction: physicsBody.friction,
-        restitution: physicsBody.restitution,
-        linearDamping: physicsBody.linearDamping,
-        angularDamping: physicsBody.angularDamping,
-        motionType: this.getMotionType(physicsBody.bodyType)
-      };
-
-      const bodyId = this.havok.HP_Body_Create(this.physicsWorld, bodyConfig);
-
-      // Store body reference
-      physicsBody.physicsBodyId = bodyId;
-      this.entityToBodyMap.set(entityId, bodyId);
-      this.bodyToEntityMap.set(bodyId, entityId);
-
-      // Set collision filter info
-      if (this.havok.HP_Body_SetCollisionFilterInfo) {
-        this.havok.HP_Body_SetCollisionFilterInfo(
-          this.physicsWorld,
-          bodyId,
-          physicsBody.collisionGroup,
-          physicsBody.collisionMask
-        );
+      // Get the mesh from the Model component
+      const mesh = model?.mesh;
+      if (!mesh) {
+        // Create a simple box mesh for physics if no mesh exists
+        const box = BABYLON.MeshBuilder.CreateBox(`physics_${entityId}`, {
+          width: physicsBody.dimensions.x,
+          height: physicsBody.dimensions.y,
+          depth: physicsBody.dimensions.z
+        }, this.scene);
+        box.position.set(position.x, position.y, position.z);
+        this.entityToMeshMap.set(entityId, box);
+        this.createAggregateForMesh(entityId, physicsBody, box);
+      } else {
+        this.entityToMeshMap.set(entityId, mesh);
+        this.createAggregateForMesh(entityId, physicsBody, mesh);
       }
-
-      // Release shape (body now owns it)
-      this.havok.HP_Shape_Release(shape);
     }
   }
 
   /**
-   * Create a physics shape based on component configuration.
+   * Create a PhysicsAggregate for a mesh.
    */
-  private createPhysicsShape(physicsBody: PhysicsBodyComponent): any {
-    if (!this.havok) return null;
+  private createAggregateForMesh(entityId: EntityId, physicsBody: PhysicsBodyComponent, mesh: any): void {
+    const BABYLON = (window as any).BABYLON;
+    
+    // Get the shape type
+    const shapeType = this.getBabylonShapeType(physicsBody.shapeType);
+    
+    // Get the physics body type
+    const bodyType = this.getBabylonBodyType(physicsBody.bodyType);
 
-    const { shapeType, dimensions } = physicsBody;
+    // Create physics aggregate
+    try {
+      const aggregate = new BABYLON.PhysicsAggregate(
+        mesh,
+        shapeType,
+        {
+          mass: physicsBody.bodyType === PhysicsBodyType.Static ? 0 : physicsBody.mass,
+          friction: physicsBody.friction,
+          restitution: physicsBody.restitution,
+        },
+        this.scene
+      );
 
+      this.entityToAggregateMap.set(entityId, aggregate);
+      
+      // Set collision callback if needed
+      if (aggregate.body) {
+        aggregate.body.setCollisionCallbackEnabled(true);
+      }
+      
+      console.log(`Created PhysicsAggregate for entity ${entityId}`);
+    } catch (error) {
+      console.error(`Failed to create PhysicsAggregate for entity ${entityId}:`, error);
+    }
+  }
+
+  /**
+   * Convert our shape type to Babylon.js shape type.
+   * Uses numeric values since PhysicsShapeType enum may not be available
+   */
+  private getBabylonShapeType(shapeType: PhysicsShapeType): number {
+    // Babylon.js Havok physics shape type values
+    // BOX = 0, SPHERE = 1, CAPSULE = 2, CYLINDER = 3, CONVEX_HULL = 4
     switch (shapeType) {
       case PhysicsShapeType.Box:
-        return this.havok.HP_Shape_CreateBox(
-          new Float32Array([
-            dimensions.x / 2,
-            dimensions.y / 2,
-            dimensions.z / 2
-          ])
-        );
-
+        return 0;
       case PhysicsShapeType.Sphere:
-        // HP_Shape_CreateSphere takes a radius number, not Float32Array
-        return this.havok.HP_Shape_CreateSphere(dimensions.x / 2);
-
-      case PhysicsShapeType.Capsule: {
-        // For now, use a sphere as a fallback for capsules
-        // TODO: Implement proper capsule shape when Havok API is clarified
-        console.warn('Capsule shape not fully supported, using sphere fallback');
-        return this.havok.HP_Shape_CreateSphere(dimensions.x / 2);
-      }
-
+        return 1;
+      case PhysicsShapeType.Capsule:
+        return 2;
       default:
-        console.warn(`Unsupported shape type: ${shapeType}`);
-        return null;
+        return 0; // Default to BOX
     }
   }
 
   /**
-   * Get Havok motion type from physics body type.
+   * Convert our body type to Babylon.js body type.
+   * Uses numeric values since PhysicsBodyType enum may not be available
    */
-  private getMotionType(bodyType: PhysicsBodyType): number {
+  private getBabylonBodyType(bodyType: PhysicsBodyType): number {
+    // Babylon.js Havok physics body type values
+    // STATIC = 0, DYNAMIC = 1, KINEMATIC = 2
     switch (bodyType) {
       case PhysicsBodyType.Static:
-        return 0; // STATIC
+        return 0;
       case PhysicsBodyType.Dynamic:
-        return 1; // DYNAMIC
-      case PhysicsBodyType.Kinematic:
-        return 2; // KINEMATIC
-      default:
         return 1;
+      case PhysicsBodyType.Kinematic:
+        return 2;
+      default:
+        return 1; // Default to DYNAMIC
     }
   }
 
@@ -248,9 +242,9 @@ export class PhysicsSystem extends System {
    * Requirement 8.3: Synchronize physics body positions to Position components
    */
   private synchronizePositions(): void {
-    if (!this.havok || !this.physicsWorld) return;
+    if (!this.scene) return;
 
-    for (const [entityId, bodyId] of this.entityToBodyMap) {
+    for (const [entityId, aggregate] of this.entityToAggregateMap) {
       const position = this.world.getComponent<PositionComponent>(
         entityId,
         'Position'
@@ -259,36 +253,30 @@ export class PhysicsSystem extends System {
         entityId,
         'PhysicsBody'
       );
+      const mesh = this.entityToMeshMap.get(entityId);
 
-      if (!position || !physicsBody) continue;
+      if (!position || !mesh) continue;
 
       // Skip kinematic bodies (they are controlled by game logic)
-      if (physicsBody.isKinematic) continue;
+      if (physicsBody?.isKinematic) continue;
 
-      // Get position from physics body
-      const physicsPosition = this.havok.HP_Body_GetPosition(
-        this.physicsWorld,
-        bodyId
-      );
-
-      // Update ECS position component
-      position.x = physicsPosition[0];
-      position.y = physicsPosition[1];
-      position.z = physicsPosition[2];
+      // Get position from the mesh (which is updated by physics)
+      position.x = mesh.position.x;
+      position.y = mesh.position.y;
+      position.z = mesh.position.z;
 
       // Sync velocity if component exists
       const velocity = this.world.getComponent<VelocityComponent>(
         entityId,
         'Velocity'
       );
-      if (velocity) {
-        const physicsVelocity = this.havok.HP_Body_GetLinearVelocity(
-          this.physicsWorld,
-          bodyId
-        );
-        velocity.vx = physicsVelocity[0];
-        velocity.vy = physicsVelocity[1];
-        velocity.vz = physicsVelocity[2];
+      if (velocity && aggregate?.body) {
+        const linearVelocity = aggregate.body.getLinearVelocity();
+        if (linearVelocity) {
+          velocity.vx = linearVelocity.x;
+          velocity.vy = linearVelocity.y;
+          velocity.vz = linearVelocity.z;
+        }
       }
     }
   }
@@ -395,7 +383,7 @@ export class PhysicsSystem extends System {
    * Requirement 8.6: Implement raycasting for line-of-sight
    */
   raycast(origin: Vector3, direction: Vector3, maxDistance = 1000): RaycastResult {
-    if (!this.havok || !this.physicsWorld) {
+    if (!this.scene) {
       return {
         hit: false,
         entityId: null,
@@ -405,6 +393,8 @@ export class PhysicsSystem extends System {
       };
     }
 
+    const BABYLON = (window as any).BABYLON;
+    
     // Normalize direction
     const length = Math.sqrt(
       direction.x * direction.x +
@@ -417,35 +407,36 @@ export class PhysicsSystem extends System {
       z: direction.z / length
     };
 
-    // Perform raycast
-    if (this.havok.HP_World_CastRay) {
-      const result = this.havok.HP_World_CastRay(
-        this.physicsWorld,
-        new Float32Array([origin.x, origin.y, origin.z]),
-        new Float32Array([normalizedDir.x, normalizedDir.y, normalizedDir.z]),
-        maxDistance
-      );
+    // Perform raycast using Babylon.js
+    const ray = new BABYLON.Ray(
+      new BABYLON.Vector3(origin.x, origin.y, origin.z),
+      new BABYLON.Vector3(normalizedDir.x, normalizedDir.y, normalizedDir.z),
+      maxDistance
+    );
 
-      if (result && result.hit) {
-        const bodyId = result.bodyId;
-        const entityId = this.bodyToEntityMap.get(bodyId) || null;
+    const hitInfo = this.scene.pickWithRay(ray, (mesh: any) => {
+      // Filter: only pick meshes that have physics aggregates
+      return mesh.metadata?.entityId !== undefined;
+    });
 
-        return {
-          hit: true,
-          entityId,
-          position: {
-            x: result.position[0],
-            y: result.position[1],
-            z: result.position[2]
-          },
-          normal: {
-            x: result.normal[0],
-            y: result.normal[1],
-            z: result.normal[2]
-          },
-          distance: result.distance
-        };
-      }
+    if (hitInfo?.hit && hitInfo.pickedMesh) {
+      const entityId = hitInfo.pickedMesh.metadata?.entityId || null;
+      
+      return {
+        hit: true,
+        entityId,
+        position: {
+          x: hitInfo.pickedPoint?.x || 0,
+          y: hitInfo.pickedPoint?.y || 0,
+          z: hitInfo.pickedPoint?.z || 0
+        },
+        normal: {
+          x: hitInfo.getNormal(true)?.x || 0,
+          y: hitInfo.getNormal(true)?.y || 0,
+          z: hitInfo.getNormal(true)?.z || 0
+        },
+        distance: hitInfo.distance || 0
+      };
     }
 
     return {
@@ -461,32 +452,33 @@ export class PhysicsSystem extends System {
    * Set physics body position (for kinematic bodies).
    */
   setBodyPosition(entityId: EntityId, position: Vector3): void {
-    if (!this.havok || !this.physicsWorld) return;
+    const aggregate = this.entityToAggregateMap.get(entityId);
+    const mesh = this.entityToMeshMap.get(entityId);
 
-    const bodyId = this.entityToBodyMap.get(entityId);
-    if (!bodyId) return;
+    if (!aggregate || !mesh) return;
 
-    this.havok.HP_Body_SetPosition(
-      this.physicsWorld,
-      bodyId,
-      new Float32Array([position.x, position.y, position.z])
-    );
+    // For kinematic bodies, directly set the mesh position
+    mesh.position.set(position.x, position.y, position.z);
+    
+    // If we have a physics body, disable physics temporarily
+    if (aggregate.body) {
+      aggregate.body.setMotionType((window as any).BABYLON.PhysicsBodyType.KINEMATIC);
+    }
   }
 
   /**
    * Set physics body velocity.
    */
   setBodyVelocity(entityId: EntityId, velocity: Vector3): void {
-    if (!this.havok || !this.physicsWorld) return;
+    const aggregate = this.entityToAggregateMap.get(entityId);
 
-    const bodyId = this.entityToBodyMap.get(entityId);
-    if (!bodyId) return;
+    if (!aggregate?.body) return;
 
-    this.havok.HP_Body_SetLinearVelocity(
-      this.physicsWorld,
-      bodyId,
-      new Float32Array([velocity.x, velocity.y, velocity.z])
-    );
+    aggregate.body.setLinearVelocity(new (window as any).BABYLON.Vector3(
+      velocity.x,
+      velocity.y,
+      velocity.z
+    ));
   }
 
   /**
@@ -495,17 +487,20 @@ export class PhysicsSystem extends System {
    * Requirement 8.7: Handle physics body cleanup on entity destruction
    */
   cleanupEntity(entityId: EntityId): void {
-    if (!this.havok || !this.physicsWorld) return;
+    const aggregate = this.entityToAggregateMap.get(entityId);
+    const mesh = this.entityToMeshMap.get(entityId);
 
-    const bodyId = this.entityToBodyMap.get(entityId);
-    if (!bodyId) return;
+    if (aggregate) {
+      // Dispose the physics aggregate
+      aggregate.dispose();
+      this.entityToAggregateMap.delete(entityId);
+    }
 
-    // Release physics body
-    this.havok.HP_Body_Release(this.physicsWorld, bodyId);
-
-    // Remove from maps
-    this.entityToBodyMap.delete(entityId);
-    this.bodyToEntityMap.delete(bodyId);
+    if (mesh) {
+      // Optionally dispose the mesh if it was created for physics
+      // mesh.dispose(); // Uncomment if meshes should be disposed
+      this.entityToMeshMap.delete(entityId);
+    }
 
     // Clear body reference in component
     const physicsBody = this.world.getComponent<PhysicsBodyComponent>(
@@ -521,18 +516,12 @@ export class PhysicsSystem extends System {
    * Cleanup all physics resources.
    */
   dispose(): void {
-    if (!this.havok || !this.physicsWorld) return;
-
-    // Clean up all physics bodies
-    for (const entityId of this.entityToBodyMap.keys()) {
+    // Clean up all physics aggregates
+    for (const entityId of this.entityToAggregateMap.keys()) {
       this.cleanupEntity(entityId);
     }
 
-    // Release physics world
-    this.havok.HP_World_Release(this.physicsWorld);
-    this.physicsWorld = null;
     this.initialized = false;
-
     console.log('PhysicsSystem disposed');
   }
 }

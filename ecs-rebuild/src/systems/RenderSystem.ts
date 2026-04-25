@@ -1,6 +1,6 @@
 /**
  * RenderSystem
- * 
+ *
  * Manages mesh creation, transform synchronization, and rendering for entities.
  * Creates meshes for entities with Model components and updates their transforms.
  */
@@ -11,6 +11,13 @@ import type { ComponentSignature } from '../core/Component.ts';
 import type { EntityId } from '../core/Entity.ts';
 import type { ModelComponent } from '../components/RenderingComponents.ts';
 import type { TransformComponent } from '../components/CoreComponents.ts';
+import { VillagerModel } from '../render/models/VillagerModel.js';
+import { ZombieModel } from '../render/models/ZombieModel.js';
+import { FishModel } from '../render/models/FishModel.js';
+import { BirdModel } from '../render/models/BirdModel.js';
+import { DogModel } from '../render/models/DogModel.js';
+import { BoatModel } from '../render/models/BoatModel.js';
+import { DinosaurModel } from '../render/models/DinosaurModel.js';
 
 /**
  * RenderSystem handles mesh creation and transform synchronization.
@@ -21,79 +28,34 @@ export class RenderSystem extends System {
   readonly priority: number = 600;
 
   private scene: any; // Babylon.Scene
-  private meshCache: Map<string, any>; // Cache of loaded meshes by meshId
   private entityMeshMap: Map<EntityId, any>; // Map of entity IDs to mesh instances
+  private modelInstances: Map<string, any> = new Map(); // Model class instances
 
   /**
    * Creates a new RenderSystem.
-   * 
+   *
    * @param world - The world this system operates on
    * @param scene - The Babylon.js scene
    */
   constructor(world: World, scene: any) {
     super(world);
     this.scene = scene;
-    this.meshCache = new Map();
     this.entityMeshMap = new Map();
   }
 
   /**
    * Initializes the render system.
-   * Creates placeholder meshes for common mesh types.
+   * Creates model instances for procedural mesh generation.
    */
   initialize(): void {
-    this.createPlaceholderMeshes();
-  }
-
-  /**
-   * Creates placeholder meshes for testing and fallback.
-   */
-  private createPlaceholderMeshes(): void {
-    const BABYLON = (window as any).BABYLON;
-
-    // Create basic placeholder meshes
-    const placeholders = [
-      { id: 'villager', type: 'box', size: { width: 1, height: 2, depth: 1 } },
-      { id: 'zombie', type: 'box', size: { width: 1, height: 2, depth: 1 } },
-      { id: 'fish', type: 'sphere', size: { diameter: 0.5 } },
-      { id: 'bird', type: 'sphere', size: { diameter: 0.3 } },
-      { id: 'dog', type: 'box', size: { width: 0.8, height: 0.6, depth: 1.2 } },
-      { id: 'boat', type: 'box', size: { width: 2, height: 0.5, depth: 3 } },
-      { id: 'house', type: 'box', size: { width: 4, height: 3, depth: 4 } },
-      { id: 'tree', type: 'cylinder', size: { height: 5, diameter: 1 } }
-    ];
-
-    for (const placeholder of placeholders) {
-      let mesh: any;
-
-      if (placeholder.type === 'box') {
-        const size = placeholder.size as { width: number; height: number; depth: number };
-        mesh = BABYLON.MeshBuilder.CreateBox(
-          placeholder.id,
-          { width: size.width, height: size.height, depth: size.depth },
-          this.scene
-        );
-      } else if (placeholder.type === 'sphere') {
-        const size = placeholder.size as { diameter: number };
-        mesh = BABYLON.MeshBuilder.CreateSphere(
-          placeholder.id,
-          { diameter: size.diameter },
-          this.scene
-        );
-      } else if (placeholder.type === 'cylinder') {
-        const size = placeholder.size as { height: number; diameter: number };
-        mesh = BABYLON.MeshBuilder.CreateCylinder(
-          placeholder.id,
-          { height: size.height, diameter: size.diameter },
-          this.scene
-        );
-      }
-
-      if (mesh) {
-        mesh.isVisible = false; // Hide template mesh
-        this.meshCache.set(placeholder.id, mesh);
-      }
-    }
+    // Initialize model instances
+    this.modelInstances.set('villager', new VillagerModel(this.scene));
+    this.modelInstances.set('zombie', new ZombieModel(this.scene));
+    this.modelInstances.set('fish', new FishModel(this.scene));
+    this.modelInstances.set('bird', new BirdModel(this.scene));
+    this.modelInstances.set('dog', new DogModel(this.scene));
+    this.modelInstances.set('boat', new BoatModel(this.scene));
+    this.modelInstances.set('dinosaur', new DinosaurModel(this.scene));
   }
 
   /**
@@ -136,35 +98,30 @@ export class RenderSystem extends System {
   }
 
   /**
-   * Creates a mesh for an entity.
-   * 
+   * Creates a mesh for an entity using the appropriate model class.
+   *
    * @param entityId - The entity to create a mesh for
    * @param modelComponent - The model component
    */
   private createMeshForEntity(entityId: EntityId, modelComponent: ModelComponent): void {
-    const BABYLON = (window as any).BABYLON;
+    const modelInstance = this.modelInstances.get(modelComponent.meshId);
+    const transformComponent = this.world.getComponent<TransformComponent>(entityId, 'Transform');
 
-    // Get or create mesh from cache
-    let templateMesh = this.meshCache.get(modelComponent.meshId);
-
-    if (!templateMesh) {
-      // Create default box if mesh type not found
-      templateMesh = BABYLON.MeshBuilder.CreateBox(
-        modelComponent.meshId,
-        { size: 1 },
-        this.scene
-      );
-      templateMesh.isVisible = false;
-      this.meshCache.set(modelComponent.meshId, templateMesh);
+    if (!modelInstance) {
+      console.warn(`No model instance found for meshId: ${modelComponent.meshId}`);
+      return;
     }
 
-    // Create instance of the mesh
-    const meshInstance = templateMesh.createInstance(`${modelComponent.meshId}_${entityId}`);
-    meshInstance.isVisible = modelComponent.visible;
+    // Get position from transform component
+    const position = transformComponent?.position ?? { x: 0, y: 0, z: 0 };
 
-    // Store references
-    (modelComponent as any).meshInstance = meshInstance;
-    this.entityMeshMap.set(entityId, meshInstance);
+    // Create mesh using the model class - all use 'create' method
+    const meshParts = (modelInstance as any).create(position);
+
+    // Store the root mesh
+    const rootMesh = meshParts.root || meshParts;
+    (modelComponent as any).meshInstance = rootMesh;
+    this.entityMeshMap.set(entityId, rootMesh);
   }
 
   /**
@@ -237,41 +194,6 @@ export class RenderSystem extends System {
   }
 
   /**
-   * Loads a custom mesh from a file.
-   * 
-   * @param meshId - The identifier for the mesh
-   * @param fileName - The file name to load
-   * @param rootUrl - The root URL for the file (default: '/models/')
-   * @returns Promise that resolves when the mesh is loaded
-   */
-  async loadMesh(meshId: string, fileName: string, rootUrl = '/models/'): Promise<void> {
-    const BABYLON = (window as any).BABYLON;
-
-    return new Promise((resolve, reject) => {
-      BABYLON.SceneLoader.ImportMesh(
-        '',
-        rootUrl,
-        fileName,
-        this.scene,
-        (meshes: any[]) => {
-          if (meshes.length > 0) {
-            const mesh = meshes[0];
-            mesh.isVisible = false;
-            this.meshCache.set(meshId, mesh);
-            resolve();
-          } else {
-            reject(new Error(`No meshes found in ${fileName}`));
-          }
-        },
-        null,
-        (_scene: any, message: string) => {
-          reject(new Error(`Failed to load mesh: ${message}`));
-        }
-      );
-    });
-  }
-
-  /**
    * Gets the mesh instance for an entity.
    * 
    * @param entityId - The entity ID
@@ -293,12 +215,12 @@ export class RenderSystem extends System {
     }
     this.entityMeshMap.clear();
 
-    // Dispose template meshes
-    for (const [_meshId, mesh] of this.meshCache) {
-      if (mesh && mesh.dispose) {
-        mesh.dispose();
+    // Dispose model instances
+    for (const [_modelId, model] of this.modelInstances) {
+      if (model && model.dispose) {
+        model.dispose();
       }
     }
-    this.meshCache.clear();
+    this.modelInstances.clear();
   }
 }

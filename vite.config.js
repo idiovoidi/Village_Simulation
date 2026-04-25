@@ -43,21 +43,7 @@ export default defineConfig({
   // Handle TypeScript with esbuild
   esbuild: {
     target: 'es2020',
-    format: 'esm',
-    loader: {
-      '.ts': 'ts'
-    },
-    tsconfigRaw: {
-      compilerOptions: {
-        target: 'ES2020',
-        module: 'ESNext',
-        moduleResolution: 'bundler',
-        allowImportingTsExtensions: true,
-        noEmit: true,
-        strict: true,
-        skipLibCheck: true
-      }
-    }
+    format: 'esm'
   },
 
   optimizeDeps: {

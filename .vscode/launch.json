@@ -2,6 +2,32 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "type": "chrome",
+      "request": "launch",
+      "name": "🔍 Debug ECS Rebuild (Chrome)",
+      "url": "http://localhost:5174",
+      "webRoot": "${workspaceFolder}/ecs-rebuild",
+      "preLaunchTask": "Start ECS Dev Server",
+      "console": "internalConsole",
+      "skipFiles": [
+        "<node_internals>/**",
+        "**/node_modules/**"
+      ]
+    },
+    {
+      "type": "msedge",
+      "request": "launch",
+      "name": "🔍 Debug ECS Rebuild (Edge)",
+      "url": "http://localhost:5174",
+      "webRoot": "${workspaceFolder}/ecs-rebuild",
+      "preLaunchTask": "Start ECS Dev Server",
+      "console": "internalConsole",
+      "skipFiles": [
+        "<node_internals>/**",
+        "**/node_modules/**"
+      ]
+    },
+    {
       "type": "node",
       "request": "launch",
       "name": "⚡ Vite + HMR (F5 Ready)",

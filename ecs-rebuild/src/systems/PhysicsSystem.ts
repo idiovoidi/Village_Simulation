@@ -210,13 +210,14 @@ export class PhysicsSystem extends System {
         );
 
       case PhysicsShapeType.Sphere:
-        return this.havok.HP_Shape_CreateSphere(new Float32Array([dimensions.x / 2, 0, 0]));
+        // HP_Shape_CreateSphere takes a radius number, not Float32Array
+        return this.havok.HP_Shape_CreateSphere(dimensions.x / 2);
 
       case PhysicsShapeType.Capsule: {
         // For now, use a sphere as a fallback for capsules
         // TODO: Implement proper capsule shape when Havok API is clarified
         console.warn('Capsule shape not fully supported, using sphere fallback');
-        return this.havok.HP_Shape_CreateSphere(new Float32Array([dimensions.x / 2, 0, 0]));
+        return this.havok.HP_Shape_CreateSphere(dimensions.x / 2);
       }
 
       default:

@@ -2,8 +2,8 @@ import { defineConfig } from 'vite';
 import { resolve } from 'path';
 
 export default defineConfig({
-  root: '.',
-  publicDir: 'assets',
+  root: './ecs-rebuild',
+  publicDir: '../assets',
 
   server: {
     port: 3000,
@@ -14,11 +14,11 @@ export default defineConfig({
   },
 
   build: {
-    outDir: 'dist',
+    outDir: '../dist',
     sourcemap: true,
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'index.html')
+        main: resolve(__dirname, 'ecs-rebuild/index.html')
       },
       // Don't bundle these - they're loaded from CDN
       external: [

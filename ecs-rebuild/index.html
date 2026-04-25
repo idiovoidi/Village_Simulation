@@ -32,7 +32,7 @@
 </head>
 <body>
   <canvas id="renderCanvas"></canvas>
-  <div id="loading">
+  <div id="loadingScreen">
     <h2>Loading 3D Village Simulation...</h2>
     <p>Initializing ECS systems...</p>
   </div>
@@ -42,7 +42,26 @@
   <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
   <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
   <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+  <script>
+    // Log when Havok is loaded
+    console.log('Loading Havok Physics...');
+  </script>
   <script src="https://cdn.babylonjs.com/havok/HavokPhysics_umd.js"></script>
+  <script>
+    // Verify Havok is loaded
+    console.log('Havok script loaded, checking...');
+    if (typeof HavokPhysics !== 'undefined') {
+      console.log('✅ HavokPhysics global is available');
+    } else {
+      console.log('❌ HavokPhysics global NOT found');
+    }
+  </script>
+  
+  <!-- Error screen (hidden by default) -->
+  <div id="errorScreen" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: white; background: rgba(200, 0, 0, 0.8); padding: 20px; border-radius: 10px;">
+    <h2>Error Starting Simulation</h2>
+    <div id="errorMessage"></div>
+  </div>
   
   <!-- Load application -->
   <script type="module" src="/src/main.ts"></script>

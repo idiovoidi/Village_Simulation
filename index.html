@@ -105,11 +105,16 @@
     </div>
     
     <script type="module">
+        console.log(' HTML script tag executing');
+
         // Import HMR client
         import { hmrClient } from './hmr-client.js';
+        console.log(' hmrClient imported');
 
         // Import ECS Rebuild entry point (auto-initializes the simulation)
+        console.log(' Attempting to import ecs-rebuild/src/main.js...');
         import './ecs-rebuild/src/main.js';
+        console.log(' Import completed');
     </script>
 </body>
 </html>

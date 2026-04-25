@@ -70,38 +70,54 @@ export class GameManager {
    * Initializes all systems and starts the simulation.
    */
   async initialize(): Promise<void> {
-    this.logger.info('GameManager', 'Initializing systems...');
+    console.log('%c🚀 GameManager.initialize() started', 'color: #2196F3; font-size: 16px; font-weight: bold;');
 
     try {
       // Initialize renderer first
+      console.log('📍 Step 1: Initializing renderer...');
       await this.renderer.initialize();
-      this.logger.info('GameManager', 'Renderer initialized');
+      console.log('✅ Step 1: Renderer initialized');
 
       // Now create managers that need the scene
+      console.log('📍 Step 2: Creating camera and lighting managers...');
       this.cameraManager = new CameraManager(this.renderer.getScene(), this.renderer.getCanvas());
       this.lightingManager = new LightingManager(this.renderer.getScene());
+      console.log('✅ Step 2: Camera and lighting managers created');
 
       // Initialize Havok Physics
+      console.log('📍 Step 3: Initializing Havok Physics...');
       const havokInstance = await this.initializeHavok();
-      this.logger.info('GameManager', 'Havok Physics initialized');
+      console.log('✅ Step 3: Havok Physics initialized');
 
       // Register systems in priority order
+      console.log('📍 Step 4: Registering systems...');
       await this.registerSystems(havokInstance);
+      console.log('✅ Step 4: Systems registered');
 
       // Create world entities
+      console.log('📍 Step 5: Creating world entities...');
       this.createWorldEntities();
+      console.log('✅ Step 5: World entities created');
 
       // Create some test entities
+      console.log('📍 Step 6: Creating test entities...');
       this.createTestEntities();
+      console.log('✅ Step 6: Test entities created');
 
       // Initialize camera
+      console.log('📍 Step 7: Initializing camera...');
       this.cameraManager.initialize();
+      console.log('✅ Step 7: Camera initialized');
 
       // Initialize lighting
+      console.log('📍 Step 8: Initializing lighting...');
       this.lightingManager.initialize();
+      console.log('✅ Step 8: Lighting initialized');
 
+      console.log('%c🎉 All systems initialized successfully!', 'color: #4CAF50; font-size: 16px; font-weight: bold;');
       this.logger.info('GameManager', 'All systems initialized successfully');
     } catch (error) {
+      console.error('%c❌ GameManager.initialize() failed:', 'color: #F44336; font-size: 14px;', error);
       this.logger.error('GameManager', 'Failed to initialize systems', error);
       throw error;
     }
@@ -109,23 +125,52 @@ export class GameManager {
 
   /**
    * Initializes Havok Physics.
+   * Uses the global HavokPhysics function from CDN.
    */
   private async initializeHavok(): Promise<any> {
+    console.log('%c🔧 Initializing Havok Physics...', 'color: #FF5722; font-size: 14px;');
+    
     return new Promise((resolve, reject) => {
+      // Check for global HavokPhysics function (defined by CDN script)
       const checkHavok = () => {
-        if ((window as any).HavokPhysics) {
-          (window as any).HavokPhysics().then(resolve).catch(reject);
+        // Use the global HavokPhysics function (not window.HavokPhysics)
+        const havokFn = (window as any).HavokPhysics || (globalThis as any).HavokPhysics;
+        
+        if (typeof havokFn === 'function') {
+          console.log('%c✅ HavokPhysics function found', 'color: #4CAF50; font-size: 14px;');
+          havokFn().then((instance: any) => {
+            console.log('%c✅ Havok Physics initialized successfully', 'color: #4CAF50; font-size: 14px;');
+            resolve(instance);
+          }).catch((err: any) => {
+            console.error('%c❌ Havok Physics promise rejected:', 'color: #F44336; font-size: 14px;', err);
+            reject(err);
+          });
         } else {
+          console.log('⏳ Waiting for HavokPhysics...');
           setTimeout(checkHavok, 100);
         }
       };
 
-      // Timeout after 10 seconds
-      setTimeout(() => {
-        if (!(window as any).HavokPhysics) {
-          reject(new Error('Havok Physics failed to load from CDN'));
+      // Timeout after 15 seconds
+      const timeout = setTimeout(() => {
+        const havokFn = (window as any).HavokPhysics || (globalThis as any).HavokPhysics;
+        if (typeof havokFn !== 'function') {
+          console.error('%c❌ Havok Physics failed to load from CDN - timeout', 'color: #F44336; font-size: 14px;');
+          reject(new Error('Havok Physics failed to load from CDN - timeout after 15s'));
         }
-      }, 10000);
+      }, 15000);
+
+      // Override resolve/reject to clear timeout
+      const originalResolve = resolve;
+      const originalReject = reject;
+      resolve = (value: any) => {
+        clearTimeout(timeout);
+        originalResolve(value);
+      };
+      reject = (reason: any) => {
+        clearTimeout(timeout);
+        originalReject(reason);
+      };
 
       checkHavok();
     });

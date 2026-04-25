@@ -4,7 +4,7 @@
   "type": "module",
   "description": "TypeScript ECS rebuild of 3D Village Simulation",
   "main": "src/main.ts",
-  "packageManager": "npm@11.3.0",
+  "packageManager": "pnpm@9.0.0",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

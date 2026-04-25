@@ -123,7 +123,7 @@ This implementation plan converts the ESLint and TypeScript migration design int
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 8. Convert system-level components
-  - [ ] 8.1 Convert MyHavokSimCode/systems/ directory
+  - [ ] 8.1 Convert MyHavokSimCode/Systems/ directory
     - Convert core simulation systems to TypeScript
     - Add proper interfaces for system configuration and state
     - _Requirements: 3.3_

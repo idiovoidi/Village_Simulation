@@ -133,7 +133,7 @@ class MigrationOrchestrator {
 **Migration Phases**:
 1. **Core Utilities** (`MyHavokSimCode/Utilities/`, `MyHavokSimCode/core/`)
 2. **Infrastructure** (`AssetManager.js`, build configuration files)
-3. **Systems** (`MyHavokSimCode/systems/`, level system, performance monitoring)
+3. **Systems** (`MyHavokSimCode/Systems/`, level system, performance monitoring)
 4. **Agents** (`MyHavokSimCode/Agents/` - complex behavioral systems)
 
 ### Build System Integration Component
@@ -226,7 +226,7 @@ const ESLintConfig = {
     "paths": {
       "@core/*": ["MyHavokSimCode/core/*"],
       "@agents/*": ["MyHavokSimCode/Agents/*"],
-      "@systems/*": ["MyHavokSimCode/systems/*"]
+      "@systems/*": ["MyHavokSimCode/Systems/*"]
     }
   },
   "include": [
@@ -304,7 +304,7 @@ interface BabylonTypeConfig {
   },
   customTypes: {
     agentTypes: "MyHavokSimCode/types/agents.d.ts",
-    systemTypes: "MyHavokSimCode/types/systems.d.ts",
+    systemTypes: "MyHavokSimCode/types/Systems.d.ts",
     environmentTypes: "MyHavokSimCode/types/environment.d.ts"
   }
 }

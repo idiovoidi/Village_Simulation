@@ -65,7 +65,7 @@ You can set breakpoints in:
 - **Server code**: `server.js`, `dev-server.js`, `launch-with-browser.js`
 - **Client code**: Use browser DevTools (F12) for JavaScript debugging
   - Main entry: `MyHavokSimCode/Havokimport.js`
-  - Systems: `MyHavokSimCode/core/`, `MyHavokSimCode/systems/`
+  - Systems: `MyHavokSimCode/core/`, `MyHavokSimCode/Systems/`
   - Agents: `MyHavokSimCode/Agents/`
 
 ### Debugging Workflow
@@ -106,7 +106,7 @@ You can set breakpoints in:
     ├── Havokimport.js          # Scene initialization
     ├── core/                    # Core systems
     ├── Agents/                  # AI agents
-    └── systems/                 # Game systems
+    └── Systems/                 # Game systems
 ```
 
 ## Troubleshooting

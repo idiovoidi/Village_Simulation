@@ -28,7 +28,7 @@
     "paths": {
       "@core/*": ["MyHavokSimCode/core/*"],
       "@agents/*": ["MyHavokSimCode/Agents/*"],
-      "@systems/*": ["MyHavokSimCode/systems/*"]
+      "@systems/*": ["MyHavokSimCode/Systems/*"]
     },
     "typeRoots": ["./node_modules/@types", "./types"]
   },

@@ -36,15 +36,27 @@ export default defineConfig({
     alias: {
       '@': resolve(__dirname, './MyHavokSimCode'),
       '@ecs': resolve(__dirname, './ecs-rebuild/src')
-    }
+    },
+    extensions: ['.ts', '.js', '.json']
   },
 
-  // Handle TypeScript
+  // Handle TypeScript with esbuild
   esbuild: {
     target: 'es2020',
     format: 'esm',
     loader: {
       '.ts': 'ts'
+    },
+    tsconfigRaw: {
+      compilerOptions: {
+        target: 'ES2020',
+        module: 'ESNext',
+        moduleResolution: 'bundler',
+        allowImportingTsExtensions: true,
+        noEmit: true,
+        strict: true,
+        skipLibCheck: true
+      }
     }
   },
 

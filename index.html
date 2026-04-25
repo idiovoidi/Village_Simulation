@@ -107,85 +107,9 @@
     <script type="module">
         // Import HMR client
         import { hmrClient } from './hmr-client.js';
-        
-        // Import our scene class
-        import { LeoScene } from './MyHavokSimCode/Havokimport.js';
 
-        // Define global BowlCreator for height queries
-        window.BowlCreator = { 
-            getTerrainHeight: (x, z) => {
-                // Default implementation - will be overridden after initialization
-                return 0;
-            }
-        };
-        
-        // Wait for the page to load
-        window.addEventListener('DOMContentLoaded', async () => {
-            const loadingScreen = document.getElementById('loadingScreen');
-            const errorScreen = document.getElementById('errorScreen');
-            const errorMessage = document.getElementById('errorMessage');
-            
-            try {
-                // Get the canvas element
-                const canvas = document.getElementById('renderCanvas');
-                
-                // Show loading screen
-                loadingScreen.style.display = 'flex';
-                
-                // Make sure Babylon is loaded
-                if (typeof BABYLON === 'undefined') {
-                    throw new Error("Babylon.js not loaded. Check your internet connection and try again.");
-                }
-                
-                // Make sure Havok is loaded
-                if (typeof HavokPhysics === 'undefined') {
-                    throw new Error("Havok Physics not loaded. Check your internet connection and try again.");
-                }
-                
-                // Create our scene
-                let scene = null;
-                try {
-                    scene = new LeoScene(canvas);
-                    
-                    // Set a timeout to hide the loading screen even if scene.executeWhenReady doesn't fire
-                    const loadingTimeout = setTimeout(() => {
-                        loadingScreen.style.display = 'none';
-                    }, 10000); // 10 seconds timeout
-                    
-                    // Handle window resize
-                    window.addEventListener('resize', () => {
-                        if (scene && scene.engine) {
-                            scene.engine.resize();
-                        }
-                    });
-                    
-                    // Use a safer approach to hide loading screen when scene is ready
-                    if (scene && scene.scene && typeof scene.scene.executeWhenReady === 'function') {
-                        scene.scene.executeWhenReady(() => {
-                            clearTimeout(loadingTimeout);
-                            loadingScreen.style.display = 'none';
-                            console.log("Scene is ready");
-                        });
-                    } else {
-                        console.log("Scene or executeWhenReady not available, using timeout fallback");
-                        // The timeout set above will handle hiding the loading screen
-                    }
-                } catch (initError) {
-                    console.error("Error creating scene instance:", initError);
-                    throw initError;
-                }
-            } catch (error) {
-                console.error("Error initializing scene:", error);
-                
-                // Show error screen with detailed information
-                loadingScreen.style.display = 'none';
-                errorScreen.style.display = 'flex';
-                errorMessage.innerHTML = `<p><strong>Error:</strong> ${error.message}</p>
-                                        <p><strong>Stack:</strong></p>
-                                        <pre>${error.stack || 'No stack trace available'}</pre>
-                                        <p>Please check the console for more details (F12).</p>`;
-            }
-        });
+        // Import ECS Rebuild entry point (auto-initializes the simulation)
+        import './ecs-rebuild/src/main.js';
     </script>
 </body>
 </html>

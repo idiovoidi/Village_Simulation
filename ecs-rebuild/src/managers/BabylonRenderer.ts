@@ -40,25 +40,11 @@ export class BabylonRenderer {
     // Create engine with WebGL/WebGPU context
     const BABYLON = (window as any).BABYLON;
     
-    // Try WebGPU first, fall back to WebGL
-    try {
-      const webGPUSupported = await BABYLON.WebGPUEngine.IsSupportedAsync;
-      if (webGPUSupported) {
-        this.engine = new BABYLON.WebGPUEngine(this.canvas);
-        await this.engine.initAsync();
-      } else {
-        this.engine = new BABYLON.Engine(this.canvas, true, {
-          preserveDrawingBuffer: true,
-          stencil: true
-        });
-      }
-    } catch (error) {
-      // Fall back to WebGL
-      this.engine = new BABYLON.Engine(this.canvas, true, {
-        preserveDrawingBuffer: true,
-        stencil: true
-      });
-    }
+    // Use WebGL directly (WebGPU can have initialization issues)
+    this.engine = new BABYLON.Engine(this.canvas, true, {
+      preserveDrawingBuffer: true,
+      stencil: true
+    });
 
     // Create scene
     this.scene = new BABYLON.Scene(this.engine);

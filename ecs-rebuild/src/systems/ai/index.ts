@@ -9,7 +9,8 @@ export { PathfindingSystem } from './PathfindingSystem';
 export { FlockingSystem } from './FlockingSystem';
 export { DecisionSystem } from './DecisionSystem';
 export { VillagerScheduleSystem } from './VillagerScheduleSystem';
-export { ZombieBehaviorSystem } from './ZombieBehaviorSystem';
+export { VillagerBehaviorSystem, type PointOfInterest, type VillagerBehaviorConfig } from './VillagerBehaviorSystem';
+export { ZombieBehaviorSystem, type ZombieBehaviorConfig } from './ZombieBehaviorSystem';
 export { ThreatAssessmentSystem } from './ThreatAssessmentSystem';
 
 // Creature behavior systems

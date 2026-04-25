@@ -18,6 +18,17 @@ export interface VillagerComponent extends Component {
   home: number | null; // Entity ID of home
   workplace: number | null; // Entity ID of workplace
   socialGroup: number[]; // Entity IDs of social connections
+  // POI and behavior state
+  currentPOI: string | null; // Current point of interest ID
+  targetPosition: { x: number; y: number; z: number } | null;
+  speed: number;
+  isInsideHome: boolean;
+  // Fleeing
+  isFleeing: boolean;
+  fleeTarget: { x: number; y: number; z: number } | null;
+  // Task
+  currentTask: string | null;
+  taskTimer: number;
 }
 
 /**
@@ -31,6 +42,26 @@ export interface ZombieComponent extends Component {
   detectionRadius: number;
   attackCooldown: number;
   attackDamage: number;
+  // Lurge mechanic
+  isLurging: boolean;
+  lurgeTimer: number;
+  lurgeDuration: number;
+  lurgeChance: number;
+  lurgeSpeedMultiplier: number;
+  lurgeDirection: { x: number; y: number; z: number } | null;
+  // Movement
+  speed: number;
+  minSpeed: number;
+  maxSpeed: number;
+  // Shambling sway
+  swayOffset: number;
+  swayAmount: number;
+  // Suspicious state
+  suspiciousTimer: number | null;
+  // Path blocking
+  lastRaycastResult: boolean;
+  // Wander target
+  targetPosition: { x: number; y: number; z: number } | null;
 }
 
 /**
@@ -142,7 +173,15 @@ export function createVillagerComponent(
     profession,
     home: null,
     workplace: null,
-    socialGroup: []
+    socialGroup: [],
+    currentPOI: null,
+    targetPosition: null,
+    speed: 2 + Math.random(),
+    isInsideHome: false,
+    isFleeing: false,
+    fleeTarget: null,
+    currentTask: null,
+    taskTimer: 0
   };
 }
 
@@ -151,13 +190,35 @@ export function createZombieComponent(
   detectionRadius = 20,
   attackDamage = 10
 ): ZombieComponent {
+  const minSpeed = 0.02;
+  const maxSpeed = 0.05;
   return {
     type: 'Zombie',
     aggressionLevel,
     targetEntity: null,
     detectionRadius,
     attackCooldown: 0,
-    attackDamage
+    attackDamage,
+    // Lurge
+    isLurging: false,
+    lurgeTimer: 0,
+    lurgeDuration: 1.0,
+    lurgeChance: 0.02,
+    lurgeSpeedMultiplier: 4.0,
+    lurgeDirection: null,
+    // Movement
+    speed: minSpeed + Math.random() * (maxSpeed - minSpeed),
+    minSpeed,
+    maxSpeed,
+    // Shambling
+    swayOffset: Math.random() * Math.PI * 2,
+    swayAmount: 0.3,
+    // Suspicious
+    suspiciousTimer: null,
+    // Path blocking
+    lastRaycastResult: false,
+    // Wander target
+    targetPosition: null
   };
 }
 

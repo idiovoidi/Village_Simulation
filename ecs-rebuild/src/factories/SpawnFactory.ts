@@ -101,7 +101,6 @@ export class SpawnFactory {
     existingPoints: SpawnPosition[] = []
   ): SpawnPosition | null {
     const config = this.getConfig(type);
-    const BABYLON = (window as any).BABYLON;
 
     // Try primary spawn zone
     const position = this.findSafePosition(

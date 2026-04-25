@@ -13,6 +13,7 @@ export {
   type AnimationCallback
 } from './AnimationController';
 
+// Humanoid animations
 export {
   VillagerAnimation,
   createVillagerAnimation,
@@ -20,7 +21,39 @@ export {
 } from './VillagerAnimation';
 
 export {
+  ZombieAnimation,
+  createZombieAnimation,
+  type ZombieParts
+} from './ZombieAnimation';
+
+// Animal animations
+export {
   BirdAnimation,
   createBirdAnimation,
   type BirdParts
 } from './BirdAnimation';
+
+export {
+  DogAnimation,
+  createDogAnimation,
+  type DogParts
+} from './DogAnimation';
+
+export {
+  FishAnimation,
+  createFishAnimation,
+  type FishParts
+} from './FishAnimation';
+
+export {
+  DinosaurAnimation,
+  createDinosaurAnimation,
+  type DinosaurParts
+} from './DinosaurAnimation';
+
+// Vehicle animations
+export {
+  BoatAnimation,
+  createBoatAnimation,
+  type BoatParts
+} from './BoatAnimation';

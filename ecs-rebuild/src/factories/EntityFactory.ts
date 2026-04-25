@@ -40,6 +40,7 @@ import {
   createBirdComponent,
   createDogComponent,
   createBoatComponent,
+  createDinosaurComponent,
   createFlockComponent
 } from '../components/CreatureComponents';
 
@@ -378,6 +379,50 @@ export class EntityFactory {
       PhysicsShapeType.Box,
       500,
       { x: 2, y: 1, z: 4 }
+    ));
+
+    return entity;
+  }
+
+  /**
+   * Creates a dinosaur entity with aggressive behavior.
+   *
+   * @param config - Configuration for the dinosaur
+   * @returns Entity ID of the created dinosaur
+   */
+  createDinosaur(config: EntityConfig = {}): EntityId {
+    const position = config.position ?? { x: 0, y: 0, z: 0 };
+    const species = (config.species as string) ?? 'generic';
+    const size = (config.size as number) ?? 3;
+
+    const entity = this.world.createEntity();
+
+    // Core components
+    this.world.addComponent(entity, createPositionComponent(position.x, position.y, position.z));
+    this.world.addComponent(entity, createVelocityComponent(0, 0, 0, 4));
+    this.world.addComponent(entity, createHealthComponent(200, 200, 0.05));
+    this.world.addComponent(entity, createTransformComponent(position));
+    this.world.addComponent(entity, createActiveComponent(true));
+
+    // AI components
+    this.world.addComponent(entity, createAIBehaviourComponent(BehaviourState.Wander));
+    this.world.addComponent(entity, createSteeringComponent(12, 2));
+    this.world.addComponent(entity, createMemoryComponent(30, 120));
+
+    // Creature component
+    this.world.addComponent(entity, createDinosaurComponent(species, size));
+
+    // Rendering components
+    this.world.addComponent(entity, createModelComponent('dinosaur', 0, true));
+    this.world.addComponent(entity, createAnimationStateComponent('walk', 1.0, true));
+    this.world.addComponent(entity, createVisualComponent({ r: 0.4, g: 0.5, b: 0.3 }, 1.0));
+
+    // Physics components
+    this.world.addComponent(entity, createPhysicsBodyComponent(
+      PhysicsBodyType.Dynamic,
+      PhysicsShapeType.Capsule,
+      500,
+      { x: 1, y: 2, z: 1 }
     ));
 
     return entity;

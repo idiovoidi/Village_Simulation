@@ -10,6 +10,7 @@ export * from './Logger';
 export * from './SpatialGrid';
 export * from './EventBus';
 export * from './ColorHelpers';
+export * from './MaterialHelpers';
 
 // Export GeometryHelpers with namespace to avoid conflicts with Vector3Helpers
 export {

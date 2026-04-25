@@ -1,5 +1,4 @@
 import { ZombieModel } from './ZombieModel.js';
-import { ZombieBehaviour } from './ZombieBehaviour.js';
 import { handleAgentError, measurePerformance, throttle } from '../../core/ErrorHandlers.js';
 
 export class ZombieAgent {

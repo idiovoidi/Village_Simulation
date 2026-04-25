@@ -55,6 +55,16 @@ export {
   type AnimationCallback,
   VillagerAnimation,
   createVillagerAnimation,
+  ZombieAnimation,
+  createZombieAnimation,
   BirdAnimation,
-  createBirdAnimation
+  createBirdAnimation,
+  DogAnimation,
+  createDogAnimation,
+  FishAnimation,
+  createFishAnimation,
+  DinosaurAnimation,
+  createDinosaurAnimation,
+  BoatAnimation,
+  createBoatAnimation
 } from './animation';

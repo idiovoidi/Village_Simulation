@@ -74,17 +74,7 @@ export class ZombieBehaviour {
                 position.y = this._getTerrainHeight(position.x, position.z);
 
                 // Create zombie agent with shared configuration
-                const zombie = new ZombieAgent(this.scene, {
-                    position,
-                    initialState: 'idle',
-                    groupId: g,
-                    minSpeed: this.config.speed.min,
-                    maxSpeed: this.config.speed.max,
-                    lurgeSpeedMultiplier: this.config.speed.lurgeMultiplier,
-                    lurgeChance: this.config.lurge.chance,
-                    lurgeDuration: this.config.lurge.duration,
-                    swayAmount: 0.2 + Math.random() * 0.2 // Vary the shamble amount
-                });
+                const zombie = this._createZombieAgent(position, g);
 
                 // Add to our managed zombies collection
                 this.zombies.push(zombie);
@@ -269,16 +259,7 @@ export class ZombieBehaviour {
         }
 
         // Create new zombie
-        const zombie = new ZombieAgent(this.scene, {
-            position: position || this._getRandomPosition(),
-            initialState: 'idle',
-            groupId: targetGroupId,
-            minSpeed: this.config.speed.min,
-            maxSpeed: this.config.speed.max,
-            lurgeSpeedMultiplier: this.config.speed.lurgeMultiplier,
-            lurgeChance: this.config.lurge.chance,
-            lurgeDuration: this.config.lurge.duration
-        });
+        const zombie = this._createZombieAgent(position || this._getRandomPosition(), targetGroupId);
 
         // Add metadata for RTS UI
         if (zombie.mesh) {
@@ -304,6 +285,27 @@ export class ZombieBehaviour {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Helper: Create a zombie agent with standard configuration
+     * @param {BABYLON.Vector3} position - Spawn position
+     * @param {number} groupId - Group ID for the zombie
+     * @returns {ZombieAgent} - Configured zombie agent
+     * @private
+     */
+    _createZombieAgent(position, groupId) {
+        return new ZombieAgent(this.scene, {
+            position,
+            initialState: 'idle',
+            groupId,
+            minSpeed: this.config.speed.min,
+            maxSpeed: this.config.speed.max,
+            lurgeSpeedMultiplier: this.config.speed.lurgeMultiplier,
+            lurgeChance: this.config.lurge.chance,
+            lurgeDuration: this.config.lurge.duration,
+            swayAmount: 0.2 + Math.random() * 0.2
+        });
     }
 
     dispose() {

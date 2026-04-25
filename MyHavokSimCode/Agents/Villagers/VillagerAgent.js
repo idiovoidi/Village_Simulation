@@ -1,20 +1,6 @@
 import { BasicAgent } from '../BasicAgent.js';
 import { VillagerModel } from './VillagerModel.js';
-
-// Error handling decorator
-function ErrorDecorator(target, propertyKey, descriptor) {
-    const originalMethod = descriptor.value;
-    descriptor.value = function (...args) {
-        try {
-            return originalMethod.apply(this, args);
-        } catch (error) {
-            console.error(`Error in ${propertyKey}:`, error);
-            // Return a fallback or default value if appropriate
-            return null;
-        }
-    };
-    return descriptor;
-}
+import { ErrorDecorator } from '../../utils/Decorators.js';
 
 export class VillagerAgent {
     constructor(scene) {

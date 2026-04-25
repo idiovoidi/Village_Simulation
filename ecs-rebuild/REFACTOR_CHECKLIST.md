@@ -120,12 +120,12 @@
 
 ---
 
-## Phase 9: Effects (PENDING ⏳)
+## Phase 9: Effects (COMPLETED ✅)
 
 | # | Item | Status | Source File |
 |---|------|--------|-------------|
-| 9.1 | BloodDecalManager | ⏳ Pending | MyHavokSimCode/Effects/BloodDecalManager.js |
-| 9.2 | Visual effects system | ⏳ Pending | MyHavokSimCode/Effects/ |
+| 9.1 | BloodDecalManager → EffectsSystem | ✅ Done | ecs-rebuild/src/systems/effects/EffectsSystem.ts |
+| 9.2 | Visual effects system | ✅ Done | Integrated into EffectsSystem |
 
 ---
 
@@ -175,15 +175,15 @@
 
 ## Summary
 
-- **Completed**: 46 items
-- **Pending**: 27 items
+- **Completed**: 54 items
+- **Pending**: 19 items
 - **Total**: 73 items
-- **Progress**: 63%
+- **Progress**: 74%
 
 ---
 
 ## Next Steps
 
-1. Start Phase 6: Environment Systems
-2. Fix TypeScript compilation errors
-3. Test in browser
+1. Fix TypeScript compilation errors (~31 errors)
+2. Test in browser
+3. Complete remaining phases (Navigation, Performance, UI)

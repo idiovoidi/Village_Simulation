@@ -104,6 +104,8 @@ export class RenderSystem extends System {
    * @param modelComponent - The model component
    */
   private createMeshForEntity(entityId: EntityId, modelComponent: ModelComponent): void {
+    console.log(`[RenderSystem] Creating mesh for entity ${entityId} with meshId: ${modelComponent.meshId}`);
+
     const modelInstance = this.modelInstances.get(modelComponent.meshId);
     const transformComponent = this.world.getComponent<TransformComponent>(entityId, 'Transform');
 
@@ -114,12 +116,37 @@ export class RenderSystem extends System {
 
     // Get position from transform component
     const position = transformComponent?.position ?? { x: 0, y: 0, z: 0 };
+    console.log(`[RenderSystem] Position:`, position);
 
-    // Create mesh using the model class - all use 'create' method
-    const meshParts = (modelInstance as any).create(position);
+    // Create mesh using the model class - method names vary
+    let meshParts: any;
+    try {
+      switch (modelComponent.meshId) {
+        case 'villager':
+          console.log(`[RenderSystem] Calling createVillager()`);
+          meshParts = (modelInstance as VillagerModel).createVillager(position);
+          break;
+        case 'zombie':
+        case 'fish':
+        case 'bird':
+        case 'dog':
+        case 'boat':
+        case 'dinosaur':
+          console.log(`[RenderSystem] Calling create() for ${modelComponent.meshId}`);
+          meshParts = (modelInstance as any).create(position);
+          break;
+        default:
+          console.warn(`Unknown mesh type: ${modelComponent.meshId}`);
+          return;
+      }
+    } catch (error) {
+      console.error(`[RenderSystem] Error creating mesh for ${modelComponent.meshId}:`, error);
+      return;
+    }
 
     // Store the root mesh
     const rootMesh = meshParts.root || meshParts;
+    console.log(`[RenderSystem] Root mesh created:`, rootMesh);
     (modelComponent as any).meshInstance = rootMesh;
     this.entityMeshMap.set(entityId, rootMesh);
   }

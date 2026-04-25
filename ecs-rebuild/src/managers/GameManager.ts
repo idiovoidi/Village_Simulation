@@ -217,7 +217,9 @@ export class GameManager {
     console.log('  ✓ PhysicsSystem (Priority: 200)');
 
     // Rendering System (600-699)
-    this.world.registerSystem(new RenderSystem(this.world, this.renderer.getScene()));
+    const renderSystem = new RenderSystem(this.world, this.renderer.getScene());
+    renderSystem.initialize();
+    this.world.registerSystem(renderSystem);
     console.log('  ✓ RenderSystem (Priority: 600)');
 
     console.log(`%c✅ Registered ${this.world.systemCount} ECS Systems`, 'color: #4CAF50; font-size: 14px; font-weight: bold;');
@@ -231,8 +233,42 @@ export class GameManager {
     // Create TimeOfDay entity (singleton)
     const timeEntity = this.world.createEntity();
     this.world.addComponent(timeEntity, createTimeOfDayComponent(6, 0, 1.0));
-    
+
+    // Create ground plane
+    this.createGround();
+
     this.logger.info('GameManager', 'World entities created');
+  }
+
+  /**
+   * Creates a simple ground plane for entities to stand on.
+   */
+  private createGround(): void {
+    const BABYLON = (window as any).BABYLON;
+    const scene = this.renderer.getScene();
+
+    // Create ground mesh
+    const ground = BABYLON.MeshBuilder.CreateGround(
+      'ground',
+      { width: 200, height: 200 },
+      scene
+    );
+
+    // Add ground material
+    const groundMaterial = new BABYLON.StandardMaterial('groundMaterial', scene);
+    groundMaterial.diffuseColor = new BABYLON.Color3(0.3, 0.5, 0.3); // Green grass color
+    groundMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+    ground.material = groundMaterial;
+
+    // Add physics to ground (use numeric value 0 for STATIC)
+    ground.physicsBody = new BABYLON.PhysicsBody(
+      ground,
+      0, // STATIC = 0
+      false,
+      scene
+    );
+
+    console.log('✓ Created ground plane (200x200)');
   }
 
   /**

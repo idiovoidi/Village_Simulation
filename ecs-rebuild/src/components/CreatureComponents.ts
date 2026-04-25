@@ -43,6 +43,10 @@ export interface FishComponent extends Component {
   depthPreference: number;
   swimSpeed: number;
   species: string;
+  // Behavior state
+  timeSinceLastTarget: number;
+  target: { x: number; y: number; z: number } | null;
+  speed: number;
 }
 
 /**
@@ -71,6 +75,28 @@ export interface DogComponent extends Component {
   } | null;
   loyalty: number;
   breed: string;
+  // Behavior state
+  isResting: boolean;
+  restTimer: number;
+  targetPosition: { x: number; y: number; z: number } | null;
+  speed: number;
+}
+
+/**
+ * Dinosaur-specific component.
+ * Represents large reptilian creatures with aggressive behavior.
+ */
+export interface DinosaurComponent extends Component {
+  readonly type: 'Dinosaur';
+  species: string;
+  size: number;
+  // Behavior state
+  isResting: boolean;
+  restTimer: number;
+  targetPosition: { x: number; y: number; z: number } | null;
+  speed: number;
+  lastRoarTime: number;
+  roarInterval: number;
 }
 
 /**
@@ -84,6 +110,8 @@ export interface BoatComponent extends Component {
   capacity: number;
   speed: number;
   boatType: string;
+  // Navigation state
+  targetPoint: { x: number; y: number; z: number } | null;
 }
 
 /**
@@ -142,7 +170,10 @@ export function createFishComponent(
     schoolId: null,
     depthPreference: -5,
     swimSpeed,
-    species
+    species,
+    timeSinceLastTarget: 0,
+    target: null,
+    speed: 0.05 + Math.random() * 0.05
   };
 }
 
@@ -167,7 +198,11 @@ export function createDogComponent(breed = 'generic'): DogComponent {
     owner: null,
     territory: null,
     loyalty: 1.0,
-    breed
+    breed,
+    isResting: false,
+    restTimer: 0,
+    targetPosition: null,
+    speed: 0.15
   };
 }
 
@@ -182,7 +217,25 @@ export function createBoatComponent(
     destination: null,
     capacity,
     speed,
-    boatType
+    boatType,
+    targetPoint: null
+  };
+}
+
+export function createDinosaurComponent(
+  species = 'generic',
+  size = 3
+): DinosaurComponent {
+  return {
+    type: 'Dinosaur',
+    species,
+    size,
+    isResting: false,
+    restTimer: 0,
+    targetPosition: null,
+    speed: 0.2,
+    lastRoarTime: 0,
+    roarInterval: 5000 + Math.random() * 5000
   };
 }
 

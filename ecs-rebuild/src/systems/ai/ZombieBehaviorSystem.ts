@@ -59,7 +59,6 @@ export class ZombieBehaviorSystem extends System {
 
   private spatialGrid: SpatialGrid;
   private config: ZombieBehaviorConfig;
-  private _villagerEntities: EntityId[] = [];
   private lastLurgeCheck: Map<EntityId, number> = new Map();
 
   constructor(world: World, spatialGrid?: SpatialGrid, config?: Partial<ZombieBehaviorConfig>) {
@@ -74,7 +73,6 @@ export class ZombieBehaviorSystem extends System {
 
   update(deltaTime: number): void {
     this.updateSpatialGrid();
-    this.updateVillagerList();
 
     const zombies = this.queryEntities();
     for (const zombieId of zombies) {
@@ -91,10 +89,6 @@ export class ZombieBehaviorSystem extends System {
         this.spatialGrid.insert(entityId, position);
       }
     }
-  }
-
-  private updateVillagerList(): void {
-    this._villagerEntities = this.world.query(new Set(['Villager', 'Position']));
   }
 
   /**

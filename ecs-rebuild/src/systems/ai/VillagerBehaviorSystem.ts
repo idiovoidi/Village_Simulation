@@ -66,7 +66,6 @@ export class VillagerBehaviorSystem extends System {
   private spatialGrid: SpatialGrid;
   private config: VillagerBehaviorConfig;
   private pointsOfInterest: PointOfInterest[] = [];
-  private _zombieEntities: EntityId[] = [];
 
   constructor(world: World, spatialGrid?: SpatialGrid, config?: Partial<VillagerBehaviorConfig>) {
     super(world);
@@ -122,7 +121,6 @@ export class VillagerBehaviorSystem extends System {
 
   update(deltaTime: number): void {
     this.updateSpatialGrid();
-    this.updateZombieList();
 
     const villagers = this.queryEntities();
     for (const villagerId of villagers) {
@@ -139,10 +137,6 @@ export class VillagerBehaviorSystem extends System {
         this.spatialGrid.insert(entityId, position);
       }
     }
-  }
-
-  private updateZombieList(): void {
-    this._zombieEntities = this.world.query(new Set(['Zombie', 'Position']));
   }
 
   /**
@@ -304,7 +298,7 @@ export class VillagerBehaviorSystem extends System {
     position: PositionComponent,
     velocity: VelocityComponent,
     steering: SteeringComponent,
-    deltaTime: number
+    _deltaTime: number
   ): void {
     // Find nearby villagers
     const nearbyEntities = this.spatialGrid.query(position, this.config.socialRadius);

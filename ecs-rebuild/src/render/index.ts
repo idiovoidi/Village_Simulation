@@ -7,19 +7,44 @@
  * @module render
  */
 
-// Models
+// Models - Humanoids
 export {
   VillagerModel,
   createVillagerModel,
   type VillagerParts,
-  type VillagerConfig
+  type VillagerConfig,
+  ZombieModel,
+  createZombieModel,
+  type ZombieParts,
+  type ZombieConfig
 } from './models';
 
+// Models - Animals
 export {
   BirdModel,
   createBirdModel,
   type BirdParts,
-  type BirdConfig
+  type BirdConfig,
+  DogModel,
+  createDogModel,
+  type DogParts,
+  type DogConfig,
+  FishModel,
+  createFishModel,
+  type FishParts,
+  type FishConfig,
+  DinosaurModel,
+  createDinosaurModel,
+  type DinosaurParts,
+  type DinosaurConfig
+} from './models';
+
+// Models - Vehicles
+export {
+  BoatModel,
+  createBoatModel,
+  type BoatParts,
+  type BoatConfig
 } from './models';
 
 // Animation
@@ -27,15 +52,9 @@ export {
   AnimationController,
   createAnimationController,
   type AnimationState,
-  type AnimationCallback
-} from './animation';
-
-export {
+  type AnimationCallback,
   VillagerAnimation,
-  createVillagerAnimation
-} from './animation';
-
-export {
+  createVillagerAnimation,
   BirdAnimation,
   createBirdAnimation
 } from './animation';

@@ -671,7 +671,7 @@ export class BehavioralSim {
     calculateAlignment(agent) {
         const averageVelocity = new BABYLON.Vector3(0, 0, 0);
 
-        const neighborCount = this._forEachNeighbor(agent, agent.flockingParams.alignmentRadius, (other) => {
+        const neighborCount = this._forEachNeighbor(agent, agent.flockingParams.alignmentRadius, other => {
             const velocity = other.physics.body.getLinearVelocity();
             averageVelocity.addInPlace(velocity);
         });
@@ -686,7 +686,7 @@ export class BehavioralSim {
     calculateCohesion(agent) {
         const centerOfMass = new BABYLON.Vector3(0, 0, 0);
 
-        const neighborCount = this._forEachNeighbor(agent, agent.flockingParams.cohesionRadius, (other) => {
+        const neighborCount = this._forEachNeighbor(agent, agent.flockingParams.cohesionRadius, other => {
             centerOfMass.addInPlace(other.mesh.position);
         });
 

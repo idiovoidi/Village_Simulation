@@ -370,15 +370,14 @@ export class ZombieModel {
                     // BODY BOBBING - vertical movement matching gait
                     // Get current terrain Y (set by movement code before animate() called)
                     const terrainY = this.mesh.position.y;
-                    
+
                     const bobFrequency = baseSpeed * 0.4;
                     const bobAmplitude = isLurching ? 0.15 : 0.08;
                     const bobOffset = Math.sin(this.animState.time * bobFrequency) * bobAmplitude;
                     const shambleBob = Math.cos(this.animState.time * bobFrequency * 2.3) * (bobAmplitude * 0.5);
-                    
+
                     // Apply bob as offset to terrain height (reset each frame from movement)
                     this.mesh.position.y = terrainY + bobOffset + shambleBob + Math.abs(twitchIntensity * 0.05);
-
                 } else {
                     // IDLE STANCE - minimal movement, arms hang
                     if (this.arms.left) {
@@ -431,13 +430,13 @@ export class ZombieModel {
             head.rotation.x = headTiltBase + Math.sin(this.animState.time * headSpeed * 0.6) * 0.15 + twitchIntensity * 0.3;
 
             // Horizontal searching motion
-            head.rotation.y = Math.sin(this.animState.time * headSpeed * 0.4) * 0.25 +
-                             Math.cos(this.animState.time * headSpeed * 0.25) * 0.15 +
-                             twitchIntensity * 0.2;
+            head.rotation.y = Math.sin(this.animState.time * headSpeed * 0.4) * 0.25
+                             + Math.cos(this.animState.time * headSpeed * 0.25) * 0.15
+                             + twitchIntensity * 0.2;
 
             // Slight head tilt (z-axis) for instability
-            head.rotation.z = Math.sin(this.animState.time * headSpeed * 0.35) * 0.1 +
-                             twitchIntensity * 0.15;
+            head.rotation.z = Math.sin(this.animState.time * headSpeed * 0.35) * 0.1
+                             + twitchIntensity * 0.15;
         }
 
         // Animate blood drips slower for creepier effect

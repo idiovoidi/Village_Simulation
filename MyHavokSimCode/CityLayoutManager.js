@@ -137,7 +137,7 @@ export class CityLayoutManager {
 
         // Check occupancy grid
         let isAvailable = true;
-        this._forEachGridCell(position, radius, (key) => {
+        this._forEachGridCell(position, radius, key => {
             if (!isAvailable) return;
             if (this.occupancyGrid.has(key)) {
                 const existing = this.occupancyGrid.get(key);
@@ -209,7 +209,7 @@ export class CityLayoutManager {
      * @param {string} type - Type of object
      */
     reservePosition(position, radius, type) {
-        this._forEachGridCell(position, radius, (key) => {
+        this._forEachGridCell(position, radius, key => {
             this.occupancyGrid.set(key, { type, position, radius });
         });
 

@@ -4,103 +4,20 @@
     {
       "type": "chrome",
       "request": "launch",
-      "name": "🔍 Debug ECS Rebuild (Chrome)",
-      "url": "http://localhost:5174",
+      "name": "Village Sim (Chrome)",
+      "url": "http://localhost:3000",
       "webRoot": "${workspaceFolder}/ecs-rebuild",
-      "preLaunchTask": "Start ECS Dev Server",
-      "console": "internalConsole",
-      "skipFiles": [
-        "<node_internals>/**",
-        "**/node_modules/**"
-      ]
+      "preLaunchTask": "Start Vite Dev Server",
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"]
     },
     {
       "type": "msedge",
       "request": "launch",
-      "name": "🔍 Debug ECS Rebuild (Edge)",
-      "url": "http://localhost:5174",
+      "name": "Village Sim (Edge)",
+      "url": "http://localhost:3000",
       "webRoot": "${workspaceFolder}/ecs-rebuild",
-      "preLaunchTask": "Start ECS Dev Server",
-      "console": "internalConsole",
-      "skipFiles": [
-        "<node_internals>/**",
-        "**/node_modules/**"
-      ]
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "⚡ Vite + HMR (F5 Ready)",
-      "program": "${workspaceFolder}/launch-vite.js",
-      "cwd": "${workspaceFolder}",
-      "env": {
-        "PORT": "3000"
-      },
-      "console": "integratedTerminal",
-      "skipFiles": [
-        "<node_internals>/**"
-      ]
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "🚀 Village Sim (Old Server)",
-      "program": "${workspaceFolder}/launch-with-browser.js",
-      "cwd": "${workspaceFolder}",
-      "env": {
-        "PORT": "3000"
-      },
-      "console": "integratedTerminal",
-      "skipFiles": [
-        "<node_internals>/**"
-      ]
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "🔧 Dev Server (Old)",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "run",
-        "dev:old"
-      ],
-      "cwd": "${workspaceFolder}",
-      "env": {
-        "PORT": "3000",
-        "AUTO_OPEN_BROWSER": "true"
-      },
-      "console": "integratedTerminal",
-      "skipFiles": [
-        "<node_internals>/**"
-      ]
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Server Only (No Browser)",
-      "program": "${workspaceFolder}/server.js",
-      "cwd": "${workspaceFolder}",
-      "env": {
-        "PORT": "3000"
-      },
-      "console": "integratedTerminal",
-      "skipFiles": [
-        "<node_internals>/**"
-      ]
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Start server.js on PORT 5173",
-      "program": "${workspaceFolder}/server.js",
-      "cwd": "${workspaceFolder}",
-      "env": {
-        "PORT": "5173"
-      },
-      "console": "integratedTerminal",
-      "skipFiles": [
-        "<node_internals>/**"
-      ]
+      "preLaunchTask": "Start Vite Dev Server",
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"]
     }
   ]
 }

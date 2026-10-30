@@ -2,7 +2,6 @@
   "all": true,
   "include": [
     "server.js",
-    "MyHavokSimCode/**/*.js",
     "assets/**/*.js"
   ],
   "exclude": [

@@ -23,7 +23,7 @@ import tsParser from '@typescript-eslint/parser';
 // Simple ESLint configuration without external dependencies
 export default [
   {
-    files: ["MyHavokSimCode/**/*.js", "MyHavokSimCode/**/*.ts", "assets/AssetManager.js", "server.js"],
+    files: ["assets/AssetManager.js", "server.js"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',

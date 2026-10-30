@@ -25,16 +25,9 @@
     "forceConsistentCasingInFileNames": true,
     
     "baseUrl": "./",
-    "paths": {
-      "@core/*": ["MyHavokSimCode/core/*"],
-      "@agents/*": ["MyHavokSimCode/Agents/*"],
-      "@systems/*": ["MyHavokSimCode/Systems/*"]
-    },
     "typeRoots": ["./node_modules/@types", "./types"]
   },
   "include": [
-    "MyHavokSimCode/**/*.ts",
-    "MyHavokSimCode/**/*.js",
     "ecs-rebuild/**/*.ts",
     "assets/**/*.ts",
     "types/**/*.d.ts"
@@ -48,7 +41,6 @@
     "coverage",
     "docs",
     "memory-bank",
-    "MyHavokSimCode/Performance/tests/**",
     "**/*.test.ts",
     "**/*.test.js",
     "test-*.js",

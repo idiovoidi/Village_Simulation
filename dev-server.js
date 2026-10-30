@@ -175,7 +175,7 @@ class DevServer {
      * Watch for file changes and re-lint
      */
     watchFiles() {
-        const watchPaths = ['MyHavokSimCode', 'assets/AssetManager.js'];
+        const watchPaths = ['assets/AssetManager.js'];
         
         watchPaths.forEach(watchPath => {
             if (fs.existsSync(watchPath)) {

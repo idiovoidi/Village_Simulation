@@ -34,7 +34,6 @@ export default defineConfig({
 
   resolve: {
     alias: {
-      '@': resolve(__dirname, './MyHavokSimCode'),
       '@ecs': resolve(__dirname, './ecs-rebuild/src')
     },
     extensions: ['.ts', '.js', '.json']

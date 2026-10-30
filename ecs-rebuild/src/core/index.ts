@@ -33,7 +33,8 @@ export { World } from './World.ts';
 // System
 export { System } from './System.ts';
 
-// Simulation Core (ported from MyHavokSimCode/core)
+// Legacy DI bootstrap (NOT used by live GameManager / World path — reference only)
+/** @deprecated Prefer World + GameManager. Kept for ported utilities / future cleanup. */
 export {
   SimulationCore,
   EventBus,
@@ -42,7 +43,7 @@ export {
   TimeManager,
 } from './SimulationCore.ts';
 
-// Simulation Setup
+/** @deprecated Prefer GameManager.loadLevel. Not wired into the live bootstrap. */
 export { SimulationSetup, createSimulationSetup } from './SimulationSetup.ts';
 
 // Error Handling

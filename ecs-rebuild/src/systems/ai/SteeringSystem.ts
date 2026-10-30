@@ -12,7 +12,12 @@ import type { ComponentSignature } from '../../core/Component.ts';
 import type { World } from '../../core/World.ts';
 import type { EntityId } from '../../core/Entity.ts';
 import type { SteeringComponent } from '../../components/AIComponents.ts';
-import type { PositionComponent, VelocityComponent, Vector3 } from '../../components/CoreComponents.ts';
+import type {
+  PositionComponent,
+  VelocityComponent,
+  TransformComponent,
+  Vector3,
+} from '../../components/CoreComponents.ts';
 import {
   subtractVectors,
   normalizeVector,
@@ -22,6 +27,7 @@ import {
   clampLength,
   distance
 } from '../../utils/Vector3Helpers.ts';
+import { TerrainSystem } from '../environment/TerrainSystem.ts';
 
 /**
  * Steering behavior types.
@@ -101,23 +107,35 @@ export class SteeringSystem extends System {
         velocity.maxSpeed
       );
 
-      // Apply steering force to velocity
+      // Apply steering force to velocity (horizontal movement for ground agents)
       velocity.vx += steeringForce.x * deltaTime;
-      velocity.vy += steeringForce.y * deltaTime;
       velocity.vz += steeringForce.z * deltaTime;
+      velocity.vy = 0;
 
       // Clamp velocity to max speed
       const currentSpeed = Math.sqrt(
         velocity.vx * velocity.vx +
-        velocity.vy * velocity.vy +
         velocity.vz * velocity.vz
       );
 
-      if (currentSpeed > velocity.maxSpeed) {
+      if (currentSpeed > velocity.maxSpeed && currentSpeed > 0) {
         const scale = velocity.maxSpeed / currentSpeed;
         velocity.vx *= scale;
-        velocity.vy *= scale;
         velocity.vz *= scale;
+      }
+
+      // Integrate position from velocity
+      position.x += velocity.vx * deltaTime;
+      position.z += velocity.vz * deltaTime;
+      position.y = TerrainSystem.getTerrainHeight(position.x, position.z) + 1;
+
+      // Keep render transform in sync
+      const transform = this.world.getComponent<TransformComponent>(entityId, 'Transform');
+      if (transform) {
+        transform.position.x = position.x;
+        transform.position.y = position.y;
+        transform.position.z = position.z;
+        transform.dirty = true;
       }
     }
   }

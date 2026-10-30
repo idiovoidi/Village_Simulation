@@ -54,21 +54,31 @@ export class PathfindingManager {
   /**
    * Creates a navigation mesh from world geometry.
    * Generates a grid of walkable nodes.
-   * 
+   *
    * @param bounds - Bounding box for the navigation area
    * @param obstacles - Positions of obstacles to avoid
+   * @param getHeight - Optional terrain height sampler
+   * @param waterLevel - Nodes at or below this height are unwalkable
    */
   createNavMesh(
     bounds: { min: Vector3; max: Vector3 },
-    obstacles: Vector3[] = []
+    obstacles: Vector3[] = [],
+    getHeight?: (x: number, z: number) => number,
+    waterLevel?: number
   ): void {
     this.nodes.clear();
     this.pathCache.clear();
+    this.nextNodeId = 0;
 
     // Generate grid of nodes
     for (let x = bounds.min.x; x <= bounds.max.x; x += this.gridSize) {
       for (let z = bounds.min.z; z <= bounds.max.z; z += this.gridSize) {
-        const position: Vector3 = { x, y: 0, z };
+        const y = getHeight ? getHeight(x, z) : 0;
+        const position: Vector3 = { x, y, z };
+
+        if (waterLevel !== undefined && y <= waterLevel + 0.25) {
+          continue;
+        }
 
         // Check if position is blocked by obstacle
         const isBlocked = obstacles.some(
@@ -89,6 +99,7 @@ export class PathfindingManager {
 
     // Connect neighboring nodes
     this.connectNodes();
+    console.log(`PathfindingManager: nav mesh built with ${this.nodes.size} nodes`);
   }
 
   /**

@@ -1,109 +1,51 @@
-# TypeScript ECS Village Simulation
+# 3D Village Simulation (ECS Rebuild)
 
-A complete rebuild of the 3D Village Simulation using TypeScript and a pure Entity-Component-System (ECS) architecture.
+The **live runtime** is the TypeScript ECS app in [`ecs-rebuild/`](../ecs-rebuild/).
 
-## Project Structure
+[`MyHavokSimCode/`](../MyHavokSimCode/) is **reference / archive only** — behavior source for ports, not launched by `npm start` / `npm run dev`.
 
-```
-ecs-rebuild/
-├── src/
-│   ├── core/          # ECS core infrastructure (World, Entity, Component, System)
-│   ├── components/    # Component definitions
-│   ├── systems/       # System implementations
-│   ├── managers/      # High-level managers (GameManager, ResourceManager, etc.)
-│   ├── utils/         # Utility classes and helpers
-│   └── main.ts        # Application entry point
-├── public/
-│   └── index.html     # HTML entry point
-├── tests/             # Integration tests
-└── coverage/          # Test coverage reports
-```
+## Quick start
 
-## Technology Stack
-
-- **Language**: TypeScript 5.7+ with strict mode
-- **Build Tool**: Vite 6.0+
-- **3D Engine**: Babylon.js v7.47.2 (loaded from CDN)
-- **Physics**: Havok Physics v1.3.10 (loaded from CDN)
-- **Testing**: Node.js test runner with c8 coverage
-- **Property Testing**: fast-check
-- **Package Manager**: npm (REQUIRED)
-
-## Getting Started
-
-### Installation
+From the repo root (Vite is rooted at `ecs-rebuild/`):
 
 ```bash
 npm install
-```
-
-### Development
-
-```bash
 npm run dev
 ```
 
-Access the simulation at `http://localhost:3000`
+Open the URL Vite prints (default port **3000**).
 
-### Building
-
-```bash
-npm run build
-```
-
-### Testing
+Or from the package itself:
 
 ```bash
-# Run all tests
-npm test
-
-# Run tests with coverage
-npm run test:coverage
-
-# Run tests in watch mode
-npm run test:watch
+cd ecs-rebuild
+npm install
+npm run dev
 ```
 
-### Code Quality
+(`ecs-rebuild` Vite defaults to port **5173** when run from that folder.)
 
-```bash
-# Lint code
-npm run lint
+## Village vertical slice (current milestone)
 
-# Fix linting issues
-npm run lint:fix
+On boot, `GameManager` loads the **VILLAGE** level:
 
-# Format code
-npm run format
+- Bowl terrain + water (`TerrainSystem`)
+- Houses, radial roads, trees, wells (`VillageSystem` + render models)
+- Nav mesh (`PathfindingManager.createNavMesh`)
+- Villagers with schedule / behavior / steering / pathfinding
+- WorldClock UI + level selector
+- Single `World.update` loop (no dual legacy orchestrators)
 
-# Check formatting
-npm run format:check
+## Scripts
 
-# Type check
-npm run type-check
-```
+| Command | Role |
+|---------|------|
+| `npm run dev` / `npm start` | Vite → ECS rebuild |
+| `npm run start:static` | Fastify static shell (does **not** transpile TS; prefer Vite) |
+| `npm run build` | Vite production build of ecs-rebuild |
 
-## Architecture
+## Legacy code
 
-This project follows a pure ECS architecture:
+Do not wire `MyHavokSimCode/Havokimport.js` (`LeoScene`) as the app entry. Use those modules only as behavior references while completing ECS ports.
 
-- **Entities**: Unique identifiers representing game objects
-- **Components**: Pure data containers attached to entities
-- **Systems**: Logic processors that operate on entities with specific components
-- **World**: Central coordinator managing entities, components, and systems
-
-## Requirements
-
-See `.kiro/specs/typescript-ecs-rebuild/requirements.md` for detailed requirements.
-
-## Design
-
-See `.kiro/specs/typescript-ecs-rebuild/design.md` for architecture and design decisions.
-
-## Implementation Plan
-
-See `.kiro/specs/typescript-ecs-rebuild/tasks.md` for the implementation task list.
-
-## License
-
-ISC
+See also [`ecs-rebuild/REFACTOR_CHECKLIST.md`](../ecs-rebuild/REFACTOR_CHECKLIST.md).

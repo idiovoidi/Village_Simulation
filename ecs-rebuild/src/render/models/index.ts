@@ -19,3 +19,9 @@ export { DinosaurModel, createDinosaurModel, type DinosaurParts, type DinosaurCo
 
 // Vehicles
 export { BoatModel, createBoatModel, type BoatParts, type BoatConfig } from './BoatModel';
+
+// World props (village vertical slice)
+export { HouseModel, type HouseParts } from './HouseModel';
+export { TreeModel, type TreeParts } from './TreeModel';
+export { WellModel, type WellParts } from './WellModel';
+export { FieldModel, type FieldParts } from './FieldModel';

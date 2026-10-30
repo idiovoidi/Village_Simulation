@@ -82,11 +82,11 @@ export class LevelSelector {
    * Create level selection UI
    */
   createLevelUI(): unknown {
-    const BABYLON = (window as unknown as { BABYLON: typeof import('babylonjs') }).BABYLON;
-    if (!BABYLON || !this.scene) return null;
+    const BABYLON = (window as any).BABYLON;
+    if (!BABYLON?.GUI || !this.scene) return null;
 
     // Create advanced dynamic texture
-    const advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI('levelUI', true, this.scene as import('babylonjs').Scene);
+    const advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI('levelUI', true, this.scene);
 
     // Create panel
     const panel = new BABYLON.GUI.StackPanel();

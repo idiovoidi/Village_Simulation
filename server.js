@@ -164,8 +164,9 @@ const start = async () => {
         const port = process.env.PORT || 3000;
         await server.listen({ port, host: '0.0.0.0' });
         const url = `http://localhost:${port}`;
-        console.log(`🚀 Village Sim server running at ${url}`);
-        console.log(`🔥 Hot reload enabled`);
+        console.log(`🚀 Static ECS shell at ${url}`);
+        console.log(`⚠️  Prefer \`npm run dev\` (Vite) — this static server does not transpile TypeScript.`);
+        console.log(`🔥 Hot reload enabled for watched files`);
         console.log(`Server ready at ${url}`);
         
         // Setup file watching for hot reload

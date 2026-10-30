@@ -70,14 +70,14 @@ export class WorldClock {
    * Create the clock UI
    */
   private createClockUI(): void {
-    const BABYLON = (window as unknown as { BABYLON: typeof import('babylonjs') }).BABYLON;
-    if (!BABYLON) return;
+    const BABYLON = (window as any).BABYLON;
+    if (!BABYLON?.GUI) return;
 
     // Create advanced dynamic texture
     this.advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI(
       'clockUI',
       true,
-      this.scene as import('babylonjs').Scene
+      this.scene
     );
 
     // Create main container
@@ -117,7 +117,7 @@ export class WorldClock {
         break;
     }
 
-    this.advancedTexture.addControl(container);
+    (this.advancedTexture as { addControl: (c: unknown) => void }).addControl(container);
 
     // Create outer progress ring
     this.progressRing = new BABYLON.GUI.Ellipse('progressRing');
@@ -206,6 +206,15 @@ export class WorldClock {
     } else {
       return { name: 'NIGHT', color: '#9C27B0' };
     }
+  }
+
+  /**
+   * Advance the clock by real-time seconds.
+   * @param deltaSeconds - Frame delta in seconds
+   * @param minutesPerSecond - How many in-game minutes pass per real second
+   */
+  advance(deltaSeconds: number, minutesPerSecond = 1): void {
+    this.updateTime(this.gameTime + deltaSeconds * minutesPerSecond);
   }
 
   /**

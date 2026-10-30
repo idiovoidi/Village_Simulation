@@ -7,8 +7,7 @@
  * @module render/models
  */
 
-import type { Scene, TransformNode, Mesh, Material, Color3 } from 'babylonjs';
-import { AnimationHelper } from '../animation/AnimationHelper';
+import type { Scene, TransformNode, Mesh, Color3 } from 'babylonjs';
 
 export interface VillagerParts {
   root: TransformNode;

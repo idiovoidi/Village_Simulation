@@ -1,6 +1,6 @@
 /**
  * Village System
- * 
+ *
  * Creates and manages the village with houses, roads, and decorations.
  * Ported from MyHavokSimCode/VillageSystem.js
  */
@@ -8,6 +8,7 @@
 import { System } from '../../core/System';
 import type { World } from '../../core/World';
 import type { EntityId } from '../../core/Entity';
+import type { PositionComponent } from '../../components/CoreComponents';
 import { EntityFactory } from '../../factories/EntityFactory';
 import { TerrainSystem } from '../environment/TerrainSystem';
 
@@ -38,20 +39,27 @@ export class VillageSystem extends System {
   readonly componentSignature = new Set(['Village']);
   readonly priority = 15; // Run after terrain
 
-  private scene: unknown = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private scene: any = null;
   private config: VillageConfig;
   private entityFactory: EntityFactory;
   private terrainSystem: TerrainSystem | null = null;
-  
-  private houses: unknown[] = [];
-  private decorations: unknown[] = [];
-  private roads: unknown[] = [];
+
+  private houses: EntityId[] = [];
+  private decorations: EntityId[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private roadMeshes: any[] = [];
   private initialized = false;
 
   // Village center
   private centerOffset = { x: 0, y: 0, z: 0 };
 
-  constructor(world: World, scene: unknown, entityFactory: EntityFactory, config: Partial<VillageConfig> = {}) {
+  constructor(
+    world: World,
+    scene: unknown,
+    entityFactory: EntityFactory,
+    config: Partial<VillageConfig> = {}
+  ) {
     super(world);
     this.scene = scene;
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -75,6 +83,8 @@ export class VillageSystem extends System {
     }
 
     console.log('Creating village...');
+
+    this.centerOffset.y = this.getTerrainHeight(0, 0);
 
     // Create houses
     this.createHouses();
@@ -100,16 +110,14 @@ export class VillageSystem extends System {
   private createHouses(): void {
     const { houseCount, villageRadius } = this.config;
 
-    // Create houses in a ring pattern around the center
     for (let i = 0; i < houseCount; i++) {
       const angle = (i / houseCount) * Math.PI * 2;
       const radius = villageRadius * (0.3 + Math.random() * 0.5);
-      
+
       const x = Math.cos(angle) * radius;
       const z = Math.sin(angle) * radius;
       const y = this.getTerrainHeight(x, z);
 
-      // Create house entity
       const houseEntity = this.entityFactory.createHouse({
         position: { x, y: y + 0.2, z },
         capacity: 4,
@@ -122,35 +130,77 @@ export class VillageSystem extends System {
   }
 
   /**
-   * Create road network
+   * Create radial roads from center to each house
    */
   private createRoads(): void {
-    // Create roads connecting houses to center
-    // For now, create simple paths from center to each house
-    for (const house of this.houses) {
-      // Road creation would go here
-      // This is simplified - full implementation would use RoadNetworkSystem
+    if (!this.scene) {
+      console.warn('VillageSystem: no scene for road meshes');
+      return;
     }
 
-    console.log('Road network created');
+    const BABYLON = (window as any).BABYLON;
+    if (!BABYLON) return;
+
+    const roadMat = new BABYLON.StandardMaterial('villageRoadMat', this.scene);
+    roadMat.diffuseColor = new BABYLON.Color3(0.45, 0.4, 0.35);
+    roadMat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+
+    for (let i = 0; i < this.houses.length; i++) {
+      const houseId = this.houses[i];
+      const posComp = this.world.getComponent<PositionComponent>(houseId, 'Position');
+      if (!posComp) continue;
+
+      const dx = posComp.x - this.centerOffset.x;
+      const dz = posComp.z - this.centerOffset.z;
+      const length = Math.sqrt(dx * dx + dz * dz);
+      if (length < 1) continue;
+
+      const midX = (this.centerOffset.x + posComp.x) / 2;
+      const midZ = (this.centerOffset.z + posComp.z) / 2;
+      const midY = this.getTerrainHeight(midX, midZ) + 0.08;
+
+      const road = BABYLON.MeshBuilder.CreateBox(
+        `road_${i}`,
+        { width: 2.2, height: 0.12, depth: length },
+        this.scene
+      );
+      road.position = new BABYLON.Vector3(midX, midY, midZ);
+      road.rotation.y = Math.atan2(dx, dz);
+      road.material = roadMat;
+      this.roadMeshes.push(road);
+    }
+
+    // Plaza disk at center
+    const plaza = BABYLON.MeshBuilder.CreateCylinder(
+      'villagePlaza',
+      { diameter: 12, height: 0.15, tessellation: 24 },
+      this.scene
+    );
+    plaza.position = new BABYLON.Vector3(
+      this.centerOffset.x,
+      this.getTerrainHeight(0, 0) + 0.05,
+      this.centerOffset.z
+    );
+    plaza.material = roadMat;
+    this.roadMeshes.push(plaza);
+
+    console.log(`Road network created (${this.roadMeshes.length} meshes)`);
   }
 
   /**
    * Create village decorations
    */
   private createDecorations(): void {
-    // Create trees around the village
     const treeCount = 20;
-    
+
     for (let i = 0; i < treeCount; i++) {
       const angle = Math.random() * Math.PI * 2;
       const radius = this.config.villageRadius * (0.6 + Math.random() * 0.4);
-      
+
       const x = Math.cos(angle) * radius;
       const z = Math.sin(angle) * radius;
       const y = this.getTerrainHeight(x, z);
 
-      // Create tree entity
       const treeEntity = this.entityFactory.createTree({
         position: { x, y, z },
         treeType: Math.random() > 0.5 ? 'oak' : 'pine',
@@ -160,12 +210,11 @@ export class VillageSystem extends System {
       this.decorations.push(treeEntity);
     }
 
-    // Create some wells
     const wellCount = 3;
     for (let i = 0; i < wellCount; i++) {
       const angle = (i / wellCount) * Math.PI * 2;
       const radius = this.config.villageRadius * 0.4;
-      
+
       const x = Math.cos(angle) * radius;
       const z = Math.sin(angle) * radius;
       const y = this.getTerrainHeight(x, z);
@@ -184,12 +233,10 @@ export class VillageSystem extends System {
    * Create market area
    */
   private createMarket(): void {
-    // Create market area to the east of village center
     const marketX = this.centerOffset.x + this.config.villageRadius * 0.4;
     const marketZ = this.centerOffset.z + this.config.villageRadius * 0.2;
     const marketY = this.getTerrainHeight(marketX, marketZ);
 
-    // Create a field for the market
     this.entityFactory.createField({
       position: { x: marketX, y: marketY, z: marketZ },
       fieldType: 'market',
@@ -205,38 +252,36 @@ export class VillageSystem extends System {
     if (this.terrainSystem) {
       return this.terrainSystem.getHeightAt(x, z);
     }
-    // Fallback to static method
     return TerrainSystem.getTerrainHeight(x, z);
   }
 
-  /**
-   * Get house count
-   */
   getHouseCount(): number {
     return this.houses.length;
   }
 
-  /**
-   * Get village center
-   */
+  getHouses(): EntityId[] {
+    return [...this.houses];
+  }
+
   getVillageCenter(): { x: number; y: number; z: number } {
-    return { ...this.centerOffset };
+    return {
+      x: this.centerOffset.x,
+      y: this.getTerrainHeight(this.centerOffset.x, this.centerOffset.z),
+      z: this.centerOffset.z,
+    };
   }
 
-  /**
-   * Update system (not used for static village)
-   */
   update(_deltaTime: number): void {
-    // Village is static, no per-frame updates needed
+    // Village is static
   }
 
-  /**
-   * Dispose of village resources
-   */
   dispose(): void {
+    for (const mesh of this.roadMeshes) {
+      if (mesh?.dispose) mesh.dispose();
+    }
+    this.roadMeshes = [];
     this.houses = [];
     this.decorations = [];
-    this.roads = [];
     this.initialized = false;
     console.log('VillageSystem disposed');
   }

@@ -257,8 +257,16 @@ export class PhysicsSystem extends System {
 
       if (!position || !mesh) continue;
 
-      // Skip kinematic bodies (they are controlled by game logic)
-      if (physicsBody?.isKinematic) continue;
+      // Kinematic bodies are driven by game logic — push ECS position into the physics mesh
+      if (physicsBody?.isKinematic || physicsBody?.bodyType === 'Kinematic') {
+        mesh.position.x = position.x;
+        mesh.position.y = position.y;
+        mesh.position.z = position.z;
+        if (mesh.isVisible !== undefined) {
+          mesh.isVisible = false; // helper collider; RenderSystem owns the visible mesh
+        }
+        continue;
+      }
 
       // Get position from the mesh (which is updated by physics)
       position.x = mesh.position.x;

@@ -1,120 +1,16 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>3D Village Simulation - Babylon.js & Havok Physics</title>
-    <style>
-        html, body {
-            width: 100%;
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-        }
-        #renderCanvas {
-            width: 100%;
-            height: 100%;
-            touch-action: none;
-        }
-        #loadingScreen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.8);
-            color: white;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        #errorScreen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(50, 0, 0, 0.9);
-            color: white;
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 2000;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-        #errorMessage {
-            width: 80%;
-            max-width: 600px;
-            background-color: rgba(80, 0, 0, 0.8);
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            overflow-y: auto;
-            max-height: 70vh;
-        }
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 1s ease-in-out infinite;
-            margin-bottom: 20px;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        button {
-            padding: 10px 20px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
-    </style>
-    <!-- Load the latest versions of the scripts with specific versioning -->
-    <script src="https://cdn.babylonjs.com/babylon.js"></script>
-    <script src="https://cdn.babylonjs.com/havok/HavokPhysics_umd.js"></script>
-    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
-    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
-    <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+  <meta charset="utf-8">
+  <meta http-equiv="refresh" content="0;url=/">
+  <title>3D Village Simulation</title>
+  <script>
+    // Root Vite serves ecs-rebuild/; this file is only hit by non-Vite static hosts.
+    // Prefer: npm run dev  (Vite, ecs-rebuild entry)
+    console.info('Use npm run dev to start the ECS Village Simulation (ecs-rebuild).');
+  </script>
 </head>
 <body>
-    <canvas id="renderCanvas"></canvas>
-    
-    <div id="loadingScreen">
-        <div class="spinner"></div>
-        <h2>Loading Village Simulation...</h2>
-        <p>Preparing scene...</p>
-    </div>
-    
-    <div id="errorScreen">
-        <h2>Error Initializing Simulation</h2>
-        <div id="errorMessage"></div>
-        <button onclick="location.reload()">Reload</button>
-    </div>
-    
-    <script type="module">
-        console.log(' HTML script tag executing');
-
-        // Import HMR client
-        import { hmrClient } from './hmr-client.js';
-        console.log(' hmrClient imported');
-
-        // Import ECS Rebuild entry point (auto-initializes the simulation)
-        console.log(' Attempting to import ecs-rebuild/src/main.js...');
-        import './ecs-rebuild/src/main.js';
-        console.log(' Import completed');
-    </script>
+  <p>Starting Village Simulation… If nothing loads, run <code>npm run dev</code> from the repo root.</p>
 </body>
 </html>

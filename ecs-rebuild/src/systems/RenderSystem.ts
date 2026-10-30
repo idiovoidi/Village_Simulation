@@ -18,6 +18,10 @@ import { BirdModel } from '../render/models/BirdModel.js';
 import { DogModel } from '../render/models/DogModel.js';
 import { BoatModel } from '../render/models/BoatModel.js';
 import { DinosaurModel } from '../render/models/DinosaurModel.js';
+import { HouseModel } from '../render/models/HouseModel.js';
+import { TreeModel } from '../render/models/TreeModel.js';
+import { WellModel } from '../render/models/WellModel.js';
+import { FieldModel } from '../render/models/FieldModel.js';
 
 /**
  * RenderSystem handles mesh creation and transform synchronization.
@@ -56,6 +60,10 @@ export class RenderSystem extends System {
     this.modelInstances.set('dog', new DogModel(this.scene));
     this.modelInstances.set('boat', new BoatModel(this.scene));
     this.modelInstances.set('dinosaur', new DinosaurModel(this.scene));
+    this.modelInstances.set('house', new HouseModel(this.scene));
+    this.modelInstances.set('tree', new TreeModel(this.scene));
+    this.modelInstances.set('well', new WellModel(this.scene));
+    this.modelInstances.set('field', new FieldModel(this.scene));
   }
 
   /**
@@ -132,6 +140,10 @@ export class RenderSystem extends System {
         case 'dog':
         case 'boat':
         case 'dinosaur':
+        case 'house':
+        case 'tree':
+        case 'well':
+        case 'field':
           console.log(`[RenderSystem] Calling create() for ${modelComponent.meshId}`);
           meshParts = (modelInstance as any).create(position);
           break;

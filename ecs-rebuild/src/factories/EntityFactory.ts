@@ -150,9 +150,9 @@ export class EntityFactory {
     this.world.addComponent(entity, createAnimationStateComponent('idle', 1.0, true));
     this.world.addComponent(entity, createVisualComponent({ r: 1, g: 0.8, b: 0.6 }, 1.0));
 
-    // Physics components
+    // Kinematic: AI/steering owns movement; physics does not overwrite Position
     this.world.addComponent(entity, createPhysicsBodyComponent(
-      PhysicsBodyType.Dynamic,
+      PhysicsBodyType.Kinematic,
       PhysicsShapeType.Capsule,
       70,
       { x: 0.5, y: 1.8, z: 0.5 }

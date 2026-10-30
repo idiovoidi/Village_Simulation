@@ -7,11 +7,6 @@
 
 import type { World } from '../../core/World';
 import { System } from '../../core/System';
-import type { EntityId } from '../../core/Entity';
-import type { PositionComponent, Vector3 } from '../../components/CoreComponents';
-import { createPositionComponent, createActiveComponent } from '../../components/CoreComponents';
-import { createPhysicsBodyComponent, PhysicsBodyType, PhysicsShapeType } from '../../components/PhysicsComponents';
-import { createModelComponent, createVisualComponent } from '../../components/RenderingComponents';
 
 /**
  * Terrain configuration
@@ -27,10 +22,10 @@ export interface TerrainConfig {
  * Default terrain configuration
  */
 const DEFAULT_CONFIG: TerrainConfig = {
-  bowlRadius: 300,
-  bowlDepth: 50,
+  bowlRadius: 100,
+  bowlDepth: 25,
   segments: 64,
-  waterLevel: -3,
+  waterLevel: -2,
 };
 
 /**
@@ -39,6 +34,9 @@ const DEFAULT_CONFIG: TerrainConfig = {
 export class TerrainSystem extends System {
   readonly componentSignature = new Set(['Terrain']);
   readonly priority = 10; // Run early to set up terrain
+
+  /** Active config used by static height queries after initialize() */
+  private static activeConfig: TerrainConfig = { ...DEFAULT_CONFIG };
 
   private scene: unknown = null;
   private config: TerrainConfig;
@@ -62,28 +60,33 @@ export class TerrainSystem extends System {
     }
 
     console.log('Creating terrain...');
+    TerrainSystem.activeConfig = { ...this.config };
 
     // Create terrain mesh
     await this.createTerrain();
 
-    // Create water
+    // Create water (single owner for the vertical slice)
     this.createWater();
 
     this.initialized = true;
     console.log('TerrainSystem initialized');
   }
 
+  getConfig(): TerrainConfig {
+    return { ...this.config };
+  }
+
   /**
    * Create the bowl-shaped terrain
    */
   private async createTerrain(): Promise<void> {
-    const BABYLON = (window as unknown as { BABYLON: typeof import('babylonjs') }).BABYLON;
+    const BABYLON = (window as any).BABYLON;
     if (!BABYLON || !this.scene) return;
 
     const { bowlRadius, bowlDepth, segments } = this.config;
 
     // Create ground mesh
-    const ground = new BABYLON.Mesh('bowl', this.scene as import('babylonjs').Scene);
+    const ground = new BABYLON.Mesh('bowl', this.scene);
     const vertexData = new BABYLON.VertexData();
 
     const { positions, indices, uvs, normals, colors } = this.generateTerrainData(
@@ -97,14 +100,25 @@ export class TerrainSystem extends System {
     vertexData.uvs = uvs;
     vertexData.normals = normals;
     vertexData.colors = colors;
-    vertexData.applyToMesh(ground);
+    vertexData.applyToMesh(ground, true);
 
     // Create terrain material
     const terrainMaterial = this.createTerrainMaterial();
     ground.material = terrainMaterial;
-
-    // Enable receiving shadows
     ground.receiveShadows = true;
+    ground.isPickable = true;
+    ground.checkCollisions = true;
+    // Avoid invisible ground if winding/normals point away from the camera
+    if (ground.material) {
+      ground.material.backFaceCulling = false;
+    }
+    ground.refreshBoundingInfo();
+
+    console.log(
+      `Terrain mesh created: radius=${bowlRadius}, depth=${bowlDepth}, ` +
+        `centerHeight=${TerrainSystem.getTerrainHeight(0, 0).toFixed(2)}, ` +
+        `waterLevel=${this.config.waterLevel}`
+    );
 
     this.terrainMesh = ground;
   }
@@ -114,7 +128,7 @@ export class TerrainSystem extends System {
    */
   private generateTerrainData(
     bowlRadius: number,
-    bowlDepth: number,
+    _bowlDepth: number,
     segments: number
   ): {
     positions: number[];
@@ -123,6 +137,7 @@ export class TerrainSystem extends System {
     normals: number[];
     colors: number[];
   } {
+    const BABYLON = (window as any).BABYLON;
     const positions: number[] = [];
     const indices: number[] = [];
     const uvs: number[] = [];
@@ -164,53 +179,59 @@ export class TerrainSystem extends System {
     }
 
     // Calculate normals
-    BABYLON.VertexData.ComputeNormals(positions, indices, normals);
+    if (BABYLON?.VertexData?.ComputeNormals) {
+      BABYLON.VertexData.ComputeNormals(positions, indices, normals);
+    }
 
     return { positions, indices, uvs, normals, colors };
   }
 
   /**
-   * Get terrain height at a given position
-   * Static method for physics and AI to query terrain height
+   * Get terrain height at a given position.
+   * Central meadow is always above waterLevel so the village ground stays visible.
    */
   static getTerrainHeight(x: number, z: number): number {
-    const bowlRadius = 300;
-    const bowlDepth = 50;
+    const { bowlRadius, bowlDepth, waterLevel } = TerrainSystem.activeConfig;
 
     const distFromCenter = Math.sqrt(x * x + z * z);
-    const normalizedDist = distFromCenter / bowlRadius;
+    const normalizedDist = distFromCenter / Math.max(bowlRadius, 1);
 
-    // Flatter, more gradual base shape
-    let y = -Math.pow(normalizedDist, 2.5) * bowlDepth;
+    // Dry meadow sits clearly above the water plane
+    const meadowBase = waterLevel + 2.5;
+    // Shore / lower ring just above or at water for a shoreline look
+    const shoreBase = waterLevel + 0.35;
+    // Outer bowl floor dips under water for a lake rim
+    const bowlFloor = waterLevel - Math.max(bowlDepth * 0.15, 2);
 
-    // Create a very flat central meadow (larger area)
-    if (normalizedDist < 0.5) {
-      // Almost completely flat center with very subtle undulation
+    let y = meadowBase - Math.pow(normalizedDist, 2.5) * (meadowBase - bowlFloor);
+
+    // Flat central meadow (village floor)
+    if (normalizedDist < 0.55) {
       const meadowNoise =
-        Math.sin(x * 0.015) * Math.cos(z * 0.015) * 1.2 +
-        Math.sin((x + z) * 0.01) * Math.cos((x - z) * 0.01) * 0.8;
+        Math.sin(x * 0.015) * Math.cos(z * 0.015) * 0.35 +
+        Math.sin((x + z) * 0.01) * Math.cos((x - z) * 0.01) * 0.25;
 
-      y = -3 + meadowNoise;
+      y = meadowBase + meadowNoise;
 
-      // Smoother transition to surrounding terrain
+      // Soft transition toward shore
       if (normalizedDist > 0.4) {
-        const transitionFactor = (normalizedDist - 0.4) / 0.1;
-        y = y * (1 - transitionFactor) + (-8 * transitionFactor);
+        const t = (normalizedDist - 0.4) / 0.15;
+        y = y * (1 - t) + (shoreBase + meadowNoise * 0.5) * t;
       }
     }
     // Rolling hills in the middle region
     else if (normalizedDist < 0.8) {
-      const hillFactor = (normalizedDist - 0.5) / 0.3;
+      const hillFactor = (normalizedDist - 0.55) / 0.25;
       const hillNoise =
-        Math.sin(x * 0.02) * Math.cos(z * 0.02) * 10 +
-        Math.sin((x + z) * 0.015) * Math.cos((x - z) * 0.015) * 8;
+        Math.sin(x * 0.02) * Math.cos(z * 0.02) * 4 +
+        Math.sin((x + z) * 0.015) * Math.cos((x - z) * 0.015) * 3;
 
-      y = -8 + hillNoise * hillFactor;
+      y = shoreBase + hillNoise * hillFactor + hillFactor * 3;
     }
     // Mountains at the edges
     else {
       const mountainFactor = (normalizedDist - 0.8) / 0.2;
-      const mountainHeight = 50;
+      const mountainHeight = Math.max(bowlDepth * 0.8, 12);
       const angle = Math.atan2(z, x);
 
       const mountainNoise =
@@ -222,7 +243,10 @@ export class TerrainSystem extends System {
         Math.sin(x * 0.03 + z * 0.03) * 0.6 +
         Math.cos(x * 0.045 - z * 0.045) * 0.4;
 
-      y += mountainHeight * mountainFactor * (0.8 + 0.4 * (mountainNoise + ridgeNoise));
+      y =
+        shoreBase +
+        4 +
+        mountainHeight * mountainFactor * (0.8 + 0.4 * (mountainNoise + ridgeNoise));
     }
 
     return y;
@@ -232,45 +256,44 @@ export class TerrainSystem extends System {
    * Create terrain material
    */
   private createTerrainMaterial(): unknown {
-    const BABYLON = (window as unknown as { BABYLON: typeof import('babylonjs') }).BABYLON;
+    const BABYLON = (window as any).BABYLON;
     if (!BABYLON) return null;
 
-    const material = new BABYLON.StandardMaterial('terrainMaterial', this.scene as import('babylonjs').Scene);
+    const material = new BABYLON.StandardMaterial('terrainMaterial', this.scene);
 
-    // Set material properties
-    material.diffuseColor = new BABYLON.Color3(0.3, 0.5, 0.2);
-    material.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+    material.diffuseColor = new BABYLON.Color3(0.35, 0.55, 0.22);
+    material.ambientColor = new BABYLON.Color3(0.25, 0.35, 0.15);
+    material.emissiveColor = new BABYLON.Color3(0.05, 0.08, 0.02);
+    material.specularColor = new BABYLON.Color3(0.08, 0.08, 0.08);
     material.specularPower = 32;
-
-    // Add some variation with vertex colors
     material.useVertexColors = true;
+    material.backFaceCulling = false;
 
     return material;
   }
 
   /**
-   * Create water plane
+   * Create water plane — kept below the dry meadow so grass remains visible.
    */
   private createWater(): void {
-    const BABYLON = (window as unknown as { BABYLON: typeof import('babylonjs') }).BABYLON;
+    const BABYLON = (window as any).BABYLON;
     if (!BABYLON || !this.scene) return;
 
     const waterLevel = this.config.waterLevel;
 
-    // Create water plane
-    const water = BABYLON.MeshBuilder.CreateGround(
+    // Lake fills the bowl; radius stops short of outer mountains
+    const water = BABYLON.MeshBuilder.CreateDisc(
       'water',
-      { width: this.config.bowlRadius * 2.5, height: this.config.bowlRadius * 2.5 },
-      this.scene as import('babylonjs').Scene
+      { radius: this.config.bowlRadius * 0.95, tessellation: 64 },
+      this.scene
     );
-
+    water.rotation.x = Math.PI / 2;
     water.position.y = waterLevel;
 
-    // Create water material
-    const waterMaterial = new BABYLON.StandardMaterial('waterMaterial', this.scene as import('babylonjs').Scene);
-    waterMaterial.diffuseColor = new BABYLON.Color3(0.2, 0.4, 0.8);
-    waterMaterial.specularColor = new BABYLON.Color3(0.5, 0.5, 0.5);
-    waterMaterial.alpha = 0.7;
+    const waterMaterial = new BABYLON.StandardMaterial('waterMaterial', this.scene);
+    waterMaterial.diffuseColor = new BABYLON.Color3(0.15, 0.35, 0.7);
+    waterMaterial.specularColor = new BABYLON.Color3(0.5, 0.55, 0.6);
+    waterMaterial.alpha = 0.65;
     waterMaterial.backFaceCulling = false;
 
     water.material = waterMaterial;

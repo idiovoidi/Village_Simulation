@@ -4,7 +4,7 @@
     {
       "label": "Start Vite Dev Server",
       "type": "shell",
-      "command": "npx vite --open false --strictPort",
+      "command": "pnpm run dev",
       "isBackground": true,
       "problemMatcher": {
         "owner": "typescript",
@@ -31,7 +31,8 @@
     {
       "label": "Start ECS Dev Server",
       "type": "shell",
-      "command": "cd ecs-rebuild && pnpm run dev",
+      "command": "npx vite --open false --strictPort",
+      "options": { "cwd": "${workspaceFolder}/ecs-rebuild" },
       "isBackground": true,
       "problemMatcher": {
         "owner": "typescript",

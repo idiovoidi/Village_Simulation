@@ -16,13 +16,15 @@ import { BehaviourState } from '../../components/AIComponents.ts';
 import type {
   AIBehaviourComponent,
   ScheduleComponent,
-  ScheduleActivity,
-  SteeringComponent
+  ScheduleActivity
 } from '../../components/AIComponents.ts';
 import type { VillagerComponent } from '../../components/CreatureComponents.ts';
 import type { TimeOfDayComponent } from '../../components/WorldComponents.ts';
 import type { Vector3, PositionComponent } from '../../components/CoreComponents.ts';
 import type { HungerComponent, ThirstComponent, EnergyComponent } from '../../components/SurvivalComponents.ts';
+
+/** A survival need counts as met once it climbs back above this level. */
+const RECOVERED_LEVEL = 70;
 
 /**
  * Default schedule templates for different villager professions.
@@ -164,13 +166,7 @@ export class VillagerScheduleSystem extends System {
         behavior.stateTimer = 0;
       }
 
-      // Update steering target if activity has a location
-      if (currentActivity.location) {
-        const steering = this.world.getComponent<SteeringComponent>(entityId, 'Steering');
-        if (steering) {
-          steering.target = { ...currentActivity.location };
-        }
-      }
+      // Movement targets are resolved by VillagerBehaviorSystem, which owns steering.
     }
   }
 
@@ -268,18 +264,11 @@ export class VillagerScheduleSystem extends System {
     const thirst = this.world.getComponent<ThirstComponent>(entityId, 'Thirst');
     const energy = this.world.getComponent<EnergyComponent>(entityId, 'Energy');
 
-    // If any need is still critical, keep override
-    if (hunger) {
-      if (hunger.level < hunger.criticalThreshold) return false;
-    }
-
-    if (thirst) {
-      if (thirst.level < thirst.criticalThreshold) return false;
-    }
-
-    if (energy) {
-      if (energy.level <= 0) return false;
-    }
+    // Keep the override until the need is properly met, not merely above critical,
+    // otherwise villagers leave the table at the threshold and starve again at once.
+    if (hunger && hunger.level < RECOVERED_LEVEL) return false;
+    if (thirst && thirst.level < RECOVERED_LEVEL) return false;
+    if (energy && energy.level < RECOVERED_LEVEL) return false;
 
     // All needs are satisfied, restore schedule
     return true;

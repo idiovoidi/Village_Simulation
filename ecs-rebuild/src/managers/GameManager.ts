@@ -436,7 +436,11 @@ export class GameManager {
           (x, z) => dryAt(x, z, 1.2) && !this.villageSystem!.isOccupied(x, z, -2.2)
         );
         if (!p) continue;
-        this.entityFactory.createVillager({ position: at(p), name: `Villager_${i + 1}` });
+        const id = this.entityFactory.createVillager({ position: at(p), name: `Villager_${i + 1}` });
+        // Each villager sleeps in a house; extras share.
+        const houses = this.villageSystem!.getHouses();
+        const villager = this.world.getComponent<any>(id, 'Villager');
+        if (villager && houses.length > 0) villager.home = houses[i % houses.length];
         villagers++;
       }
     }

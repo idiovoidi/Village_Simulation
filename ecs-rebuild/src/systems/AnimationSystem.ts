@@ -13,6 +13,7 @@ import type { EntityId } from '../core/Entity.ts';
 import type { ComponentSignature } from '../core/Component.ts';
 import type { ModelComponent } from '../components/RenderingComponents.ts';
 import type { VelocityComponent } from '../components/CoreComponents.ts';
+import type { AIBehaviourComponent } from '../components/AIComponents.ts';
 import type { RenderSystem } from './RenderSystem.ts';
 
 interface AnimState {
@@ -56,7 +57,7 @@ export class AnimationSystem extends System {
 
       switch (model.meshId) {
         case 'villager':
-          this.animateHumanoid(parts, state, speed, deltaTime, false);
+          this.animateHumanoid(parts, state, speed, deltaTime, false, this.world.getComponent<AIBehaviourComponent>(id, 'AIBehaviour')?.currentState);
           break;
         case 'zombie':
           this.animateHumanoid(parts, state, speed, deltaTime, true);
@@ -97,7 +98,7 @@ export class AnimationSystem extends System {
     limb.setPivotPoint(new B.Vector3(0, ext.y, 0));
   }
 
-  private animateHumanoid(parts: any, state: AnimState, speed: number, dt: number, zombie: boolean): void {
+  private animateHumanoid(parts: any, state: AnimState, speed: number, dt: number, zombie: boolean, activity?: string): void {
     const { leftArm, rightArm, leftLeg, rightLeg, torso, head } = parts;
     if (!leftLeg || !rightLeg) return;
 
@@ -124,12 +125,56 @@ export class AnimationSystem extends System {
     } else {
       leftArm.rotation.x = -swing * 0.9;
       rightArm.rotation.x = swing * 0.9;
-      if (head) head.rotation.y = Math.sin(this.clock * 0.6 + state.seed) * 0.15 * (1 - Math.min(1, speed));
+      if (head) {
+        head.rotation.y = Math.sin(this.clock * 0.6 + state.seed) * 0.15 * (1 - Math.min(1, speed));
+        head.rotation.x = 0;
+      }
+      if (torso) torso.rotation.x = 0;
+      if (speed < 0.3) this.poseActivity(parts, state, activity);
     }
 
     if (torso) {
       torso.position.y = state.baseTorsoY + Math.abs(Math.cos(state.phase)) * 0.07 * Math.min(1, speed);
       torso.rotation.z = Math.sin(state.phase) * 0.04 * Math.min(1, speed);
+    }
+  }
+
+  /** Stationary villager poses for what they are doing (working, eating, chatting...). */
+  private poseActivity(parts: any, state: AnimState, activity: string | undefined): void {
+    const { leftArm, rightArm, torso, head } = parts;
+    const t = this.clock + state.seed;
+    switch (activity) {
+      case 'Work': {
+        // Chopping / hammering: overhead swing with a forward lean.
+        const strike = Math.max(0, Math.sin(t * 4.2));
+        rightArm.rotation.x = -2.3 + strike * 1.9;
+        leftArm.rotation.x = -1.1 + strike * 0.7;
+        if (torso) torso.rotation.x = 0.12 + strike * 0.18;
+        break;
+      }
+      case 'Eat': {
+        // Hand to mouth, small bites.
+        rightArm.rotation.x = -2.0 + Math.sin(t * 3) * 0.25;
+        if (head) head.rotation.x = Math.sin(t * 3) * 0.1;
+        break;
+      }
+      case 'Drink': {
+        // Cupped hands lifted, head tipped back.
+        rightArm.rotation.x = leftArm.rotation.x = -1.9 + Math.sin(t * 1.5) * 0.1;
+        if (head) head.rotation.x = -0.25;
+        break;
+      }
+      case 'Socialize': {
+        // Animated chat: gesturing arm and nodding head, looking about.
+        rightArm.rotation.x = -0.6 + Math.sin(t * 2.6) * 0.5 * Math.max(0, Math.sin(t * 0.7));
+        if (head) {
+          head.rotation.y = Math.sin(t * 0.8) * 0.5;
+          head.rotation.x = Math.sin(t * 2.2) * 0.08;
+        }
+        break;
+      }
+      default:
+        break;
     }
   }
 

@@ -63,6 +63,10 @@ export class DecisionSystem extends System {
     const behavior = this.world.getComponent<AIBehaviourComponent>(entityId, 'AIBehaviour');
     if (!behavior) return;
 
+    // Villagers are driven by VillagerScheduleSystem + VillagerBehaviorSystem;
+    // overriding their state here would fight the schedule every frame.
+    if (this.world.getComponent(entityId, 'Villager')) return;
+
     // Update state timer
     behavior.stateTimer += deltaTime;
 

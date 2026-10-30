@@ -104,6 +104,8 @@ export class RenderSystem extends System {
       // Update mesh visibility
       const mesh = this.entityMeshMap.get(entityId);
       if (mesh) {
+        // setEnabled cascades to child parts (limbs, head); isVisible does not.
+        if (mesh.isEnabled?.() !== modelComponent.visible) mesh.setEnabled?.(modelComponent.visible);
         mesh.isVisible = modelComponent.visible;
       }
     }

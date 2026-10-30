@@ -154,22 +154,23 @@ export class TerrainSystem extends System {
     const normals: number[] = [];
     const colors: number[] = [];
 
-    for (let z = 0; z <= segments; z++) {
-      for (let x = 0; x <= segments; x++) {
-        const u = x / segments;
-        const v = z / segments;
-        const worldX = (u - 0.5) * 2 * bowlRadius;
-        const worldZ = (v - 0.5) * 2 * bowlRadius;
+    const axis = TerrainSystem.buildAxis(bowlRadius, segments);
+    const n = axis.length;
+    const span = bowlRadius * 2;
+    for (let z = 0; z < n; z++) {
+      for (let x = 0; x < n; x++) {
+        const worldX = axis[x];
+        const worldZ = axis[z];
         positions.push(worldX, TerrainSystem.getTerrainHeight(worldX, worldZ), worldZ);
-        uvs.push(u, v);
+        uvs.push(worldX / span + 0.5, worldZ / span + 0.5);
       }
     }
 
-    for (let z = 0; z < segments; z++) {
-      for (let x = 0; x < segments; x++) {
-        const topLeft = z * (segments + 1) + x;
+    for (let z = 0; z < n - 1; z++) {
+      for (let x = 0; x < n - 1; x++) {
+        const topLeft = z * n + x;
         const topRight = topLeft + 1;
-        const bottomLeft = (z + 1) * (segments + 1) + x;
+        const bottomLeft = (z + 1) * n + x;
         const bottomRight = bottomLeft + 1;
         indices.push(topLeft, topRight, bottomLeft);
         indices.push(topRight, bottomRight, bottomLeft);
@@ -193,6 +194,31 @@ export class TerrainSystem extends System {
     }
 
     return { positions, indices, uvs, normals, colors };
+  }
+
+  /** How far past the bowl rim the world mesh reaches, in bowl radii (fog hides the edge). */
+  private static readonly WORLD_EXTENT = 9;
+
+  /**
+   * Shared grid coordinates for one axis: uniform across the playable bowl,
+   * then geometrically widening steps out to the far edge of the world.
+   */
+  private static buildAxis(bowlRadius: number, innerSegments: number): number[] {
+    const inner = bowlRadius * 1.05;
+    const far = bowlRadius * TerrainSystem.WORLD_EXTENT;
+    const step = (inner * 2) / innerSegments;
+    const half: number[] = [];
+    for (let i = 0; i <= innerSegments / 2; i++) half.push(i * step);
+    let x = half[half.length - 1];
+    let s = step;
+    while (x < far) {
+      s *= 1.12;
+      x = Math.min(far, x + s);
+      half.push(x);
+    }
+    const out: number[] = [];
+    for (let i = half.length - 1; i > 0; i--) out.push(-half[i]);
+    return out.concat(half);
   }
 
   /**
@@ -239,7 +265,7 @@ export class TerrainSystem extends System {
     }
     // Mountains at the edges
     else {
-      const mountainFactor = (normalizedDist - 0.8) / 0.2;
+      const mountainFactor = Math.min(1, (normalizedDist - 0.8) / 0.2);
       const mountainHeight = Math.max(bowlDepth * 0.8, 12);
       const angle = Math.atan2(z, x);
 
@@ -256,6 +282,22 @@ export class TerrainSystem extends System {
         shoreBase +
         4 +
         mountainHeight * mountainFactor * (0.8 + 0.4 * (mountainNoise + ridgeNoise));
+
+      // Beyond the rim, ranges of ridged noise keep climbing and roll away to the
+      // horizon instead of the ground ending at the rim.
+      if (normalizedDist > 1) {
+        const out = normalizedDist - 1;
+        const ramp = Math.min(1, out / 1.4);
+        const rise = ramp * ramp * (3 - 2 * ramp);
+        const ridged = (nx: number, nz: number) => 1 - Math.abs(valueNoise2(nx, nz) * 2 - 1);
+        const range =
+          ridged(x * 0.011 + 40, z * 0.011) * 0.6 +
+          ridged(x * 0.027, z * 0.027 + 17) * 0.28 +
+          valueNoise2(x * 0.08, z * 0.08) * 0.12;
+        // Far peaks grow taller with distance so they read as a skyline.
+        const far = 1 + Math.min(1.2, out * 0.25);
+        y += mountainHeight * rise * (0.5 + range * 2.4) * far;
+      }
     }
 
     // Carve a bay: a cone of lowered ground opening towards the rim, with a sandy beach.
@@ -368,8 +410,10 @@ export class TerrainSystem extends System {
     if (!BABYLON || !this.scene) return;
 
     const { waterLevel, bowlRadius } = this.config;
-    const extent = bowlRadius * 0.98;
-    const segments = 168;
+    // Same graded axis as the terrain so the bay's sea runs out to the horizon.
+    const axis = TerrainSystem.buildAxis(bowlRadius, 120);
+    const n = axis.length;
+    const span = bowlRadius * 2 * 0.98;
 
     const positions: number[] = [];
     const normals: number[] = [];
@@ -377,14 +421,14 @@ export class TerrainSystem extends System {
     const uvs: number[] = [];
     const indices: number[] = [];
 
-    for (let zi = 0; zi <= segments; zi++) {
-      for (let xi = 0; xi <= segments; xi++) {
-        const x = (xi / segments - 0.5) * 2 * extent;
-        const z = (zi / segments - 0.5) * 2 * extent;
+    for (let zi = 0; zi < n; zi++) {
+      for (let xi = 0; xi < n; xi++) {
+        const x = axis[xi];
+        const z = axis[zi];
         const depth = waterLevel - TerrainSystem.getTerrainHeight(x, z);
         positions.push(x, waterLevel, z);
         normals.push(0, 1, 0);
-        uvs.push(xi / segments, zi / segments);
+        uvs.push(x / span + 0.5, z / span + 0.5);
 
         if (depth <= 0) {
           colors.push(0.6, 0.85, 0.9, 0);
@@ -400,11 +444,11 @@ export class TerrainSystem extends System {
       }
     }
 
-    for (let zi = 0; zi < segments; zi++) {
-      for (let xi = 0; xi < segments; xi++) {
-        const a = zi * (segments + 1) + xi;
+    for (let zi = 0; zi < n - 1; zi++) {
+      for (let xi = 0; xi < n - 1; xi++) {
+        const a = zi * n + xi;
         const b = a + 1;
-        const c = a + segments + 1;
+        const c = a + n;
         const d = c + 1;
         indices.push(a, b, c, b, d, c);
       }

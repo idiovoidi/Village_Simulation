@@ -35,6 +35,14 @@ export interface LevelConfigData {
   hasDogs: boolean;
   hasClouds: boolean;
   hasMoon: boolean;
+  /** Bay/lake carved into one side of the bowl (angle in radians from +X). */
+  bay?: { angle: number; width: number; depth: number };
+  /** Instanced woodland outside the village (trees). */
+  forestDensity?: number;
+  /** Boats on the water (coastal scenarios). */
+  boatCount?: number;
+  /** Hour of day (0-24) the scenario starts at. */
+  startHour?: number;
   zombieAggressiveness?: number;
   specialEffects?: {
     fog: boolean;
@@ -59,15 +67,17 @@ export const LEVELS: Record<string, LevelConfiguration> = {
       birdCount: 15,
       waterLevel: -2,
       fishCount: 20,
-      zombieCount: 5,
+      zombieCount: 0,
       hasVillage: true,
       hasWater: true,
       hasBirds: true,
       hasFish: true,
-      hasZombies: true,
+      hasZombies: false,
       hasDogs: true,
       hasClouds: true,
       hasMoon: true,
+      startHour: 8,
+      forestDensity: 1,
     },
   },
   ZOMBIE_APOCALYPSE: {
@@ -91,6 +101,10 @@ export const LEVELS: Record<string, LevelConfiguration> = {
       hasDogs: false,
       hasClouds: false,
       hasMoon: true,
+      startHour: 17.5,
+      forestDensity: 0.9,
+      zombieAggressiveness: 1.0,
+      specialEffects: { fog: true, bloodParticles: false, redSky: true },
     },
   },
   ZOMBIE_INVASION: {
@@ -114,6 +128,8 @@ export const LEVELS: Record<string, LevelConfiguration> = {
       hasDogs: false,
       hasClouds: false,
       hasMoon: true,
+      startHour: 21.5,
+      forestDensity: 0.7,
       zombieAggressiveness: 1.5,
       specialEffects: {
         fog: true,
@@ -143,6 +159,9 @@ export const LEVELS: Record<string, LevelConfiguration> = {
       hasDogs: false,
       hasClouds: true,
       hasMoon: true,
+      startHour: 6.5,
+      bay: { angle: Math.PI, width: 0.95, depth: 5 },
+      forestDensity: 1.6,
     },
   },
   COASTAL: {
@@ -157,15 +176,19 @@ export const LEVELS: Record<string, LevelConfiguration> = {
       birdCount: 20,
       waterLevel: -8,
       fishCount: 50,
-      zombieCount: 3,
+      zombieCount: 0,
       hasVillage: true,
       hasWater: true,
       hasBirds: true,
       hasFish: true,
-      hasZombies: true,
+      hasZombies: false,
       hasDogs: true,
       hasClouds: true,
       hasMoon: true,
+      boatCount: 3,
+      bay: { angle: 0, width: 1.25, depth: 9 },
+      forestDensity: 0.6,
+      startHour: 15,
     },
   },
 };

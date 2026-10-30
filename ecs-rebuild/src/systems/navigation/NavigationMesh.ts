@@ -5,9 +5,9 @@
  * Ported from MyHavokSimCode/Navigation/NavigationMesh.js
  */
 
-import { System } from '../../core/System';
-import type { World } from '../../core/World';
-import { TerrainSystem } from '../environment/TerrainSystem';
+import { System } from '../../core/System.ts';
+import type { World } from '../../core/World.ts';
+import { TerrainSystem } from '../environment/TerrainSystem.ts';
 
 /**
  * Navigation mesh configuration
@@ -50,7 +50,6 @@ export class NavigationMesh extends System {
   private navigationMesh: unknown = null;
   private terrainSystem: TerrainSystem | null = null;
   private initialized = false;
-  private recastInstance: unknown = null;
 
   constructor(world: World, scene: unknown, config: Partial<NavigationMeshConfig> = {}) {
     super(world);
@@ -131,7 +130,7 @@ export class NavigationMesh extends System {
       { diameter: 1 },
       this.scene as import('babylonjs').Scene
     );
-    sphere.position = new BABYLON.Vector3(node.position.x, node.position.y, node.position.z);
+    sphere.position = new (BABYLON as any).Vector3(node.position.x, node.position.y, node.position.z);
     sphere.visibility = 0.3;
   }
 
@@ -270,7 +269,7 @@ export class NavigationMesh extends System {
     const path: { x: number; y: number; z: number }[] = [current.position];
     let node: PathNode | undefined = current;
 
-    while (cameFrom.has(node.id)) {
+    while (node && cameFrom.has(node.id)) {
       node = cameFrom.get(node.id);
       if (node) {
         path.unshift(node.position);

@@ -5,8 +5,8 @@
  * Used by intelligent agents like villagers, zombies, and animals.
  */
 
-import type { Component } from '../core/Component';
-import type { Vector3 } from './CoreComponents';
+import type { Component } from '../core/Component.ts';
+import type { Vector3 } from './CoreComponents.ts';
 
 /**
  * Behavior states for AI agents.

@@ -3,67 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3D Village Simulation - TypeScript ECS</title>
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      font-family: Arial, sans-serif;
-    }
-    #renderCanvas {
-      width: 100%;
-      height: 100vh;
-      display: block;
-      touch-action: none;
-    }
-    #loading {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      text-align: center;
-      color: white;
-      background: rgba(0, 0, 0, 0.7);
-      padding: 20px;
-      border-radius: 10px;
-    }
-  </style>
+  <meta name="theme-color" content="#0b0f16">
+  <title>Village Sim</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4 16 16 5l12 11h-3v11H7V16z' fill='%23f2b84b'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/src/ui/hud.css">
 </head>
 <body>
-  <canvas id="renderCanvas"></canvas>
-  <div id="loadingScreen">
-    <h2>Loading 3D Village Simulation...</h2>
-    <p>Initializing ECS systems...</p>
+  <canvas id="renderCanvas" tabindex="0"></canvas>
+
+  <div id="loadingScreen" role="status">
+    <div class="spinner"></div>
+    <h2>Village Sim</h2>
+    <p>Waking the villagers…</p>
   </div>
-  
-  <!-- Load Babylon.js and Havok Physics from CDN -->
+
+  <div id="errorScreen">
+    <h2>Couldn't start the simulation</h2>
+    <div id="errorMessage"></div>
+  </div>
+
+  <!-- Babylon.js and Havok are loaded from the CDN as globals (see src/types/babylon-globals.d.ts). -->
   <script src="https://cdn.babylonjs.com/babylon.js"></script>
   <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
   <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
   <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
-  <script>
-    // Log when Havok is loaded
-    console.log('Loading Havok Physics...');
-  </script>
   <script src="https://cdn.babylonjs.com/havok/HavokPhysics_umd.js"></script>
-  <script>
-    // Verify Havok is loaded
-    console.log('Havok script loaded, checking...');
-    if (typeof HavokPhysics !== 'undefined') {
-      console.log('✅ HavokPhysics global is available');
-    } else {
-      console.log('❌ HavokPhysics global NOT found');
-    }
-  </script>
-  
-  <!-- Error screen (hidden by default) -->
-  <div id="errorScreen" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: white; background: rgba(200, 0, 0, 0.8); padding: 20px; border-radius: 10px;">
-    <h2>Error Starting Simulation</h2>
-    <div id="errorMessage"></div>
-  </div>
-  
-  <!-- Load application -->
+
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

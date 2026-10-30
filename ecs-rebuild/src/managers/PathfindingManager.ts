@@ -259,7 +259,7 @@ export class PathfindingManager {
     const path: Vector3[] = [];
     const visitedNodes = new Map<number, AStarNode>(openSet);
     let current: AStarNode | null = goalNode;
-    let cost = goalNode.g;
+    const cost = goalNode.g;
 
     // Add goal node to visited for reconstruction
     visitedNodes.set(goalNode.id, goalNode);

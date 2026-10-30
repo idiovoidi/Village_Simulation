@@ -4,10 +4,8 @@
  * Exports all environment-related systems
  */
 
-export { TerrainSystem } from './TerrainSystem';
-export { CloudSystem } from './CloudSystem';
-export { WaterSimulation } from './WaterSimulation';
+export { TerrainSystem } from './TerrainSystem.ts';
+export { Scatter } from './Scatter.ts';
 
-export type { TerrainConfig } from './TerrainSystem';
-export type { CloudConfig } from './CloudSystem';
-export type { WaterConfig } from './WaterSimulation';
+export type { TerrainConfig } from './TerrainSystem.ts';
+export type { ScatterOptions } from './Scatter.ts';

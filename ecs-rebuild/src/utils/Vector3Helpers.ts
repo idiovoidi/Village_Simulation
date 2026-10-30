@@ -7,7 +7,7 @@
  * Requirements: 18.5
  */
 
-import type { Vector3 } from '../components/CoreComponents';
+import type { Vector3 } from '../components/CoreComponents.ts';
 
 /**
  * Creates a new Vector3.

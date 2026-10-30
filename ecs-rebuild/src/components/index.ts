@@ -5,28 +5,28 @@
  */
 
 // Core Components
-export * from './CoreComponents';
+export * from './CoreComponents.ts';
 
 // AI Components
-export * from './AIComponents';
+export * from './AIComponents.ts';
 
 // Creature Components
-export * from './CreatureComponents';
+export * from './CreatureComponents.ts';
 
 // Survival Components
-export * from './SurvivalComponents';
+export * from './SurvivalComponents.ts';
 
 // Health Components
-export * from './HealthComponents';
+export * from './HealthComponents.ts';
 
 // Reproduction Components
-export * from './ReproductionComponents';
+export * from './ReproductionComponents.ts';
 
 // World Components
-export * from './WorldComponents';
+export * from './WorldComponents.ts';
 
 // Rendering Components
-export * from './RenderingComponents';
+export * from './RenderingComponents.ts';
 
 // Physics Components
-export * from './PhysicsComponents';
+export * from './PhysicsComponents.ts';

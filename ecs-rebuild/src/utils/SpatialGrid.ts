@@ -7,8 +7,8 @@
  * Requirements: 10.3
  */
 
-import type { EntityId } from '../core/Entity';
-import type { Vector3 } from '../components/CoreComponents';
+import type { EntityId } from '../core/Entity.ts';
+import type { Vector3 } from '../components/CoreComponents.ts';
 
 /**
  * Spatial grid cell containing entity IDs.

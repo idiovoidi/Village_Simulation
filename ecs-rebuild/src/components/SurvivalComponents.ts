@@ -5,7 +5,7 @@
  * These drive realistic behavior in villagers and other creatures.
  */
 
-import type { Component } from '../core/Component';
+import type { Component } from '../core/Component.ts';
 
 /**
  * Hunger tracking component.

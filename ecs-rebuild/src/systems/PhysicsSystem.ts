@@ -99,7 +99,7 @@ export class PhysicsSystem extends System {
    * - 8.2: Create physics bodies for entities with physics components
    * - 8.3: Synchronize physics body positions to Position components
    */
-  update(deltaTime: number): void {
+  update(_deltaTime: number): void {
     if (!this.initialized || !this.scene) {
       return;
     }
@@ -142,7 +142,7 @@ export class PhysicsSystem extends System {
       if (this.entityToAggregateMap.has(entityId)) continue;
 
       // Get the mesh from the Model component
-      const mesh = model?.mesh;
+      const mesh = (model as { mesh?: unknown } | undefined)?.mesh;
       if (!mesh) {
         // Create a simple box mesh for physics if no mesh exists
         const box = BABYLON.MeshBuilder.CreateBox(`physics_${entityId}`, {
@@ -151,6 +151,9 @@ export class PhysicsSystem extends System {
           depth: physicsBody.dimensions.z
         }, this.scene);
         box.position.set(position.x, position.y, position.z);
+        // Collider proxy only; RenderSystem owns the visible mesh.
+        box.isVisible = false;
+        box.isPickable = false;
         this.entityToMeshMap.set(entityId, box);
         this.createAggregateForMesh(entityId, physicsBody, box);
       } else {
@@ -169,9 +172,6 @@ export class PhysicsSystem extends System {
     // Get the shape type
     const shapeType = this.getBabylonShapeType(physicsBody.shapeType);
     
-    // Get the physics body type
-    const bodyType = this.getBabylonBodyType(physicsBody.bodyType);
-
     // Create physics aggregate
     try {
       const aggregate = new BABYLON.PhysicsAggregate(
@@ -214,25 +214,6 @@ export class PhysicsSystem extends System {
         return 2;
       default:
         return 0; // Default to BOX
-    }
-  }
-
-  /**
-   * Convert our body type to Babylon.js body type.
-   * Uses numeric values since PhysicsBodyType enum may not be available
-   */
-  private getBabylonBodyType(bodyType: PhysicsBodyType): number {
-    // Babylon.js Havok physics body type values
-    // STATIC = 0, DYNAMIC = 1, KINEMATIC = 2
-    switch (bodyType) {
-      case PhysicsBodyType.Static:
-        return 0;
-      case PhysicsBodyType.Dynamic:
-        return 1;
-      case PhysicsBodyType.Kinematic:
-        return 2;
-      default:
-        return 1; // Default to DYNAMIC
     }
   }
 
@@ -505,8 +486,8 @@ export class PhysicsSystem extends System {
     }
 
     if (mesh) {
-      // Optionally dispose the mesh if it was created for physics
-      // mesh.dispose(); // Uncomment if meshes should be disposed
+      // Collider proxies we created ourselves are ours to dispose.
+      if (typeof mesh.name === 'string' && mesh.name.startsWith('physics_')) mesh.dispose();
       this.entityToMeshMap.delete(entityId);
     }
 

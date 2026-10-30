@@ -4,6 +4,6 @@
  * Exports all navigation-related systems
  */
 
-export { NavigationMesh } from './NavigationMesh';
+export { NavigationMesh } from './NavigationMesh.ts';
 
-export type { NavigationMeshConfig } from './NavigationMesh';
+export type { NavigationMeshConfig } from './NavigationMesh.ts';

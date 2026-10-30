@@ -4,6 +4,6 @@
  * Exports all performance-related systems
  */
 
-export { PerformanceSystem } from './PerformanceSystem';
+export { PerformanceSystem } from './PerformanceSystem.ts';
 
-export type { PerformanceConfig, PerformanceMetrics, PerformanceAlert } from './PerformanceSystem';
+export type { PerformanceConfig, PerformanceMetrics, PerformanceAlert } from './PerformanceSystem.ts';

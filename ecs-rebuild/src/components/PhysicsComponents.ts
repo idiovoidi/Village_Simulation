@@ -5,8 +5,8 @@
  * These components enable entities to participate in physics simulation.
  */
 
-import type { Component } from '../core/Component';
-import type { Vector3 } from './CoreComponents';
+import type { Component } from '../core/Component.ts';
+import type { Vector3 } from './CoreComponents.ts';
 
 /**
  * Physics body types supported by Havok.

@@ -7,9 +7,9 @@
  * Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6, 13.7
  */
 
-import type { World } from '../core/World';
-import type { EntityId } from '../core/Entity';
-import type { Vector3 } from '../components/CoreComponents';
+import type { World } from '../core/World.ts';
+import type { EntityId } from '../core/Entity.ts';
+import type { Vector3 } from '../components/CoreComponents.ts';
 
 // Core components
 import {
@@ -18,7 +18,7 @@ import {
   createHealthComponent,
   createTransformComponent,
   createActiveComponent
-} from '../components/CoreComponents';
+} from '../components/CoreComponents.ts';
 
 // AI components
 import {
@@ -30,7 +30,7 @@ import {
   createGoalComponent,
   createThreatComponent,
   type ScheduleActivity
-} from '../components/AIComponents';
+} from '../components/AIComponents.ts';
 
 // Creature components
 import {
@@ -42,7 +42,7 @@ import {
   createBoatComponent,
   createDinosaurComponent,
   createFlockComponent
-} from '../components/CreatureComponents';
+} from '../components/CreatureComponents.ts';
 
 // Survival components
 import {
@@ -51,7 +51,7 @@ import {
   createEnergyComponent,
   createTemperatureComponent,
   createMoodComponent
-} from '../components/SurvivalComponents';
+} from '../components/SurvivalComponents.ts';
 
 // Reproduction components
 import {
@@ -60,7 +60,7 @@ import {
   createFertilityComponent,
   createGeneticsComponent,
   LifeStage
-} from '../components/ReproductionComponents';
+} from '../components/ReproductionComponents.ts';
 
 // World components
 import {
@@ -70,21 +70,21 @@ import {
   createWellComponent,
   createResourceComponent,
   createCropComponent
-} from '../components/WorldComponents';
+} from '../components/WorldComponents.ts';
 
 // Rendering components
 import {
   createModelComponent,
   createAnimationStateComponent,
   createVisualComponent
-} from '../components/RenderingComponents';
+} from '../components/RenderingComponents.ts';
 
 // Physics components
 import {
   createPhysicsBodyComponent,
   PhysicsBodyType,
   PhysicsShapeType
-} from '../components/PhysicsComponents';
+} from '../components/PhysicsComponents.ts';
 
 /**
  * Configuration for entity creation.
@@ -98,8 +98,14 @@ export interface EntityConfig {
 /**
  * EntityFactory creates pre-configured entities with appropriate components.
  */
+const CHARACTER_SCALE = { x: 1.3, y: 1.3, z: 1.3 };
+
 export class EntityFactory {
-  constructor(private world: World) {}
+  private world: World;
+
+  constructor(world: World) {
+    this.world = world;
+  }
 
   /**
    * Creates a villager entity with all required components.
@@ -118,7 +124,8 @@ export class EntityFactory {
     this.world.addComponent(entity, createPositionComponent(position.x, position.y, position.z));
     this.world.addComponent(entity, createVelocityComponent(0, 0, 0, 5));
     this.world.addComponent(entity, createHealthComponent(100, 100, 0.1));
-    this.world.addComponent(entity, createTransformComponent(position));
+    // Characters read better from the RTS camera a little larger than life.
+    this.world.addComponent(entity, createTransformComponent(position, undefined, { ...CHARACTER_SCALE }));
     this.world.addComponent(entity, createActiveComponent(true));
 
     // AI components
@@ -177,7 +184,8 @@ export class EntityFactory {
     this.world.addComponent(entity, createPositionComponent(position.x, position.y, position.z));
     this.world.addComponent(entity, createVelocityComponent(0, 0, 0, 3));
     this.world.addComponent(entity, createHealthComponent(80, 80, 0));
-    this.world.addComponent(entity, createTransformComponent(position));
+    // Characters read better from the RTS camera a little larger than life.
+    this.world.addComponent(entity, createTransformComponent(position, undefined, { ...CHARACTER_SCALE }));
     this.world.addComponent(entity, createActiveComponent(true));
 
     // AI components
@@ -195,7 +203,7 @@ export class EntityFactory {
 
     // Physics components
     this.world.addComponent(entity, createPhysicsBodyComponent(
-      PhysicsBodyType.Dynamic,
+      PhysicsBodyType.Kinematic,
       PhysicsShapeType.Capsule,
       80,
       { x: 0.5, y: 1.8, z: 0.5 }
@@ -226,7 +234,7 @@ export class EntityFactory {
 
     // AI components
     this.world.addComponent(entity, createAIBehaviourComponent(BehaviourState.Wander));
-    this.world.addComponent(entity, createSteeringComponent(5, 1));
+    // Fish are driven by WildlifeSystem (no ground-bound Steering).
 
     // Creature component
     this.world.addComponent(entity, createFishComponent(species, 3));
@@ -243,7 +251,7 @@ export class EntityFactory {
 
     // Physics components
     this.world.addComponent(entity, createPhysicsBodyComponent(
-      PhysicsBodyType.Dynamic,
+      PhysicsBodyType.Kinematic,
       PhysicsShapeType.Box,
       2,
       { x: 0.3, y: 0.2, z: 0.6 }
@@ -274,7 +282,7 @@ export class EntityFactory {
 
     // AI components
     this.world.addComponent(entity, createAIBehaviourComponent(BehaviourState.Wander));
-    this.world.addComponent(entity, createSteeringComponent(6, 1));
+    // Birds are driven by WildlifeSystem (no ground-bound Steering).
 
     // Creature component
     this.world.addComponent(entity, createBirdComponent(species, 20, 5));
@@ -291,7 +299,7 @@ export class EntityFactory {
 
     // Physics components (lighter for flying)
     this.world.addComponent(entity, createPhysicsBodyComponent(
-      PhysicsBodyType.Dynamic,
+      PhysicsBodyType.Kinematic,
       PhysicsShapeType.Sphere,
       0.5,
       { x: 0.2, y: 0.2, z: 0.2 }
@@ -334,7 +342,7 @@ export class EntityFactory {
 
     // Physics components
     this.world.addComponent(entity, createPhysicsBodyComponent(
-      PhysicsBodyType.Dynamic,
+      PhysicsBodyType.Kinematic,
       PhysicsShapeType.Capsule,
       20,
       { x: 0.3, y: 0.6, z: 0.3 }
@@ -364,7 +372,7 @@ export class EntityFactory {
 
     // AI components
     this.world.addComponent(entity, createAIBehaviourComponent(BehaviourState.Idle));
-    this.world.addComponent(entity, createSteeringComponent(5, 2));
+    // Boats are driven by WildlifeSystem (no ground-bound Steering).
 
     // Creature component
     this.world.addComponent(entity, createBoatComponent(boatType, 100, 4));
@@ -375,7 +383,7 @@ export class EntityFactory {
 
     // Physics components
     this.world.addComponent(entity, createPhysicsBodyComponent(
-      PhysicsBodyType.Dynamic,
+      PhysicsBodyType.Kinematic,
       PhysicsShapeType.Box,
       500,
       { x: 2, y: 1, z: 4 }
@@ -419,7 +427,7 @@ export class EntityFactory {
 
     // Physics components
     this.world.addComponent(entity, createPhysicsBodyComponent(
-      PhysicsBodyType.Dynamic,
+      PhysicsBodyType.Kinematic,
       PhysicsShapeType.Capsule,
       500,
       { x: 1, y: 2, z: 1 }

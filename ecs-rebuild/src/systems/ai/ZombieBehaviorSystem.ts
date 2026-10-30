@@ -7,18 +7,18 @@
  * Requirements: 6.2
  */
 
-import { System } from '../../core/System';
-import type { World } from '../../core/World';
-import type { ComponentSignature } from '../../core/Component';
-import type { EntityId } from '../../core/Entity';
-import { BehaviourState } from '../../components/AIComponents';
+import { System } from '../../core/System.ts';
+import type { World } from '../../core/World.ts';
+import type { ComponentSignature } from '../../core/Component.ts';
+import type { EntityId } from '../../core/Entity.ts';
+import { BehaviourState } from '../../components/AIComponents.ts';
 import type {
   AIBehaviourComponent,
   SteeringComponent
-} from '../../components/AIComponents';
-import type { ZombieComponent, VillagerComponent } from '../../components/CreatureComponents';
-import type { PositionComponent, VelocityComponent, HealthComponent } from '../../components/CoreComponents';
-import { SpatialGrid } from '../../utils/SpatialGrid';
+} from '../../components/AIComponents.ts';
+import type { ZombieComponent, VillagerComponent } from '../../components/CreatureComponents.ts';
+import type { PositionComponent, VelocityComponent, HealthComponent } from '../../components/CoreComponents.ts';
+import { SpatialGrid } from '../../utils/SpatialGrid.ts';
 
 /**
  * Configuration for zombie behavior tuning

@@ -8,18 +8,18 @@
  * @module systems/ai
  */
 
-import { System } from '../../core/System';
-import type { World } from '../../core/World';
-import type { ComponentSignature } from '../../core/Component';
-import type { EntityId } from '../../core/Entity';
-import { BehaviourState } from '../../components/AIComponents';
+import { System } from '../../core/System.ts';
+import type { World } from '../../core/World.ts';
+import type { ComponentSignature } from '../../core/Component.ts';
+import type { EntityId } from '../../core/Entity.ts';
+import { BehaviourState } from '../../components/AIComponents.ts';
 import type {
   AIBehaviourComponent,
   SteeringComponent
-} from '../../components/AIComponents';
-import type { VillagerComponent, ZombieComponent } from '../../components/CreatureComponents';
-import type { PositionComponent, VelocityComponent } from '../../components/CoreComponents';
-import { SpatialGrid } from '../../utils/SpatialGrid';
+} from '../../components/AIComponents.ts';
+import type { VillagerComponent, ZombieComponent } from '../../components/CreatureComponents.ts';
+import type { PositionComponent, VelocityComponent } from '../../components/CoreComponents.ts';
+import { SpatialGrid } from '../../utils/SpatialGrid.ts';
 
 /**
  * Point of Interest definition
@@ -539,6 +539,11 @@ export class VillagerBehaviorSystem extends System {
    */
   addPOI(poi: PointOfInterest): void {
     this.pointsOfInterest.push(poi);
+  }
+
+  /** Replaces every point of interest (used when a new level is laid out). */
+  setPOIs(pois: PointOfInterest[]): void {
+    this.pointsOfInterest = [...pois];
   }
 
   /**

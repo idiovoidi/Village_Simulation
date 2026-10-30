@@ -7,13 +7,13 @@
  * @module systems/ai
  */
 
-import { System } from '../../core/System';
-import type { World } from '../../core/World';
-import type { ComponentSignature } from '../../core/Component';
-import type { EntityId } from '../../core/Entity';
-import type { AIBehaviourComponent, SteeringComponent } from '../../components/AIComponents';
-import type { FishComponent } from '../../components/CreatureComponents';
-import type { PositionComponent, VelocityComponent } from '../../components/CoreComponents';
+import { System } from '../../core/System.ts';
+import type { World } from '../../core/World.ts';
+import type { ComponentSignature } from '../../core/Component.ts';
+import type { EntityId } from '../../core/Entity.ts';
+import type { AIBehaviourComponent, SteeringComponent } from '../../components/AIComponents.ts';
+import type { FishComponent } from '../../components/CreatureComponents.ts';
+import type { PositionComponent, VelocityComponent } from '../../components/CoreComponents.ts';
 
 export interface FishSwimConfig {
   schoolCenter: { x: number; y: number; z: number };

@@ -5,8 +5,8 @@
  * Ported from MyHavokSimCode/Performance/PerformanceMonitor.js
  */
 
-import { System } from '../../core/System';
-import type { World } from '../../core/World';
+import { System } from '../../core/System.ts';
+import type { World } from '../../core/World.ts';
 
 /**
  * Performance configuration
@@ -156,8 +156,6 @@ export class PerformanceSystem extends System {
    * Collect current performance metrics
    */
   private collectMetrics(): void {
-    const BABYLON = (window as unknown as { BABYLON: typeof import('babylonjs') }).BABYLON;
-    
     // Get FPS from engine
     if (this.engine) {
       const eng = this.engine as { getFps?: () => number; getDeltaTime?: () => number };
@@ -167,7 +165,7 @@ export class PerformanceSystem extends System {
 
     // Get memory usage
     if (typeof performance !== 'undefined' && (performance as { memory?: { usedJSHeapSize?: number } }).memory) {
-      const memory = (performance as { memory: { usedJSHeapSize: number; jsHeapSizeLimit: number } }).memory;
+      const memory = (performance as unknown as { memory: { usedJSHeapSize: number; jsHeapSizeLimit: number } }).memory;
       this.memoryUsage = (memory.usedJSHeapSize / memory.jsHeapSizeLimit) * 100;
     }
 
@@ -175,15 +173,15 @@ export class PerformanceSystem extends System {
     if (this.scene) {
       const scn = this.scene as {
         getEngine?: () => { getDrawCalls?: () => number };
-        getActiveMeshes?: () => { length: number };
-        getIndices?: () => number;
+        getActiveMeshes?: () => { length: number; data?: Array<{ getTotalIndices?: () => number }> };
       };
       
       const babylonEngine = scn.getEngine?.();
       this.drawCalls = babylonEngine?.getDrawCalls?.() || 0;
       
       const activeMeshes = scn.getActiveMeshes?.();
-      this.triangles = activeMeshes?.getIndices?.() ? activeMeshes.getIndices() / 3 : 0;
+      const active = activeMeshes?.data ?? [];
+      this.triangles = active.reduce((sum, m) => sum + (m?.getTotalIndices?.() ?? 0), 0) / 3;
     }
   }
 

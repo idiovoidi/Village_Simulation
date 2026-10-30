@@ -28,6 +28,7 @@ import {
   distance
 } from '../../utils/Vector3Helpers.ts';
 import { TerrainSystem } from '../environment/TerrainSystem.ts';
+import { faceVelocity } from '../../utils/Orientation.ts';
 
 /**
  * Steering behavior types.
@@ -57,7 +58,7 @@ export class SteeringSystem extends System {
 
   readonly priority = 150;
 
-  private wanderAngle = 0;
+  private wanderAngles = new Map<EntityId, number>();
   private wanderRadius = 5;
   private wanderDistance = 10;
   private wanderJitter = 1;
@@ -87,14 +88,14 @@ export class SteeringSystem extends System {
 
         if (distanceToTarget < steering.arrivalRadius) {
           // Arrive behavior - slow down as we approach
-          steeringForce = this.calculateArrive(position, velocity, steering.target, steering.arrivalRadius);
+          steeringForce = this.calculateArrive(position, velocity, steering.target, steering.arrivalRadius, velocity.maxSpeed);
         } else {
           // Seek behavior - move toward target
           steeringForce = this.calculateSeek(position, velocity, steering.target, velocity.maxSpeed);
         }
       } else {
         // Wander behavior when no target
-        steeringForce = this.calculateWander(position, velocity, deltaTime);
+        steeringForce = this.calculateWander(entityId, velocity, deltaTime);
       }
 
       // Clamp steering force to max force
@@ -124,17 +125,31 @@ export class SteeringSystem extends System {
         velocity.vz *= scale;
       }
 
-      // Integrate position from velocity
-      position.x += velocity.vx * deltaTime;
-      position.z += velocity.vz * deltaTime;
-      position.y = TerrainSystem.getTerrainHeight(position.x, position.z) + 1;
+      // Integrate position from velocity, refusing to wade into water or leave the bowl.
+      const nextX = position.x + velocity.vx * deltaTime;
+      const nextZ = position.z + velocity.vz * deltaTime;
+      const nextH = TerrainSystem.getTerrainHeight(nextX, nextZ);
+      const { waterLevel, bowlRadius } = TerrainSystem.getActiveConfig();
+      const blocked = nextH < waterLevel + 0.35 || Math.hypot(nextX, nextZ) > bowlRadius * 0.85;
 
-      // Keep render transform in sync
+      if (blocked) {
+        // Bounce back and let the behaviour layer pick a new direction.
+        velocity.vx *= -0.5;
+        velocity.vz *= -0.5;
+        steering.target = null;
+      } else {
+        position.x = nextX;
+        position.z = nextZ;
+      }
+      position.y = TerrainSystem.getTerrainHeight(position.x, position.z);
+
+      // Keep render transform in sync, turning to face the direction of travel.
       const transform = this.world.getComponent<TransformComponent>(entityId, 'Transform');
       if (transform) {
         transform.position.x = position.x;
         transform.position.y = position.y;
         transform.position.z = position.z;
+        faceVelocity(transform.rotation, velocity.vx, velocity.vz, deltaTime);
         transform.dirty = true;
       }
     }
@@ -189,7 +204,8 @@ export class SteeringSystem extends System {
     position: Vector3,
     velocity: { vx: number; vy: number; vz: number },
     target: Vector3,
-    arrivalRadius: number
+    arrivalRadius: number,
+    maxSpeed: number
   ): Vector3 {
     const desired = subtractVectors(target, position);
     const dist = vectorLength(desired);
@@ -201,9 +217,9 @@ export class SteeringSystem extends System {
 
     // Calculate desired speed based on distance
     // Speed ramps down linearly as we approach the target
-    const desiredSpeed = (dist / arrivalRadius) * velocity.vx; // Use current max speed
+    const desiredSpeed = (dist / arrivalRadius) * maxSpeed;
     const desiredNormalized = normalizeVector(desired);
-    const desiredVelocity = multiplyVector(desiredNormalized, Math.min(desiredSpeed, 10));
+    const desiredVelocity = multiplyVector(desiredNormalized, Math.min(desiredSpeed, maxSpeed));
 
     // Steering force = desired velocity - current velocity
     const currentVelocity: Vector3 = { x: velocity.vx, y: velocity.vy, z: velocity.vz };
@@ -215,7 +231,7 @@ export class SteeringSystem extends System {
    * Creates random wandering behavior by projecting a circle in front of the agent.
    */
   private calculateWander(
-    _position: Vector3,
+    entityId: EntityId,
     velocity: { vx: number; vy: number; vz: number },
     deltaTime: number
   ): Vector3 {
@@ -223,13 +239,16 @@ export class SteeringSystem extends System {
     const currentVelocity: Vector3 = { x: velocity.vx, y: velocity.vy, z: velocity.vz };
     const speed = vectorLength(currentVelocity);
 
+    let wanderAngle = this.wanderAngles.get(entityId) ?? Math.random() * Math.PI * 2;
+
     if (speed < 0.001) {
       // If not moving, pick a random direction
-      this.wanderAngle = Math.random() * Math.PI * 2;
+      wanderAngle = Math.random() * Math.PI * 2;
+      this.wanderAngles.set(entityId, wanderAngle);
       return {
-        x: Math.cos(this.wanderAngle),
+        x: Math.cos(wanderAngle),
         y: 0,
-        z: Math.sin(this.wanderAngle)
+        z: Math.sin(wanderAngle)
       };
     }
 
@@ -240,13 +259,14 @@ export class SteeringSystem extends System {
     const circleCenter = multiplyVector(forward, this.wanderDistance);
 
     // Add random displacement to wander angle
-    this.wanderAngle += (Math.random() - 0.5) * this.wanderJitter * deltaTime;
+    wanderAngle += (Math.random() - 0.5) * this.wanderJitter * deltaTime * 6;
+    this.wanderAngles.set(entityId, wanderAngle);
 
     // Calculate displacement on circle
     const displacement = {
-      x: Math.cos(this.wanderAngle) * this.wanderRadius,
+      x: Math.cos(wanderAngle) * this.wanderRadius,
       y: 0,
-      z: Math.sin(this.wanderAngle) * this.wanderRadius
+      z: Math.sin(wanderAngle) * this.wanderRadius
     };
 
     // Wander force = circle center + displacement

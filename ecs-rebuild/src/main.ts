@@ -1,79 +1,48 @@
 /**
- * Main Entry Point for ECS Rebuild
- *
- * This is the main entry point for the TypeScript-refactored village simulation.
- * It initializes the Babylon.js scene, Havok Physics, and all ECS systems.
- *
- * Ported from MyHavokSimCode/Havokimport.js
+ * Entry point: boots the ECS village simulation into #renderCanvas.
+ * Babylon.js and Havok are loaded from the CDN by index.html.
  */
 
-import { GameManager } from './managers/GameManager.js';
+import { GameManager } from './managers/GameManager.ts';
 
-console.log('📦 main.ts loaded');
+const canvas = document.getElementById('renderCanvas') as HTMLCanvasElement | null;
+if (!canvas) throw new Error('Canvas element #renderCanvas not found');
 
-// Get canvas element
-const canvas = document.getElementById('renderCanvas') as HTMLCanvasElement;
-
-if (!canvas) {
-  throw new Error('Canvas element not found');
-}
-
-console.log('✓ Canvas found');
-
-// Create and initialize the game manager
 const gameManager = new GameManager(canvas);
 
-console.log('✓ GameManager created');
-
-// Initialize and start the simulation
-async function startSimulation() {
-  try {
-    console.log('%c🎮 Starting 3D Village Simulation (ECS Rebuild)', 'background: #2196F3; color: white; font-size: 16px; padding: 10px;');
-    console.log('📍 Calling gameManager.initialize()...');
-
-    await gameManager.initialize();
-
-    console.log('✓ gameManager.initialize() completed');
-
-    // Start the game loop
-    console.log('📍 Calling gameManager.start()...');
-    gameManager.start();
-    console.log('✓ gameManager.start() completed');
-
-    // Hide loading screen
-    const loading = document.getElementById('loadingScreen');
-    if (loading) {
-      loading.style.display = 'none';
-    }
-
-    console.log('%c✅ Simulation started successfully!', 'color: #4CAF50; font-size: 14px;');
-  } catch (error) {
-    console.error('%c❌ Failed to start simulation:', 'color: #F44336; font-size: 14px;', error);
-
-    // Show error screen
-    const loadingScreen = document.getElementById('loadingScreen');
-    const errorScreen = document.getElementById('errorScreen');
-    const errorMessage = document.getElementById('errorMessage');
-
-    if (loadingScreen) loadingScreen.style.display = 'none';
-    if (errorScreen) errorScreen.style.display = 'flex';
-    if (errorMessage) {
-      errorMessage.innerHTML = `<p><strong>Error:</strong> ${error instanceof Error ? error.message : 'Unknown error'}</p>
-                               <p><strong>Stack:</strong></p>
-                               <pre>${error instanceof Error ? error.stack || 'No stack trace available' : 'No stack trace available'}</pre>`;
-    }
+function showError(error: unknown): void {
+  console.error('Failed to start simulation:', error);
+  document.getElementById('loadingScreen')?.classList.add('hidden');
+  const screen = document.getElementById('errorScreen');
+  const message = document.getElementById('errorMessage');
+  if (screen) screen.style.display = 'flex';
+  if (message) {
+    // textContent, never innerHTML: error text can contain arbitrary markup.
+    message.replaceChildren();
+    const p = document.createElement('p');
+    p.textContent = error instanceof Error ? error.message : 'Unknown error';
+    const pre = document.createElement('pre');
+    pre.textContent = error instanceof Error ? (error.stack ?? '') : '';
+    message.append(p, pre);
   }
 }
 
-// Wait for DOM to be ready
-console.log('📍 DOM readyState:', document.readyState);
-if (document.readyState === 'loading') {
-  console.log('📍 Waiting for DOMContentLoaded...');
-  document.addEventListener('DOMContentLoaded', startSimulation);
-} else {
-  console.log('📍 DOM already ready, starting simulation...');
-  startSimulation();
+async function startSimulation(): Promise<void> {
+  try {
+    await gameManager.initialize();
+    gameManager.start();
+  } catch (error) {
+    showError(error);
+  }
 }
 
-// Export for debugging
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => void startSimulation());
+} else {
+  void startSimulation();
+}
+
+// Debug hook for the browser console and automated screenshots.
+(window as unknown as { __village: GameManager }).__village = gameManager;
+
 export { gameManager };

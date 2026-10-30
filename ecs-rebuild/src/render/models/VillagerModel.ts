@@ -25,6 +25,28 @@ export interface VillagerConfig {
   height?: number;
 }
 
+const SKIN_TONES: Array<[number, number, number]> = [
+  [0.96, 0.78, 0.64],
+  [0.85, 0.64, 0.48],
+  [0.66, 0.46, 0.33],
+  [0.45, 0.31, 0.22],
+];
+const SHIRTS: Array<[number, number, number]> = [
+  [0.74, 0.22, 0.2],
+  [0.22, 0.45, 0.7],
+  [0.3, 0.6, 0.3],
+  [0.85, 0.72, 0.28],
+  [0.6, 0.35, 0.65],
+  [0.9, 0.9, 0.85],
+  [0.82, 0.5, 0.2],
+];
+const HAIR: Array<[number, number, number]> = [
+  [0.12, 0.09, 0.07],
+  [0.35, 0.22, 0.12],
+  [0.7, 0.55, 0.25],
+  [0.55, 0.55, 0.55],
+];
+
 /**
  * Creates procedural villager meshes
  */
@@ -92,24 +114,40 @@ export class VillagerModel {
     limbs.leftArm.rotation.z = Math.PI / 8;
     limbs.rightArm.rotation.z = -Math.PI / 8;
 
-    // Create materials
-    const skinTone = config?.skinTone ?? this.generateSkinTone();
-    const clothingColor = config?.clothingColor ?? this.generateRandomColor();
+    // Materials come from a small shared palette so hundreds of villagers batch well.
+    const skinIdx = Math.floor(Math.random() * SKIN_TONES.length);
+    const shirtIdx = Math.floor(Math.random() * SHIRTS.length);
+    const hairIdx = Math.floor(Math.random() * HAIR.length);
+    const skinMaterial = config?.skinTone
+      ? this.makeMaterial(`${name}_skin`, config.skinTone)
+      : this.sharedMaterial(`villager_skin_${skinIdx}`, SKIN_TONES[skinIdx]);
+    const clothingMaterial = config?.clothingColor
+      ? this.makeMaterial(`${name}_clothing`, config.clothingColor)
+      : this.sharedMaterial(`villager_shirt_${shirtIdx}`, SHIRTS[shirtIdx]);
+    const pantsMaterial = this.sharedMaterial('villager_pants', [0.28, 0.26, 0.3]);
+    const hairMaterial = this.sharedMaterial(`villager_hair_${hairIdx}`, HAIR[hairIdx]);
+    const eyeMaterial = this.sharedMaterial('villager_eye', [0.08, 0.08, 0.1]);
 
-    const bodyMaterial = new BABYLON.StandardMaterial(`${name}_material`, this.scene);
-    bodyMaterial.diffuseColor = skinTone;
-    bodyMaterial.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
-
-    const clothingMaterial = new BABYLON.StandardMaterial(`${name}_clothing`, this.scene);
-    clothingMaterial.diffuseColor = clothingColor;
-
-    // Apply materials
-    head.material = bodyMaterial;
+    head.material = skinMaterial;
     torso.material = clothingMaterial;
     limbs.leftArm.material = clothingMaterial;
     limbs.rightArm.material = clothingMaterial;
-    limbs.leftLeg.material = clothingMaterial;
-    limbs.rightLeg.material = clothingMaterial;
+    limbs.leftLeg.material = pantsMaterial;
+    limbs.rightLeg.material = pantsMaterial;
+    head.getChildMeshes().forEach((m: any) => {
+      m.material = m.name.endsWith('mouth') ? skinMaterial : eyeMaterial;
+    });
+
+    // Hair cap
+    const hair = BABYLON.MeshBuilder.CreateSphere(
+      `${name}_hair`,
+      { diameter: 0.56, segments: 8, slice: 0.55 },
+      this.scene
+    );
+    hair.parent = head;
+    hair.position.y = 0.06;
+    hair.rotation.x = -0.15;
+    hair.material = hairMaterial;
 
     // Store reference
     this.meshes.push(root);
@@ -151,12 +189,6 @@ export class VillagerModel {
     rightEye.parent = head;
     rightEye.position = new BABYLON.Vector3(0.1, eyeY, eyeZ);
 
-    // Eye material
-    const eyeMaterial = new BABYLON.StandardMaterial(`${name}_eyeMaterial`, this.scene);
-    eyeMaterial.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1);
-    leftEye.material = eyeMaterial;
-    rightEye.material = eyeMaterial;
-
     // Create mouth
     const mouth = BABYLON.MeshBuilder.CreateCylinder(
       `${name}_mouth`,
@@ -168,11 +200,6 @@ export class VillagerModel {
     mouth.rotation.x = Math.PI / 2;
     mouth.scaling.x = 2;
     mouth.scaling.y = 0.5;
-
-    // Mouth material
-    const mouthMaterial = new BABYLON.StandardMaterial(`${name}_mouthMaterial`, this.scene);
-    mouthMaterial.diffuseColor = new BABYLON.Color3(0.5, 0.1, 0.1);
-    mouth.material = mouthMaterial;
   }
 
   /**
@@ -191,33 +218,18 @@ export class VillagerModel {
     );
   }
 
-  /**
-   * Generates a random skin tone
-   */
-  private generateSkinTone(): Color3 {
-    const BABYLON = (window as any).BABYLON;
-    return new BABYLON.Color3(
-      0.8 + Math.random() * 0.2,
-      0.6 + Math.random() * 0.2,
-      0.4 + Math.random() * 0.2
-    );
+  private sharedMaterial(key: string, color: [number, number, number]): any {
+    const existing = this.scene.getMaterialByName(key);
+    if (existing) return existing;
+    return this.makeMaterial(key, new (window as any).BABYLON.Color3(color[0], color[1], color[2]));
   }
 
-  /**
-   * Generates a random clothing color from a curated palette
-   */
-  private generateRandomColor(): Color3 {
+  private makeMaterial(key: string, color: Color3): any {
     const BABYLON = (window as any).BABYLON;
-    const colors = [
-      new BABYLON.Color3(0.8, 0.2, 0.2), // Red
-      new BABYLON.Color3(0.2, 0.6, 0.8), // Blue
-      new BABYLON.Color3(0.2, 0.8, 0.2), // Green
-      new BABYLON.Color3(0.8, 0.8, 0.2), // Yellow
-      new BABYLON.Color3(0.8, 0.4, 0.8), // Purple
-      new BABYLON.Color3(0.4, 0.8, 0.8), // Cyan
-      new BABYLON.Color3(0.8, 0.6, 0.2)  // Orange
-    ];
-    return colors[Math.floor(Math.random() * colors.length)];
+    const mat = new BABYLON.StandardMaterial(key, this.scene);
+    mat.diffuseColor = color;
+    mat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+    return mat;
   }
 
   /**

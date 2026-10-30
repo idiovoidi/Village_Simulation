@@ -7,7 +7,7 @@
  * @module utils
  */
 
-import type { Vector3 } from '../components/CoreComponents';
+import type { Vector3 } from '../components/CoreComponents.ts';
 
 /**
  * Wraps an angle to the range [-PI, PI]

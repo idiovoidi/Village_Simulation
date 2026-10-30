@@ -1,49 +1,81 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * FieldModel — simple ground patch for market / crop fields.
+ * FieldModel — tilled market garden with crop rows and two striped stalls.
  */
+
+import { sharedMaterial, createGableRoof, mergeIntoRoot } from './Materials.ts';
 
 export interface FieldParts {
   root: unknown;
 }
 
 export class FieldModel {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private scene: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private meshes: any[] = [];
+  private roots: any[] = [];
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   constructor(scene: any) {
     this.scene = scene;
   }
 
   create(position: { x: number; y: number; z: number }): FieldParts {
-    const BABYLON = (window as any).BABYLON;
-    const name = `field_${this.meshes.length}`;
+    const B = (window as any).BABYLON;
+    const s = this.scene;
+    const name = `prop_field_${this.roots.length}`;
 
-    const root = new BABYLON.TransformNode(name, this.scene);
-    root.position = new BABYLON.Vector3(position.x, position.y, position.z);
+    const root = new B.TransformNode(name, s);
+    const soil = sharedMaterial(s, 'field_soil', [0.33, 0.23, 0.14]);
+    const crop = sharedMaterial(s, 'field_crop', [0.35, 0.6, 0.18]);
+    const wood = sharedMaterial(s, 'house_wood', [0.3, 0.2, 0.13]);
+    const cloths = [
+      sharedMaterial(s, 'stall_red', [0.75, 0.2, 0.18], { twoSided: true }),
+      sharedMaterial(s, 'stall_blue', [0.2, 0.4, 0.7], { twoSided: true }),
+    ];
 
-    const patch = BABYLON.MeshBuilder.CreateGround(
-      `${name}_patch`,
-      { width: 8, height: 8 },
-      this.scene
-    );
+    const patch = B.MeshBuilder.CreateBox(`${name}_patch`, { width: 9, height: 0.12, depth: 7 }, s);
     patch.parent = root;
-    patch.position.y = 0.05;
+    patch.position.y = 0.06;
+    patch.material = soil;
 
-    const mat = new BABYLON.StandardMaterial(`${name}_mat`, this.scene);
-    mat.diffuseColor = new BABYLON.Color3(0.45, 0.35, 0.2);
-    patch.material = mat;
+    for (let i = 0; i < 5; i++) {
+      const row = B.MeshBuilder.CreateBox(`${name}_row${i}`, { width: 8, height: 0.35, depth: 0.55 }, s);
+      row.parent = root;
+      row.position.set(0, 0.25, -2.6 + i * 1.3);
+      row.material = crop;
+    }
 
-    this.meshes.push(root);
+    // Two market stalls on the edge of the field.
+    [-1, 1].forEach((side, i) => {
+      const stall = new B.TransformNode(`${name}_stall${i}`, s);
+      stall.parent = root;
+      stall.position.set(side * 3.2, 0, 4.6);
+      for (const sx of [-1, 1]) {
+        for (const sz of [-1, 1]) {
+          const post = B.MeshBuilder.CreateBox(`${name}_sp`, { width: 0.12, height: 2.0, depth: 0.12 }, s);
+          post.parent = stall;
+          post.position.set(sx * 0.9, 1.0, sz * 0.6);
+          post.material = wood;
+        }
+      }
+      const counter = B.MeshBuilder.CreateBox(`${name}_counter`, { width: 2.0, height: 0.7, depth: 0.7 }, s);
+      counter.parent = stall;
+      counter.position.set(0, 0.45, 0.4);
+      counter.material = wood;
+      const awning = createGableRoof(s, `${name}_awning`, { width: 1.8, depth: 1.2, height: 0.5, overhang: 0.25 });
+      awning.parent = stall;
+      awning.position.y = 2.0;
+      awning.material = cloths[i % cloths.length];
+    });
+
+    const stalls = root.getChildTransformNodes(true);
+    mergeIntoRoot(root, root.getChildMeshes(false), stalls);
+    root.position = new B.Vector3(position.x, position.y, position.z);
+
+    this.roots.push(root);
     return { root };
   }
 
   dispose(): void {
-    for (const mesh of this.meshes) {
-      if (mesh?.dispose) mesh.dispose();
-    }
-    this.meshes = [];
+    for (const r of this.roots) r?.dispose?.();
+    this.roots = [];
   }
 }

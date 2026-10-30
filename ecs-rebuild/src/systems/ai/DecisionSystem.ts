@@ -7,22 +7,22 @@
  * Requirements: 6.1, 6.2, 6.5, 6.6
  */
 
-import { System } from '../../core/System';
-import type { World } from '../../core/World';
-import type { ComponentSignature } from '../../core/Component';
-import type { EntityId } from '../../core/Entity';
-import { BehaviourState } from '../../components/AIComponents';
+import { System } from '../../core/System.ts';
+import type { World } from '../../core/World.ts';
+import type { ComponentSignature } from '../../core/Component.ts';
+import type { EntityId } from '../../core/Entity.ts';
+import { BehaviourState } from '../../components/AIComponents.ts';
 import type {
   AIBehaviourComponent,
   GoalComponent,
   ThreatComponent
-} from '../../components/AIComponents';
+} from '../../components/AIComponents.ts';
 import type {
   HungerComponent,
   ThirstComponent,
   EnergyComponent
-} from '../../components/SurvivalComponents';
-import type { VillagerComponent, ZombieComponent } from '../../components/CreatureComponents';
+} from '../../components/SurvivalComponents.ts';
+import type { VillagerComponent, ZombieComponent } from '../../components/CreatureComponents.ts';
 
 /**
  * Priority levels for different needs and goals.

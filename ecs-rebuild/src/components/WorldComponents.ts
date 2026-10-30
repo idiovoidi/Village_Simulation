@@ -5,8 +5,8 @@
  * Includes buildings, roads, navigation, weather, seasons, and agriculture.
  */
 
-import type { Component } from '../core/Component';
-import type { Vector3 } from './CoreComponents';
+import type { Component } from '../core/Component.ts';
+import type { Vector3 } from './CoreComponents.ts';
 
 /**
  * House/building component.

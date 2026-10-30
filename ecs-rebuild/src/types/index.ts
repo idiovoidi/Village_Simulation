@@ -6,5 +6,5 @@
  * @module types
  */
 
-export * from './AgentTypes';
-export * from './BehaviorConfigTypes';
+export * from './AgentTypes.ts';
+export * from './BehaviorConfigTypes.ts';

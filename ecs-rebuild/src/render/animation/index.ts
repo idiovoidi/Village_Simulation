@@ -11,49 +11,49 @@ export {
   createAnimationController,
   type AnimationState,
   type AnimationCallback
-} from './AnimationController';
+} from './AnimationController.ts';
 
 // Humanoid animations
 export {
   VillagerAnimation,
   createVillagerAnimation,
   type VillagerParts
-} from './VillagerAnimation';
+} from './VillagerAnimation.ts';
 
 export {
   ZombieAnimation,
   createZombieAnimation,
   type ZombieParts
-} from './ZombieAnimation';
+} from './ZombieAnimation.ts';
 
 // Animal animations
 export {
   BirdAnimation,
   createBirdAnimation,
   type BirdParts
-} from './BirdAnimation';
+} from './BirdAnimation.ts';
 
 export {
   DogAnimation,
   createDogAnimation,
   type DogParts
-} from './DogAnimation';
+} from './DogAnimation.ts';
 
 export {
   FishAnimation,
   createFishAnimation,
   type FishParts
-} from './FishAnimation';
+} from './FishAnimation.ts';
 
 export {
   DinosaurAnimation,
   createDinosaurAnimation,
   type DinosaurParts
-} from './DinosaurAnimation';
+} from './DinosaurAnimation.ts';
 
 // Vehicle animations
 export {
   BoatAnimation,
   createBoatAnimation,
   type BoatParts
-} from './BoatAnimation';
+} from './BoatAnimation.ts';

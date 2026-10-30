@@ -5,7 +5,7 @@
  * These components provide basic functionality like position, movement, health, and transforms.
  */
 
-import type { Component } from '../core/Component';
+import type { Component } from '../core/Component.ts';
 
 /**
  * 3D position in world space.

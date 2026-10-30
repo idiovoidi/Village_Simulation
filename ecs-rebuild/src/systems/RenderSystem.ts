@@ -11,17 +11,21 @@ import type { ComponentSignature } from '../core/Component.ts';
 import type { EntityId } from '../core/Entity.ts';
 import type { ModelComponent } from '../components/RenderingComponents.ts';
 import type { TransformComponent } from '../components/CoreComponents.ts';
-import { VillagerModel } from '../render/models/VillagerModel.js';
-import { ZombieModel } from '../render/models/ZombieModel.js';
-import { FishModel } from '../render/models/FishModel.js';
-import { BirdModel } from '../render/models/BirdModel.js';
-import { DogModel } from '../render/models/DogModel.js';
-import { BoatModel } from '../render/models/BoatModel.js';
-import { DinosaurModel } from '../render/models/DinosaurModel.js';
-import { HouseModel } from '../render/models/HouseModel.js';
-import { TreeModel } from '../render/models/TreeModel.js';
-import { WellModel } from '../render/models/WellModel.js';
-import { FieldModel } from '../render/models/FieldModel.js';
+import type { TreeComponent } from '../components/WorldComponents.ts';
+import { VillagerModel } from '../render/models/VillagerModel.ts';
+import { ZombieModel } from '../render/models/ZombieModel.ts';
+import { FishModel } from '../render/models/FishModel.ts';
+import { BirdModel } from '../render/models/BirdModel.ts';
+import { DogModel } from '../render/models/DogModel.ts';
+import { BoatModel } from '../render/models/BoatModel.ts';
+import { DinosaurModel } from '../render/models/DinosaurModel.ts';
+import { HouseModel } from '../render/models/HouseModel.ts';
+import { TreeModel } from '../render/models/TreeModel.ts';
+import { WellModel } from '../render/models/WellModel.ts';
+import { FieldModel } from '../render/models/FieldModel.ts';
+
+/** Models that float/fly and are centred on their Position instead of resting on it. */
+const FLOATING_MODELS = new Set(['bird', 'fish']);
 
 /**
  * RenderSystem handles mesh creation and transform synchronization.
@@ -34,6 +38,9 @@ export class RenderSystem extends System {
   private scene: any; // Babylon.Scene
   private entityMeshMap: Map<EntityId, any>; // Map of entity IDs to mesh instances
   private modelInstances: Map<string, any> = new Map(); // Model class instances
+  private entityPartsMap: Map<EntityId, any> = new Map(); // Raw parts returned by model factories
+  private meshEntityMap: Map<any, EntityId> = new Map(); // Root node -> entity (for picking)
+  private footOffsetMap: Map<EntityId, number> = new Map(); // Lift so the lowest mesh point sits on Position.y
 
   /**
    * Creates a new RenderSystem.
@@ -112,8 +119,6 @@ export class RenderSystem extends System {
    * @param modelComponent - The model component
    */
   private createMeshForEntity(entityId: EntityId, modelComponent: ModelComponent): void {
-    console.log(`[RenderSystem] Creating mesh for entity ${entityId} with meshId: ${modelComponent.meshId}`);
-
     const modelInstance = this.modelInstances.get(modelComponent.meshId);
     const transformComponent = this.world.getComponent<TransformComponent>(entityId, 'Transform');
 
@@ -124,16 +129,21 @@ export class RenderSystem extends System {
 
     // Get position from transform component
     const position = transformComponent?.position ?? { x: 0, y: 0, z: 0 };
-    console.log(`[RenderSystem] Position:`, position);
-
     // Create mesh using the model class - method names vary
     let meshParts: any;
     try {
       switch (modelComponent.meshId) {
         case 'villager':
-          console.log(`[RenderSystem] Calling createVillager()`);
           meshParts = (modelInstance as VillagerModel).createVillager(position);
           break;
+        case 'tree': {
+          const tree = this.world.getComponent<TreeComponent>(entityId, 'Tree');
+          meshParts = (modelInstance as TreeModel).create(position, {
+            treeType: tree?.treeType,
+            age: tree?.age,
+          });
+          break;
+        }
         case 'zombie':
         case 'fish':
         case 'bird':
@@ -141,10 +151,8 @@ export class RenderSystem extends System {
         case 'boat':
         case 'dinosaur':
         case 'house':
-        case 'tree':
         case 'well':
         case 'field':
-          console.log(`[RenderSystem] Calling create() for ${modelComponent.meshId}`);
           meshParts = (modelInstance as any).create(position);
           break;
         default:
@@ -158,9 +166,18 @@ export class RenderSystem extends System {
 
     // Store the root mesh
     const rootMesh = meshParts.root || meshParts;
-    console.log(`[RenderSystem] Root mesh created:`, rootMesh);
     (modelComponent as any).meshInstance = rootMesh;
     this.entityMeshMap.set(entityId, rootMesh);
+    this.entityPartsMap.set(entityId, meshParts);
+    this.meshEntityMap.set(rootMesh, entityId);
+
+    // Ground-bound models are lifted so their lowest point rests on the entity's
+    // Position.y instead of every model baking in its own offset.
+    if (!FLOATING_MODELS.has(modelComponent.meshId) && rootMesh.getHierarchyBoundingVectors) {
+      rootMesh.computeWorldMatrix(true);
+      const { min } = rootMesh.getHierarchyBoundingVectors(true);
+      this.footOffsetMap.set(entityId, min.y - rootMesh.position.y);
+    }
   }
 
   /**
@@ -186,7 +203,7 @@ export class RenderSystem extends System {
     // Update position
     mesh.position = new BABYLON.Vector3(
       transformComponent.position.x,
-      transformComponent.position.y,
+      transformComponent.position.y - (this.footOffsetMap.get(entityId) ?? 0) * transformComponent.scale.y,
       transformComponent.position.z
     );
 
@@ -220,8 +237,11 @@ export class RenderSystem extends System {
           mesh.dispose();
         }
 
-        // Remove from map
+        // Remove from maps
         this.entityMeshMap.delete(entityId);
+        this.entityPartsMap.delete(entityId);
+        this.meshEntityMap.delete(mesh);
+        this.footOffsetMap.delete(entityId);
 
         // Clear mesh instance reference in component (if entity still exists)
         const modelComponent = this.world.getComponent<ModelComponent>(entityId, 'Model');
@@ -230,6 +250,22 @@ export class RenderSystem extends System {
         }
       }
     }
+  }
+
+  /** Parts (limbs, wings, tail...) created by the model factory for an entity. */
+  getParts(entityId: EntityId): any {
+    return this.entityPartsMap.get(entityId);
+  }
+
+  /** Resolves a picked mesh (or any of its descendants) back to its entity. */
+  findEntityByMesh(mesh: any): EntityId | null {
+    let node = mesh;
+    while (node) {
+      const id = this.meshEntityMap.get(node);
+      if (id !== undefined) return id;
+      node = node.parent;
+    }
+    return null;
   }
 
   /**

@@ -4,6 +4,6 @@
  * Exports all village-related systems
  */
 
-export { VillageSystem } from './VillageSystem';
+export { VillageSystem } from './VillageSystem.ts';
 
-export type { VillageConfig } from './VillageSystem';
+export type { VillageConfig } from './VillageSystem.ts';

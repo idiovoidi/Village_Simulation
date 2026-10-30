@@ -7,13 +7,13 @@
  * @module systems/ai
  */
 
-import { System } from '../../core/System';
-import type { World } from '../../core/World';
-import type { ComponentSignature } from '../../core/Component';
-import type { EntityId } from '../../core/Entity';
-import type { AIBehaviourComponent, SteeringComponent } from '../../components/AIComponents';
-import type { DogComponent } from '../../components/CreatureComponents';
-import type { PositionComponent, VelocityComponent } from '../../components/CoreComponents';
+import { System } from '../../core/System.ts';
+import type { World } from '../../core/World.ts';
+import type { ComponentSignature } from '../../core/Component.ts';
+import type { EntityId } from '../../core/Entity.ts';
+import type { AIBehaviourComponent, SteeringComponent } from '../../components/AIComponents.ts';
+import type { DogComponent } from '../../components/CreatureComponents.ts';
+import type { PositionComponent, VelocityComponent } from '../../components/CoreComponents.ts';
 
 export interface DogBehaviorConfig {
   wanderRadius: number;
@@ -80,6 +80,7 @@ export class DogBehaviorSystem extends System {
       velocity.vx = 0;
       velocity.vy = 0;
       velocity.vz = 0;
+      steering.target = { x: position.x, y: position.y, z: position.z };
       return;
     }
 
@@ -119,6 +120,9 @@ export class DogBehaviorSystem extends System {
       const targetY = this.terrainHeightFn(position.x, position.z) + 1;
       direction.y = (targetY - position.y) * 2;
     }
+
+    // SteeringSystem seeks steering.target and handles terrain/water.
+    steering.target = { ...dog.targetPosition };
 
     // Set steering force
     steering.steeringForce = {

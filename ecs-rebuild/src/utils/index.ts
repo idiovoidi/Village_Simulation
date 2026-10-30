@@ -4,13 +4,13 @@
  * Central export point for all utility functions and classes.
  */
 
-export * from './Vector3Helpers';
-export * from './Random';
-export * from './Logger';
-export * from './SpatialGrid';
-export * from './EventBus';
-export * from './ColorHelpers';
-export * from './MaterialHelpers';
+export * from './Vector3Helpers.ts';
+export * from './Random.ts';
+export * from './Logger.ts';
+export * from './SpatialGrid.ts';
+export * from './EventBus.ts';
+export * from './ColorHelpers.ts';
+export * from './MaterialHelpers.ts';
 
 // Export GeometryHelpers with namespace to avoid conflicts with Vector3Helpers
 export {
@@ -24,7 +24,7 @@ export {
   randomPointInCircle,
   randomPointInSphere,
   lookAtRotation
-} from './GeometryHelpers';
+} from './GeometryHelpers.ts';
 
 // Export MathHelpers separately to avoid naming conflicts
-export * as MathHelpers from './MathHelpers';
+export * as MathHelpers from './MathHelpers.ts';

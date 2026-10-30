@@ -15,6 +15,9 @@ import type { EnergyComponent } from '../../components/SurvivalComponents.ts';
 import type { AIBehaviourComponent, ScheduleComponent } from '../../components/AIComponents.ts';
 import { BehaviourState } from '../../components/AIComponents.ts';
 
+/** Energy at or below this level overrides the schedule so the villager rests. */
+const CRITICAL_ENERGY = 10;
+
 /**
  * System that manages energy depletion and restoration.
  */
@@ -56,8 +59,8 @@ export class EnergySystem extends System {
     // Clamp to valid range [0, 100]
     energy.level = Math.max(0, Math.min(100, energy.level));
 
-    // Check if energy is depleted and trigger sleep behavior
-    if (energy.level <= 0) {
+    // Rest before total exhaustion, like hunger and thirst react at their thresholds
+    if (energy.level <= CRITICAL_ENERGY) {
       this.triggerSleepBehavior(entityId);
     }
   }

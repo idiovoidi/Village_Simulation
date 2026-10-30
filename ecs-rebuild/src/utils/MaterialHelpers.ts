@@ -7,7 +7,7 @@
  * @module utils
  */
 
-import type { ColorRGB } from './ColorHelpers';
+import type { ColorRGB } from './ColorHelpers.ts';
 
 export interface MaterialOptions {
   name: string;

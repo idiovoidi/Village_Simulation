@@ -1,536 +1,761 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Game Manager
  *
- * Main coordinator for the simulation.
- * Initializes the world, systems, and manages the game loop.
- * Village vertical slice: level-driven terrain, village, nav mesh, villagers, clock.
+ * Main coordinator for the simulation: boots Babylon + Havok, registers the
+ * ECS systems once, then builds / tears down scenarios in place (no page
+ * reloads). Also owns the HUD, time controls and entity selection.
  */
 
-import { World } from '../core/World';
-import { BabylonRenderer } from './BabylonRenderer';
-import { CameraManager } from './CameraManager';
-import { LightingManager } from './LightingManager';
-import { PathfindingManager } from './PathfindingManager';
-import { PhysicsSystem } from '../systems/PhysicsSystem';
-import { RenderSystem } from '../systems/RenderSystem';
-import { SteeringSystem } from '../systems/ai/SteeringSystem';
-import { PathfindingSystem } from '../systems/ai/PathfindingSystem';
-import { FlockingSystem } from '../systems/ai/FlockingSystem';
-import { DecisionSystem } from '../systems/ai/DecisionSystem';
-import { VillagerScheduleSystem } from '../systems/ai/VillagerScheduleSystem';
-import { VillagerBehaviorSystem } from '../systems/ai/VillagerBehaviorSystem';
-import { ThreatAssessmentSystem } from '../systems/ai/ThreatAssessmentSystem';
-import { HungerSystem } from '../systems/survival/HungerSystem';
-import { ThirstSystem } from '../systems/survival/ThirstSystem';
-import { EnergySystem } from '../systems/survival/EnergySystem';
-import { TerrainSystem } from '../systems/environment/TerrainSystem';
-import { VillageSystem } from '../systems/village/VillageSystem';
-import { LevelConfig, type LevelConfigData } from '../systems/level/LevelConfig';
-import { LevelSelector } from '../systems/level/LevelSelector';
-import { WorldClock } from '../systems/ui/WorldClock';
-import { EntityFactory } from '../factories/EntityFactory';
-import { SpawnFactory } from '../factories/SpawnFactory';
-import { SpatialGrid } from '../utils/SpatialGrid';
-import { Logger } from '../utils/Logger';
-import {
-  createTimeOfDayComponent,
-  type TimeOfDayComponent,
-} from '../components/WorldComponents';
-import type { EntityId } from '../core/Entity';
-import type { PositionComponent } from '../components/CoreComponents';
+import { World } from '../core/World.ts';
+import type { EntityId } from '../core/Entity.ts';
+import { BabylonRenderer } from './BabylonRenderer.ts';
+import { CameraManager } from './CameraManager.ts';
+import { LightingManager } from './LightingManager.ts';
+import { AtmosphereManager } from './AtmosphereManager.ts';
+import { PathfindingManager } from './PathfindingManager.ts';
+import { PhysicsSystem } from '../systems/PhysicsSystem.ts';
+import { RenderSystem } from '../systems/RenderSystem.ts';
+import { AnimationSystem } from '../systems/AnimationSystem.ts';
+import { SteeringSystem } from '../systems/ai/SteeringSystem.ts';
+import { PathfindingSystem } from '../systems/ai/PathfindingSystem.ts';
+import { DecisionSystem } from '../systems/ai/DecisionSystem.ts';
+import { VillagerScheduleSystem } from '../systems/ai/VillagerScheduleSystem.ts';
+import { VillagerBehaviorSystem, type PointOfInterest } from '../systems/ai/VillagerBehaviorSystem.ts';
+import { ThreatAssessmentSystem } from '../systems/ai/ThreatAssessmentSystem.ts';
+import { ZombieBehaviorSystem } from '../systems/ai/ZombieBehaviorSystem.ts';
+import { DogBehaviorSystem } from '../systems/ai/DogBehaviorSystem.ts';
+import { InfectionSystem } from '../systems/ai/InfectionSystem.ts';
+import { WildlifeSystem } from '../systems/ai/WildlifeSystem.ts';
+import { HungerSystem } from '../systems/survival/HungerSystem.ts';
+import { ThirstSystem } from '../systems/survival/ThirstSystem.ts';
+import { EnergySystem } from '../systems/survival/EnergySystem.ts';
+import { TerrainSystem } from '../systems/environment/TerrainSystem.ts';
+import { Scatter } from '../systems/environment/Scatter.ts';
+import { VillageSystem } from '../systems/village/VillageSystem.ts';
+import { LevelConfig, type LevelConfigData } from '../systems/level/LevelConfig.ts';
+import { EntityFactory } from '../factories/EntityFactory.ts';
+import { SpatialGrid } from '../utils/SpatialGrid.ts';
+import { Logger } from '../utils/Logger.ts';
+import { Hud, type InspectorInfo } from '../ui/Hud.ts';
+import { createTimeOfDayComponent, type TimeOfDayComponent } from '../components/WorldComponents.ts';
+import type { HealthComponent, PositionComponent } from '../components/CoreComponents.ts';
 
-/**
- * Main game manager that coordinates all systems.
- */
+type Vec3 = { x: number; y: number; z: number };
+
+/** In-game minutes per real second at 1× speed (a full day takes 6 minutes). */
+const BASE_TIME_SCALE = 4;
+/** Longest single simulation step; faster speeds run extra sub-steps instead. */
+const MAX_STEP = 0.05;
+
 export class GameManager {
   private world: World;
   private renderer: BabylonRenderer;
   private cameraManager!: CameraManager;
   private lightingManager!: LightingManager;
+  private atmosphere!: AtmosphereManager;
+  private hud!: Hud;
   private pathfindingManager: PathfindingManager;
   private entityFactory: EntityFactory;
-  private spawnFactory: SpawnFactory | null = null;
   private spatialGrid: SpatialGrid;
   private logger: Logger;
 
+  // Persistent systems (registered once)
+  private renderSystem!: RenderSystem;
+  private villagerBehavior!: VillagerBehaviorSystem;
+  private infection!: InfectionSystem;
+  private wildlife!: WildlifeSystem;
+  private systemsRegistered = false;
+
+  // Per-level content
   private terrainSystem: TerrainSystem | null = null;
   private villageSystem: VillageSystem | null = null;
-  private villagerBehaviorSystem: VillagerBehaviorSystem | null = null;
-  private worldClock: WorldClock | null = null;
-  private levelSelector: LevelSelector | null = null;
+  private scatter: Scatter | null = null;
   private timeEntityId: EntityId | null = null;
   private currentLevelKey = 'VILLAGE';
+  private loadingLevel = false;
+  private wasNight: boolean | null = null;
+  private villageFallen = false;
 
+  // Loop state
   private running = false;
   private lastTime = 0;
-  private systemsRegistered = false;
+  private paused = false;
+  private speed = 1;
+  private hudTimer = 0;
+  private selected: EntityId | null = null;
+  private selectionMarker: any = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.logger = new Logger();
-    this.logger.info('GameManager', 'Initializing Game Manager...');
-
-    console.log(
-      '%c🎮 TYPESCRIPT ECS REBUILD ACTIVE 🎮',
-      'background: #4CAF50; color: white; font-size: 20px; padding: 10px; font-weight: bold;'
-    );
-    console.log(
-      '%cRunning from: ecs-rebuild/src/managers/GameManager.ts',
-      'color: #2196F3; font-size: 14px;'
-    );
-
     this.world = new World();
     this.spatialGrid = new SpatialGrid(20);
     this.renderer = new BabylonRenderer(canvas);
     this.pathfindingManager = new PathfindingManager();
     this.entityFactory = new EntityFactory(this.world);
-
-    this.logger.info('GameManager', 'Game Manager initialized');
   }
 
-  /**
-   * Initializes all systems and starts the simulation.
-   */
+  // ── Boot ────────────────────────────────────────────────────────
+
   async initialize(): Promise<void> {
-    console.log('%c🚀 GameManager.initialize() started', 'color: #2196F3; font-size: 16px; font-weight: bold;');
-
     try {
-      console.log('📍 Step 1: Initializing renderer...');
       await this.renderer.initialize();
-      console.log('✅ Step 1: Renderer initialized');
+      const scene = this.renderer.getScene();
+      (window as any).BABYLON.sceneInstance = scene;
 
-      console.log('📍 Step 2: Creating camera and lighting managers...');
-      this.cameraManager = new CameraManager(this.renderer.getScene(), this.renderer.getCanvas());
-      this.lightingManager = new LightingManager(this.renderer.getScene());
-      console.log('✅ Step 2: Camera and lighting managers created');
-
-      console.log('📍 Step 3: Initializing Havok Physics...');
-      const havokInstance = await this.initializeHavok();
-      console.log('✅ Step 3: Havok Physics initialized');
-
-      console.log('📍 Step 4: Registering systems...');
-      await this.registerSystems(havokInstance);
-      console.log('✅ Step 4: Systems registered');
-
-      console.log('📍 Step 5: Loading level...');
-      const pendingLevel = sessionStorage.getItem('ecsPendingLevel') || 'VILLAGE';
-      sessionStorage.removeItem('ecsPendingLevel');
-      await this.loadLevel(pendingLevel);
-      console.log('✅ Step 5: Level loaded');
-
-      console.log('📍 Step 6: Initializing camera...');
-      const lookAt = this.villageSystem?.getVillageCenter() ?? { x: 0, y: -2, z: 0 };
-      this.cameraManager.initialize(lookAt, 80, -Math.PI / 2, Math.PI / 3.2);
-      console.log('✅ Step 6: Camera initialized');
-
-      console.log('📍 Step 7: Initializing lighting...');
+      this.atmosphere = new AtmosphereManager(scene);
+      this.atmosphere.initialize();
+      this.lightingManager = new LightingManager(scene, this.atmosphere);
       this.lightingManager.initialize();
-      console.log('✅ Step 7: Lighting initialized');
 
-      console.log('📍 Step 8: Creating WorldClock + LevelSelector UI...');
-      await this.setupUI();
-      console.log('✅ Step 8: UI ready');
+      this.cameraManager = new CameraManager(scene, this.renderer.getCanvas());
+      this.cameraManager.initialize({ x: 0, y: 0, z: 0 }, 80, -Math.PI / 2, Math.PI / 3.2);
+      this.atmosphere.attachPipeline(this.cameraManager.getCamera());
 
-      console.log('%c🎉 All systems initialized successfully!', 'color: #4CAF50; font-size: 16px; font-weight: bold;');
-      this.logger.info('GameManager', 'All systems initialized successfully');
+      this.hud = new Hud({
+        onLevel: (key) => void this.switchLevel(key),
+        onSpeed: (m) => this.setSpeed(m),
+        onTogglePause: () => this.togglePause(),
+        onFollow: () => this.toggleFollow(),
+        onCloseInspector: () => this.select(null),
+      });
+      this.hud.setLevels(
+        Object.entries(LevelConfig.getAllLevels()).map(([key, l]) => ({
+          key,
+          name: l.name,
+          description: l.description,
+        })),
+        this.currentLevelKey
+      );
+
+      const havok = await this.initializeHavok();
+      await this.registerSystems(havok);
+      this.setupPicking(scene);
+      this.createSelectionMarker(scene);
+
+      await this.loadLevel('VILLAGE');
     } catch (error) {
-      console.error('%c❌ GameManager.initialize() failed:', 'color: #F44336; font-size: 14px;', error);
-      this.logger.error('GameManager', 'Failed to initialize systems', error);
+      this.logger.error('GameManager', 'Failed to initialize', error);
       throw error;
     }
   }
 
-  /**
-   * Initializes Havok Physics from CDN global.
-   */
   private async initializeHavok(): Promise<unknown> {
-    console.log('%c🔧 Initializing Havok Physics...', 'color: #FF5722; font-size: 14px;');
-
-    return new Promise((resolve, reject) => {
-      const checkHavok = () => {
-        const havokFn =
-          (window as unknown as { HavokPhysics?: () => Promise<unknown> }).HavokPhysics ||
-          (globalThis as unknown as { HavokPhysics?: () => Promise<unknown> }).HavokPhysics;
-
-        if (typeof havokFn === 'function') {
-          console.log('%c✅ HavokPhysics function found', 'color: #4CAF50; font-size: 14px;');
-          havokFn()
-            .then((instance) => {
-              console.log('%c✅ Havok Physics initialized successfully', 'color: #4CAF50; font-size: 14px;');
-              resolve(instance);
-            })
-            .catch((err) => {
-              console.error('%c❌ Havok Physics promise rejected:', 'color: #F44336; font-size: 14px;', err);
-              reject(err);
-            });
-        } else {
-          console.log('⏳ Waiting for HavokPhysics...');
-          setTimeout(checkHavok, 100);
-        }
-      };
-
-      const timeout = setTimeout(() => {
-        const havokFn =
-          (window as unknown as { HavokPhysics?: () => Promise<unknown> }).HavokPhysics ||
-          (globalThis as unknown as { HavokPhysics?: () => Promise<unknown> }).HavokPhysics;
-        if (typeof havokFn !== 'function') {
-          console.error('%c❌ Havok Physics failed to load from CDN - timeout', 'color: #F44336; font-size: 14px;');
-          reject(new Error('Havok Physics failed to load from CDN - timeout after 15s'));
-        }
-      }, 15000);
-
-      const originalResolve = resolve;
-      const originalReject = reject;
-      resolve = ((value: unknown) => {
-        clearTimeout(timeout);
-        originalResolve(value);
-      }) as typeof resolve;
-      reject = ((reason: unknown) => {
-        clearTimeout(timeout);
-        originalReject(reason);
-      }) as typeof reject;
-
-      checkHavok();
-    });
+    const get = () => (window as any).HavokPhysics as undefined | (() => Promise<unknown>);
+    const deadline = performance.now() + 15000;
+    while (typeof get() !== 'function') {
+      if (performance.now() > deadline) {
+        throw new Error('Havok Physics failed to load from the CDN (timed out after 15s)');
+      }
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    return get()!();
   }
 
-  /**
-   * Registers always-on ECS systems (once).
-   */
   private async registerSystems(havokInstance: unknown): Promise<void> {
     if (this.systemsRegistered) return;
+    const w = this.world;
+    const scene = this.renderer.getScene();
 
-    console.log('%c⚙️ Registering ECS Systems...', 'color: #9C27B0; font-size: 14px; font-weight: bold;');
+    const schedule = new VillagerScheduleSystem(w);
+    w.registerSystem(schedule);
+    schedule.initialize?.();
 
-    const villagerScheduleSystem = new VillagerScheduleSystem(this.world);
-    this.world.registerSystem(villagerScheduleSystem);
-    if (villagerScheduleSystem.initialize) {
-      villagerScheduleSystem.initialize();
-    }
-    console.log('  ✓ VillagerScheduleSystem');
+    this.villagerBehavior = new VillagerBehaviorSystem(w, this.spatialGrid);
+    w.registerSystem(this.villagerBehavior);
+    this.villagerBehavior.initialize();
 
-    this.villagerBehaviorSystem = new VillagerBehaviorSystem(this.world, this.spatialGrid);
-    this.world.registerSystem(this.villagerBehaviorSystem);
-    this.villagerBehaviorSystem.initialize();
-    console.log('  ✓ VillagerBehaviorSystem');
+    w.registerSystem(new ThreatAssessmentSystem(w, this.spatialGrid));
+    w.registerSystem(new ZombieBehaviorSystem(w, this.spatialGrid));
+    w.registerSystem(
+      new DogBehaviorSystem(w, { terrainHeightFn: (x, z) => TerrainSystem.getTerrainHeight(x, z) })
+    );
+    w.registerSystem(new DecisionSystem(w));
+    w.registerSystem(new SteeringSystem(w));
+    w.registerSystem(new PathfindingSystem(w, this.pathfindingManager));
+    w.registerSystem(new HungerSystem(w));
+    w.registerSystem(new ThirstSystem(w));
+    w.registerSystem(new EnergySystem(w));
 
-    this.world.registerSystem(new ThreatAssessmentSystem(this.world, this.spatialGrid));
-    console.log('  ✓ ThreatAssessmentSystem');
+    this.wildlife = new WildlifeSystem(w);
+    w.registerSystem(this.wildlife);
 
-    this.world.registerSystem(new DecisionSystem(this.world));
-    console.log('  ✓ DecisionSystem');
+    this.infection = new InfectionSystem(w, this.entityFactory, (e) => {
+      this.hud.toast(`${e.name} has turned!`, 'bad');
+      if (e.survivors === 0 && !this.villageFallen) {
+        this.villageFallen = true;
+        this.hud.toast('The village has fallen.', 'bad', 6000);
+      }
+    });
+    w.registerSystem(this.infection);
 
-    this.world.registerSystem(new SteeringSystem(this.world));
-    console.log('  ✓ SteeringSystem');
+    const physics = new PhysicsSystem(w);
+    await physics.initializePhysics(havokInstance, scene);
+    w.registerSystem(physics);
 
-    this.world.registerSystem(new PathfindingSystem(this.world, this.pathfindingManager));
-    console.log('  ✓ PathfindingSystem');
-
-    this.world.registerSystem(new FlockingSystem(this.world, this.spatialGrid));
-    console.log('  ✓ FlockingSystem');
-
-    this.world.registerSystem(new HungerSystem(this.world));
-    this.world.registerSystem(new ThirstSystem(this.world));
-    this.world.registerSystem(new EnergySystem(this.world));
-    console.log('  ✓ Survival (Hunger/Thirst/Energy)');
-
-    const physicsSystem = new PhysicsSystem(this.world);
-    await physicsSystem.initializePhysics(havokInstance, this.renderer.getScene());
-    this.world.registerSystem(physicsSystem);
-    console.log('  ✓ PhysicsSystem');
-
-    const renderSystem = new RenderSystem(this.world, this.renderer.getScene());
-    renderSystem.initialize();
-    this.world.registerSystem(renderSystem);
-    console.log('  ✓ RenderSystem');
+    this.renderSystem = new RenderSystem(w, scene);
+    this.renderSystem.initialize();
+    w.registerSystem(this.renderSystem);
+    w.registerSystem(new AnimationSystem(w, this.renderSystem));
 
     this.systemsRegistered = true;
-    console.log(
-      `%c✅ Registered ${this.world.systemCount} ECS Systems`,
-      'color: #4CAF50; font-size: 14px; font-weight: bold;'
-    );
-    this.logger.info('GameManager', `Registered ${this.world.systemCount} systems`);
+    this.logger.info('GameManager', `Registered ${w.systemCount} systems`);
   }
 
-  /**
-   * Load a level by key. Village vertical slice fully supports VILLAGE;
-   * other keys use their LevelConfig for terrain/village but skip extra agents.
-   */
+  // ── Levels ──────────────────────────────────────────────────────
+
+  /** Switches scenario in place, with the loading overlay covering the rebuild. */
+  async switchLevel(key: string): Promise<void> {
+    if (this.loadingLevel || key === this.currentLevelKey || !LevelConfig.getLevel(key)) return;
+    await this.loadLevel(key);
+  }
+
   async loadLevel(levelKey: string): Promise<void> {
     const level = LevelConfig.getLevel(levelKey);
-    if (!level) {
-      throw new Error(`Level "${levelKey}" not found`);
-    }
+    if (!level) throw new Error(`Level "${levelKey}" not found`);
+    if (this.loadingLevel) return;
+    this.loadingLevel = true;
 
-    if (levelKey !== 'VILLAGE') {
-      console.warn(
-        `[GameManager] Level "${levelKey}" is not fully implemented yet; applying village vertical-slice content from its config.`
+    try {
+      this.hud.setLoading(true, `Building ${level.name}…`);
+      // Let the overlay paint before the (synchronous) rebuild blocks the thread.
+      await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 30)));
+
+      this.unloadLevel();
+      this.currentLevelKey = levelKey;
+      LevelConfig.setCurrentLevel(levelKey);
+      this.hud.setCurrentLevel(levelKey);
+      const config = level.config;
+      const scene = this.renderer.getScene();
+      this.villageFallen = false;
+
+      // Sky/time for the scenario
+      this.timeEntityId = this.world.createEntity();
+      const startHour = config.startHour ?? 8;
+      this.world.addComponent(
+        this.timeEntityId,
+        createTimeOfDayComponent(Math.floor(startHour), Math.round((startHour % 1) * 60), BASE_TIME_SCALE)
       );
-    }
-
-    this.currentLevelKey = levelKey;
-    LevelConfig.setCurrentLevel(levelKey);
-    const config = level.config;
-
-    console.log(`%c📦 Loading level: ${level.name}`, 'color: #FF9800; font-size: 14px; font-weight: bold;');
-
-    // Clear previous level world content (keep systems)
-    this.clearLevelEntities();
-
-    // Time of day singleton
-    this.timeEntityId = this.world.createEntity();
-    this.world.addComponent(this.timeEntityId, createTimeOfDayComponent(8, 0, 12.0));
-
-    // Terrain + water (TerrainSystem owns water for the slice)
-    const scene = this.renderer.getScene();
-    this.terrainSystem = new TerrainSystem(this.world, scene, {
-      bowlRadius: config.bowlRadius,
-      bowlDepth: config.bowlDepth,
-      waterLevel: config.waterLevel,
-      segments: 64,
-    });
-    await this.terrainSystem.initialize();
-    this.world.registerSystem(this.terrainSystem);
-
-    // Village layout
-    if (config.hasVillage) {
-      this.villageSystem = new VillageSystem(this.world, scene, this.entityFactory, {
-        villageRadius: config.villageRadius,
-        houseCount: config.houseCount,
-        includeMarket: true,
-        includeGardens: true,
+      this.atmosphere.setMood({
+        redSky: config.specialEffects?.redSky ?? false,
+        heavyFog: config.specialEffects?.fog ?? false,
+        cloudCover: config.hasClouds ? 0.5 : 0.28,
       });
-      this.villageSystem.setTerrainSystem(this.terrainSystem);
-      await this.villageSystem.initialize();
-      this.world.registerSystem(this.villageSystem);
+      this.wasNight = null;
+
+      // Terrain + water
+      this.terrainSystem = new TerrainSystem(this.world, scene, {
+        bowlRadius: config.bowlRadius,
+        bowlDepth: config.bowlDepth,
+        waterLevel: config.waterLevel,
+        segments: 128,
+        bay: config.bay,
+      });
+      await this.terrainSystem.initialize();
+      this.world.registerSystem(this.terrainSystem);
+
+      // Village
+      if (config.hasVillage) {
+        this.villageSystem = new VillageSystem(this.world, scene, this.entityFactory, {
+          villageRadius: config.villageRadius,
+          houseCount: config.houseCount,
+          includeMarket: true,
+          includeGardens: true,
+          seed: this.hashKey(levelKey),
+        });
+        this.villageSystem.setTerrainSystem(this.terrainSystem);
+        await this.villageSystem.initialize();
+        this.world.registerSystem(this.villageSystem);
+      }
+
+      // Ground dressing
+      this.scatter = new Scatter(scene);
+      this.scatter.build({
+        bowlRadius: config.bowlRadius,
+        waterLevel: config.waterLevel,
+        heightAt: (x, z) => this.terrainSystem!.getHeightAt(x, z),
+        isBlocked: (x, z, m) => this.villageSystem?.isOccupied(x, z, m) ?? false,
+        seed: this.hashKey(levelKey) + 3,
+        forestDensity: config.forestDensity ?? 0,
+        clearingRadius: config.hasVillage ? config.villageRadius * 1.05 : 0,
+      });
+      const shadows = this.lightingManager.getShadowGenerator();
+      this.scatter.getShadowCasters().forEach((m) => shadows?.addShadowCaster(m));
+
+      this.buildNavMesh(config);
+      this.refreshVillagerPOIs(config);
+      this.populate(config);
+
+      // Camera
+      const focus = this.villageSystem?.getVillageCenter() ?? {
+        x: 0,
+        y: this.terrainSystem.getHeightAt(0, 0),
+        z: 0,
+      };
+      this.cameraManager.setHeightProvider(
+        (x, z) => this.terrainSystem?.getHeightAt(x, z) ?? 0,
+        config.bowlRadius * 0.9
+      );
+      this.cameraManager.setTarget(focus);
+      this.cameraManager.setRadius(config.bowlRadius * 0.8);
+      this.cameraManager.setRotation(-Math.PI / 2, Math.PI / 3.2);
+
+      // Snap lighting to the start time so the first frame isn't wrong.
+      this.lightingManager.updateForTimeOfDay(startHour);
+      this.logger.info('GameManager', `Level ready: ${level.name} (${this.world.entityCount} entities)`);
+    } finally {
+      this.loadingLevel = false;
+      this.hud.setLoading(false);
+      if (this.running) this.lastTime = performance.now();
     }
-
-    // Spawn factory with terrain height
-    this.spawnFactory = new SpawnFactory({
-      getTerrainHeight: (x, z) => this.terrainSystem!.getHeightAt(x, z),
-    });
-
-    // Nav mesh over village area
-    this.buildNavMesh(config);
-
-    // Villagers
-    this.spawnVillagers(config);
-
-    // Sync POIs to terrain height
-    this.refreshVillagerPOIs(config);
-
-    console.log(
-      `%c✅ Level ready — entities: ${this.world.entityCount}`,
-      'color: #4CAF50; font-size: 14px; font-weight: bold;'
-    );
   }
 
-  private clearLevelEntities(): void {
-    if (this.terrainSystem) {
-      this.terrainSystem.dispose();
-      this.terrainSystem = null;
+  private unloadLevel(): void {
+    this.select(null);
+
+    for (const id of this.world.getAllEntities()) this.world.destroyEntity(id);
+    this.timeEntityId = null;
+
+    for (const sys of [this.terrainSystem, this.villageSystem]) {
+      if (!sys) continue;
+      this.world.unregisterSystem(sys);
+      sys.dispose();
     }
-    if (this.villageSystem) {
-      this.villageSystem.dispose();
-      this.villageSystem = null;
-    }
-    // Full world clear would drop system registrations; recreate entities only by clearing world is risky.
-    // For slice reloads via UI, rebuild World systems is heavy — keep first-load path simple.
+    this.terrainSystem = null;
+    this.villageSystem = null;
+
+    this.scatter?.dispose();
+    this.scatter = null;
+    this.wildlife?.reset();
+    this.spatialGrid.clear();
+    this.villagerBehavior?.setPOIs([]);
+    // Dispose meshes of destroyed entities immediately instead of next frame.
+    this.renderSystem?.update(0);
+  }
+
+  private hashKey(key: string): number {
+    let h = 2166136261;
+    for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 16777619);
+    return (h >>> 0) % 100000;
   }
 
   private buildNavMesh(config: LevelConfigData): void {
     const radius = Math.max(config.villageRadius * 1.4, 40);
-    const obstacles: Array<{ x: number; y: number; z: number }> = [];
+    const obstacles: Vec3[] = [];
 
     if (this.villageSystem) {
       for (const houseId of this.villageSystem.getHouses()) {
         const pos = this.world.getComponent<PositionComponent>(houseId, 'Position');
-        if (pos) {
-          obstacles.push({ x: pos.x, y: pos.y, z: pos.z });
-        }
+        if (pos) obstacles.push({ x: pos.x, y: pos.y, z: pos.z });
       }
     }
 
     this.pathfindingManager.createNavMesh(
-      {
-        min: { x: -radius, y: 0, z: -radius },
-        max: { x: radius, y: 0, z: radius },
-      },
+      { min: { x: -radius, y: 0, z: -radius }, max: { x: radius, y: 0, z: radius } },
       obstacles,
       (x, z) => this.terrainSystem!.getHeightAt(x, z),
       config.waterLevel
     );
   }
 
-  private spawnVillagers(config: LevelConfigData): void {
-    if (!this.spawnFactory) return;
-
-    const count = Math.max(6, Math.floor(config.houseCount / 2));
-    const existing: Array<{ x: number; y: number; z: number }> = [];
-
-    for (let i = 0; i < count; i++) {
-      let pos = this.spawnFactory.findSpawnPosition('villager', existing);
-      if (!pos) {
-        const angle = (i / count) * Math.PI * 2;
-        const r = config.villageRadius * 0.25;
-        const x = Math.cos(angle) * r;
-        const z = Math.sin(angle) * r;
-        const y = this.terrainSystem!.getHeightAt(x, z) + 1;
-        pos = { x, y, z };
-      } else {
-        pos = { ...pos, y: pos.y + 1 };
-      }
-
-      existing.push(pos);
-      this.entityFactory.createVillager({
-        position: pos,
-        name: `Villager_${i + 1}`,
-      });
-    }
-
-    console.log(`  ✓ Spawned ${count} villagers`);
-  }
-
   private refreshVillagerPOIs(config: LevelConfigData): void {
-    if (!this.villagerBehaviorSystem || !this.terrainSystem) return;
-
-    const height = (x: number, z: number) => this.terrainSystem!.getHeightAt(x, z);
-
-    this.villagerBehaviorSystem.addPOI({
-      id: 'plaza',
-      position: { x: 0, y: height(0, 0), z: 0 },
-      type: 'social',
-    });
+    if (!this.terrainSystem || !this.villageSystem) return;
+    const h = (x: number, z: number) => this.terrainSystem!.getHeightAt(x, z);
+    const pois: PointOfInterest[] = [
+      { id: 'plaza', position: { x: 0, y: h(0, 0), z: 0 }, type: 'social' },
+      { id: 'plaza_market', position: { x: 3, y: h(3, 0), z: 0 }, type: 'market' },
+    ];
 
     const marketX = config.villageRadius * 0.4;
     const marketZ = config.villageRadius * 0.2;
-    this.villagerBehaviorSystem.addPOI({
-      id: 'market_field',
-      position: { x: marketX, y: height(marketX, marketZ), z: marketZ },
-      type: 'market',
+    pois.push({ id: 'market_field', position: { x: marketX, y: h(marketX, marketZ), z: marketZ }, type: 'market' });
+
+    // Wells and work spots around the inner ring
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2 + 0.5;
+      const x = Math.cos(a) * config.villageRadius * 0.32;
+      const z = Math.sin(a) * config.villageRadius * 0.32;
+      pois.push({ id: `well_${i}`, position: { x, y: h(x, z), z }, type: 'well' });
+    }
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2 + 0.2;
+      const x = Math.cos(a) * config.villageRadius * 0.7;
+      const z = Math.sin(a) * config.villageRadius * 0.7;
+      if (h(x, z) > config.waterLevel + 1) pois.push({ id: `work_${i}`, position: { x, y: h(x, z), z }, type: 'work' });
+    }
+
+    this.villageSystem.getHouses().forEach((houseId, index) => {
+      const pos = this.world.getComponent<PositionComponent>(houseId, 'Position');
+      if (pos) pois.push({ id: `home_${index}`, position: { x: pos.x, y: pos.y, z: pos.z }, type: 'home' });
     });
 
-    if (this.villageSystem) {
-      this.villageSystem.getHouses().forEach((houseId, index) => {
-        const pos = this.world.getComponent<PositionComponent>(houseId, 'Position');
-        if (pos) {
-          this.villagerBehaviorSystem!.addPOI({
-            id: `home_${index}`,
-            position: { x: pos.x, y: pos.y, z: pos.z },
-            type: 'home',
+    this.villagerBehavior.setPOIs(pois);
+  }
+
+  // ── Population ──────────────────────────────────────────────────
+
+  private populate(config: LevelConfigData): void {
+    const waterLevel = config.waterLevel;
+    const dryAt = (x: number, z: number, clearance = 1) =>
+      this.terrainSystem!.getHeightAt(x, z) > waterLevel + clearance;
+    const deepAt = (x: number, z: number, depth: number) =>
+      waterLevel - this.terrainSystem!.getHeightAt(x, z) > depth;
+
+    const sample = (
+      minR: number,
+      maxR: number,
+      ok: (x: number, z: number) => boolean,
+      tries = 60
+    ): { x: number; z: number } | null => {
+      for (let i = 0; i < tries; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const r = minR + Math.sqrt(Math.random()) * (maxR - minR);
+        const x = Math.cos(a) * r;
+        const z = Math.sin(a) * r;
+        if (ok(x, z)) return { x, z };
+      }
+      return null;
+    };
+    const at = (p: { x: number; z: number }, lift = 0): Vec3 => ({
+      x: p.x,
+      y: this.terrainSystem!.getHeightAt(p.x, p.z) + lift,
+      z: p.z,
+    });
+
+    const hasVillage = config.hasVillage && this.villageSystem;
+    const bowl = config.bowlRadius;
+
+    // Villagers
+    let villagers = 0;
+    if (hasVillage) {
+      const count = Math.max(5, Math.round(config.houseCount * 0.9));
+      for (let i = 0; i < count; i++) {
+        const p = sample(
+          6,
+          config.villageRadius * 0.8,
+          (x, z) => dryAt(x, z, 1.2) && !this.villageSystem!.isOccupied(x, z, -2.2)
+        );
+        if (!p) continue;
+        this.entityFactory.createVillager({ position: at(p), name: `Villager_${i + 1}` });
+        villagers++;
+      }
+    }
+
+    // Dogs
+    if (config.hasDogs && hasVillage) {
+      for (let i = 0; i < config.dogCount; i++) {
+        const p = sample(8, config.villageRadius * 0.7, (x, z) => dryAt(x, z, 1.2));
+        if (p) this.entityFactory.createDog({ position: at(p) });
+      }
+    }
+
+    // Zombies, in loose groups outside the village
+    if (config.hasZombies && config.zombieCount > 0) {
+      this.infection.setAggression(config.zombieAggressiveness ?? 1);
+      let spawned = 0;
+      let guard = 0;
+      while (spawned < config.zombieCount && guard++ < config.zombieCount * 6) {
+        const c = sample(config.villageRadius * 0.95, bowl * 0.78, (x, z) => dryAt(x, z, 1.5));
+        if (!c) break;
+        const group = Math.min(config.zombieCount - spawned, 2 + Math.floor(Math.random() * 3));
+        for (let g = 0; g < group; g++) {
+          const x = c.x + (Math.random() - 0.5) * 7;
+          const z = c.z + (Math.random() - 0.5) * 7;
+          if (!dryAt(x, z, 1.2)) continue;
+          this.entityFactory.createZombie({
+            position: at({ x, z }),
+            aggressionLevel: config.zombieAggressiveness ?? 1,
           });
+          spawned++;
         }
+      }
+    }
+
+    // Birds in flocks
+    if (config.hasBirds) {
+      for (let i = 0; i < config.birdCount; i++) {
+        const flockId = 1000 + Math.floor(i / 5);
+        this.entityFactory.createBird({ position: { x: 0, y: 30, z: 0 }, flockId });
+      }
+    }
+
+    // Fish in schools, boats on open water
+    if (config.hasWater && config.hasFish) {
+      let school = 2000;
+      let inSchool = 0;
+      let anchor: { x: number; z: number } | null = null;
+      for (let i = 0; i < config.fishCount; i++) {
+        if (!anchor || inSchool >= 6) {
+          anchor = sample(0, bowl * 0.8, (x, z) => deepAt(x, z, 1.2));
+          school++;
+          inSchool = 0;
+        }
+        if (!anchor) break;
+        const x = anchor.x + (Math.random() - 0.5) * 6;
+        const z = anchor.z + (Math.random() - 0.5) * 6;
+        if (!deepAt(x, z, 0.7)) continue;
+        this.entityFactory.createFish({
+          position: { x, y: waterLevel - 1, z },
+          schoolId: school,
+        });
+        inSchool++;
+      }
+    }
+    for (let i = 0; i < (config.boatCount ?? 0); i++) {
+      const p = sample(0, bowl * 0.75, (x, z) => deepAt(x, z, 3.5));
+      if (p) this.entityFactory.createBoat({ position: { x: p.x, y: waterLevel, z: p.z } });
+    }
+
+    this.logger.info('GameManager', `Populated: ${villagers} villagers`);
+  }
+
+  // ── Time controls ───────────────────────────────────────────────
+
+  setSpeed(multiplier: number): void {
+    this.speed = multiplier;
+    this.paused = false;
+  }
+
+  togglePause(): void {
+    this.paused = !this.paused;
+  }
+
+  isPaused(): boolean {
+    return this.paused;
+  }
+
+  // ── Selection ───────────────────────────────────────────────────
+
+  private setupPicking(scene: any): void {
+    const B = (window as any).BABYLON;
+    scene.onPointerObservable.add((info: any) => {
+      if (info.type !== B.PointerEventTypes.POINTERTAP || info.event.button !== 0) return;
+      const pick = scene.pick(
+        scene.pointerX,
+        scene.pointerY,
+        (m: any) => m.isPickable && m.isVisible && m.isEnabled()
+      );
+      const id = pick?.hit ? this.renderSystem.findEntityByMesh(pick.pickedMesh) : null;
+      this.select(id);
+    });
+  }
+
+  private createSelectionMarker(scene: any): void {
+    const B = (window as any).BABYLON;
+    const ring = B.MeshBuilder.CreateTorus(
+      'ui_selection',
+      { diameter: 2.6, thickness: 0.09, tessellation: 40 },
+      scene
+    );
+    const mat = new B.StandardMaterial('selectionMat', scene);
+    mat.emissiveColor = new B.Color3(1, 0.78, 0.25);
+    mat.disableLighting = true;
+    mat.fogEnabled = false;
+    ring.material = mat;
+    ring.isPickable = false;
+    ring.isVisible = false;
+    this.selectionMarker = ring;
+  }
+
+  private select(id: EntityId | null): void {
+    if (id !== null && !this.isSelectable(id)) id = null;
+    if (id !== this.selected) this.cameraManager?.stopFollowing();
+    this.selected = id;
+    if (this.selectionMarker) this.selectionMarker.isVisible = id !== null;
+    if (id === null) this.hud?.showInspector(null);
+    else this.refreshInspector();
+  }
+
+  private isSelectable(id: EntityId): boolean {
+    return ['Villager', 'Zombie', 'Dog', 'Bird', 'Fish', 'Boat'].some((t) => this.world.hasComponent(id, t));
+  }
+
+  private toggleFollow(): void {
+    if (this.selected === null) return;
+    if (this.cameraManager.isFollowing()) {
+      this.cameraManager.stopFollowing();
+    } else {
+      const id = this.selected;
+      this.cameraManager.follow(() => {
+        const p = this.world.getComponent<PositionComponent>(id, 'Position');
+        return p ? { x: p.x, y: p.y, z: p.z } : null;
       });
     }
+    this.refreshInspector();
   }
 
-  private async setupUI(): Promise<void> {
-    const scene = this.renderer.getScene();
-
-    this.worldClock = new WorldClock(scene, { position: 'top-left', showPeriod: true });
-    await this.worldClock.initialize();
-    this.worldClock.updateTime(8 * 60);
-
-    this.levelSelector = new LevelSelector(scene, (key) => {
-      void this.onLevelSelected(key);
-    });
-    this.levelSelector.createLevelUI();
-  }
-
-  private async onLevelSelected(key: string): Promise<void> {
-    if (key === this.currentLevelKey) return;
-
-    if (key !== 'VILLAGE') {
-      console.warn(
-        `[GameManager] "${key}" uses vertical-slice content only (terrain/village/villagers); extra agents deferred.`
-      );
-    }
-
-    try {
-      console.log(`[GameManager] Reloading for level ${key}...`);
-      sessionStorage.setItem('ecsPendingLevel', key);
-      window.location.reload();
-    } catch (err) {
-      console.error('Failed to switch level', err);
-    }
-  }
-
-  /**
-   * Starts the game loop.
-   */
-  start(): void {
-    if (this.running) {
-      this.logger.warn('GameManager', 'Game loop already running');
+  private refreshInspector(): void {
+    if (this.selected === null) return;
+    const id = this.selected;
+    const w = this.world;
+    if (!w.getEntity(id)) {
+      this.select(null);
       return;
     }
 
+    const health = w.getComponent<HealthComponent>(id, 'Health');
+    const bars: InspectorInfo['bars'] = [];
+    const rows: InspectorInfo['rows'] = [];
+    const tone = (v: number, max: number): 'good' | 'warn' | 'bad' =>
+      v / max > 0.5 ? 'good' : v / max > 0.25 ? 'warn' : 'bad';
+
+    let title = 'Creature';
+    let subtitle: string | undefined;
+
+    const villager = w.getComponent<any>(id, 'Villager');
+    const zombie = w.getComponent<any>(id, 'Zombie');
+    if (villager) {
+      title = villager.name;
+      subtitle = villager.profession;
+      for (const [label, type] of [
+        ['Hunger', 'Hunger'],
+        ['Thirst', 'Thirst'],
+        ['Energy', 'Energy'],
+      ] as const) {
+        const c = w.getComponent<any>(id, type);
+        if (c) bars.push({ label, value: c.level, max: 100, tone: tone(c.level, 100) });
+      }
+      const behaviour = w.getComponent<any>(id, 'AIBehaviour');
+      if (behaviour) rows.push(['State', String(behaviour.currentState)]);
+      if (villager.isFleeing) rows.push(['Status', 'Fleeing']);
+      else if (villager.currentPOI) rows.push(['Heading to', String(villager.currentPOI).replace(/_\d+$/, '')]);
+    } else if (zombie) {
+      title = 'Zombie';
+      subtitle = 'Undead';
+      rows.push(['Aggression', zombie.aggressionLevel?.toFixed?.(1) ?? '—']);
+      rows.push(['Hunting', zombie.targetEntity !== null && zombie.targetEntity !== undefined ? 'Yes' : 'No']);
+    } else {
+      const model = w.getComponent<any>(id, 'Model');
+      title = model ? model.meshId.charAt(0).toUpperCase() + model.meshId.slice(1) : 'Creature';
+    }
+
+    if (health) {
+      bars.unshift({
+        label: 'Health',
+        value: health.current,
+        max: health.maximum,
+        tone: tone(health.current, health.maximum),
+      });
+    }
+
+    this.hud.showInspector({ title, subtitle, bars, rows, following: this.cameraManager.isFollowing() });
+  }
+
+  private updateSelectionMarker(timeSeconds: number): void {
+    if (this.selected === null || !this.selectionMarker) return;
+    const pos = this.world.getComponent<PositionComponent>(this.selected, 'Position');
+    if (!pos) {
+      this.select(null);
+      return;
+    }
+    const ground = this.terrainSystem?.getHeightAt(pos.x, pos.z) ?? pos.y;
+    const ringY = this.world.hasComponent(this.selected, 'Bird') ? pos.y - 1 : Math.max(ground, pos.y - 1) + 0.12;
+    this.selectionMarker.position.set(pos.x, ringY, pos.z);
+    const s = 1 + Math.sin(timeSeconds * 4) * 0.06;
+    this.selectionMarker.scaling.set(s, 1, s);
+  }
+
+  // ── Loop ────────────────────────────────────────────────────────
+
+  start(): void {
+    if (this.running) return;
     this.running = true;
     this.lastTime = performance.now();
-
-    this.logger.info('GameManager', 'Starting game loop...');
     this.renderer.startRenderLoop(() => this.update());
   }
 
-  /**
-   * Stops the game loop.
-   */
   stop(): void {
     this.running = false;
     this.renderer.stopRenderLoop();
-    this.logger.info('GameManager', 'Game loop stopped');
   }
 
-  /**
-   * Main update loop — single World.update path.
-   */
   private update(): void {
-    if (!this.running) return;
+    if (!this.running || this.loadingLevel) return;
 
-    const currentTime = performance.now();
-    const deltaTime = (currentTime - this.lastTime) / 1000;
-    this.lastTime = currentTime;
-    const cappedDeltaTime = Math.min(deltaTime, 0.1);
+    const now = performance.now();
+    const frameDt = Math.min((now - this.lastTime) / 1000, 0.1);
+    this.lastTime = now;
 
-    this.advanceTimeOfDay(cappedDeltaTime);
-    this.world.update(cappedDeltaTime);
+    this.atmosphere.tick(frameDt);
+
+    if (!this.paused) {
+      // Faster speeds take several bounded steps so the simulation stays stable.
+      const total = frameDt * this.speed;
+      const steps = Math.max(1, Math.ceil(total / MAX_STEP));
+      const step = total / steps;
+      for (let i = 0; i < steps; i++) {
+        this.advanceTimeOfDay(step);
+        this.world.update(step);
+      }
+    } else {
+      // Keep meshes consistent while paused (no simulation time passes).
+      this.renderSystem.update(0);
+    }
+
+    this.updateSelectionMarker(now / 1000);
+
+    this.hudTimer += frameDt;
+    if (this.hudTimer > 0.25) {
+      this.hudTimer = 0;
+      this.updateHud();
+    }
   }
 
   private advanceTimeOfDay(deltaSeconds: number): void {
-    if (this.timeEntityId == null) return;
-
+    if (this.timeEntityId === null) return;
     const time = this.world.getComponent<TimeOfDayComponent>(this.timeEntityId, 'TimeOfDay');
     if (!time) return;
 
-    // timeScale: in-game minutes per real second
-    const minutesToAdd = deltaSeconds * time.timeScale;
-    let totalMinutes = time.hour * 60 + time.minute + minutesToAdd;
-
-    while (totalMinutes >= 24 * 60) {
-      totalMinutes -= 24 * 60;
+    let total = time.hour * 60 + time.minute + deltaSeconds * time.timeScale;
+    while (total >= 24 * 60) {
+      total -= 24 * 60;
       time.dayNumber += 1;
     }
-    while (totalMinutes < 0) {
-      totalMinutes += 24 * 60;
-    }
-
-    time.hour = Math.floor(totalMinutes / 60) % 24;
-    time.minute = totalMinutes % 60;
-
-    this.worldClock?.updateTime(totalMinutes);
-    this.lightingManager?.updateForTimeOfDay(time.hour + time.minute / 60);
+    time.hour = Math.floor(total / 60) % 24;
+    time.minute = total % 60;
+    this.lightingManager.updateForTimeOfDay(time.hour + time.minute / 60);
   }
 
-  dispose(): void {
-    this.logger.info('GameManager', 'Disposing Game Manager...');
+  private updateHud(): void {
+    const time =
+      this.timeEntityId !== null
+        ? this.world.getComponent<TimeOfDayComponent>(this.timeEntityId, 'TimeOfDay')
+        : null;
+    const night = this.lightingManager.isNight();
 
+    if (this.wasNight !== null && night !== this.wasNight) {
+      this.hud.toast(night ? 'Night falls…' : 'A new day dawns', 'info');
+    }
+    this.wasNight = night;
+
+    const count = (type: string) => this.world.query(new Set([type])).length;
+    this.hud.update({
+      hour: time?.hour ?? 0,
+      minute: time?.minute ?? 0,
+      day: time?.dayNumber ?? 0,
+      night,
+      paused: this.paused,
+      speed: this.speed,
+      fps: this.renderer.getEngine()?.getFps?.() ?? 0,
+      villagers: count('Villager'),
+      zombies: count('Zombie'),
+      animals: count('Dog') + count('Bird') + count('Fish') + count('Boat'),
+    });
+
+    this.refreshInspector();
+  }
+
+  // ── Accessors ───────────────────────────────────────────────────
+
+  dispose(): void {
     this.stop();
-    this.worldClock?.dispose();
-    this.levelSelector?.dispose();
-    this.terrainSystem?.dispose();
-    this.villageSystem?.dispose();
+    this.unloadLevel();
+    this.hud?.dispose();
+    this.cameraManager?.dispose();
+    this.atmosphere?.dispose();
+    this.lightingManager?.dispose();
     this.world.clear();
     this.renderer.dispose();
-
-    this.logger.info('GameManager', 'Game Manager disposed');
   }
 
   getWorld(): World {
@@ -543,5 +768,13 @@ export class GameManager {
 
   getRenderer(): BabylonRenderer {
     return this.renderer;
+  }
+
+  getCameraManager(): CameraManager {
+    return this.cameraManager;
+  }
+
+  getCurrentLevelKey(): string {
+    return this.currentLevelKey;
   }
 }

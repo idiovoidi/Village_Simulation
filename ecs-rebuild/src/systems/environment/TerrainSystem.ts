@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Terrain System
  * 
@@ -5,8 +6,9 @@
  * Ported from MyHavokSimCode/BowlCreator.js
  */
 
-import type { World } from '../../core/World';
-import { System } from '../../core/System';
+import type { World } from '../../core/World.ts';
+import { System } from '../../core/System.ts';
+import { valueNoise2 } from '../../utils/Noise.ts';
 
 /**
  * Terrain configuration
@@ -16,6 +18,8 @@ export interface TerrainConfig {
   bowlDepth: number;
   segments: number;
   waterLevel: number;
+  /** Optional bay/lake carved into one side of the bowl. */
+  bay?: { angle: number; width: number; depth: number };
 }
 
 /**
@@ -42,6 +46,7 @@ export class TerrainSystem extends System {
   private config: TerrainConfig;
   private terrainMesh: unknown = null;
   private waterMesh: unknown = null;
+  private waterObserver: unknown = null;
   private initialized = false;
 
   constructor(world: World, scene: unknown, config: Partial<TerrainConfig> = {}) {
@@ -70,6 +75,11 @@ export class TerrainSystem extends System {
 
     this.initialized = true;
     console.log('TerrainSystem initialized');
+  }
+
+  /** Config of the terrain most recently initialised (static for hot-path queries). */
+  static getActiveConfig(): Readonly<TerrainConfig> {
+    return TerrainSystem.activeConfig;
   }
 
   getConfig(): TerrainConfig {
@@ -144,43 +154,42 @@ export class TerrainSystem extends System {
     const normals: number[] = [];
     const colors: number[] = [];
 
-    // Generate vertices
     for (let z = 0; z <= segments; z++) {
       for (let x = 0; x <= segments; x++) {
         const u = x / segments;
         const v = z / segments;
-
-        // Calculate position
         const worldX = (u - 0.5) * 2 * bowlRadius;
         const worldZ = (v - 0.5) * 2 * bowlRadius;
-        const worldY = TerrainSystem.getTerrainHeight(worldX, worldZ);
-
-        positions.push(worldX, worldY, worldZ);
+        positions.push(worldX, TerrainSystem.getTerrainHeight(worldX, worldZ), worldZ);
         uvs.push(u, v);
-
-        // Default color (grass green)
-        colors.push(0.3, 0.6, 0.2, 1);
       }
     }
 
-    // Generate indices
     for (let z = 0; z < segments; z++) {
       for (let x = 0; x < segments; x++) {
         const topLeft = z * (segments + 1) + x;
         const topRight = topLeft + 1;
         const bottomLeft = (z + 1) * (segments + 1) + x;
         const bottomRight = bottomLeft + 1;
-
-        // First triangle
-        indices.push(topLeft, bottomLeft, topRight);
-        // Second triangle
-        indices.push(topRight, bottomLeft, bottomRight);
+        indices.push(topLeft, topRight, bottomLeft);
+        indices.push(topRight, bottomRight, bottomLeft);
       }
     }
 
-    // Calculate normals
     if (BABYLON?.VertexData?.ComputeNormals) {
       BABYLON.VertexData.ComputeNormals(positions, indices, normals);
+    }
+
+    // Colours depend on slope, so they are computed after the normals.
+    const vertexCount = positions.length / 3;
+    for (let i = 0; i < vertexCount; i++) {
+      const c = TerrainSystem.sampleColor(
+        positions[i * 3],
+        positions[i * 3 + 1],
+        positions[i * 3 + 2],
+        normals[i * 3 + 1] ?? 1
+      );
+      colors.push(c[0], c[1], c[2], 1);
     }
 
     return { positions, indices, uvs, normals, colors };
@@ -249,7 +258,62 @@ export class TerrainSystem extends System {
         mountainHeight * mountainFactor * (0.8 + 0.4 * (mountainNoise + ridgeNoise));
     }
 
+    // Carve a bay: a cone of lowered ground opening towards the rim, with a sandy beach.
+    const bay = TerrainSystem.activeConfig.bay;
+    if (bay) {
+      let da = Math.atan2(z, x) - bay.angle;
+      while (da > Math.PI) da -= Math.PI * 2;
+      while (da < -Math.PI) da += Math.PI * 2;
+      const t = Math.min(1, Math.max(0, (Math.abs(da) - bay.width * 0.55) / (bay.width * 0.45)));
+      const angular = 1 - t * t * (3 - 2 * t);
+      const r0 = Math.min(1, Math.max(0, (normalizedDist - 0.36) / 0.26));
+      const radial = r0 * r0 * (3 - 2 * r0);
+      const k = angular * radial;
+      const r1 = Math.min(1, Math.max(0, (normalizedDist - 0.5) / 0.5));
+      const seabed = waterLevel - bay.depth * (0.35 + 0.65 * r1 * r1 * (3 - 2 * r1));
+      y = y + (seabed - y) * k;
+    }
+
     return y;
+  }
+
+  /** Terrain albedo from height above water, slope and noise. */
+  private static sampleColor(x: number, y: number, z: number, normalY: number): [number, number, number] {
+    const { waterLevel } = TerrainSystem.activeConfig;
+    const rel = y - waterLevel;
+    const slope = 1 - Math.min(1, Math.max(0, normalY));
+    const broad = valueNoise2(x * 0.045, z * 0.045);
+    const fine = valueNoise2(x * 0.3, z * 0.3);
+
+    const mix = (a: number[], b: number[], t: number): number[] => {
+      const k = Math.min(1, Math.max(0, t));
+      return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+    };
+
+    const seabed = [0.3, 0.3, 0.26];
+    const sand = [0.8, 0.72, 0.5];
+    const grassA = [0.4, 0.62, 0.22];
+    const grassB = [0.3, 0.52, 0.2];
+    const dry = [0.58, 0.62, 0.28];
+    const forest = [0.2, 0.4, 0.18];
+    const rock = [0.5, 0.47, 0.42];
+    const peak = [0.72, 0.7, 0.68];
+
+    let col: number[];
+    if (rel < 0) {
+      col = mix(seabed, [0.18, 0.22, 0.24], -rel / 6);
+    } else {
+      col = mix(sand, grassA, (rel - 0.2) / 1.4);
+      const meadow = mix(grassA, grassB, broad);
+      col = mix(col, mix(meadow, dry, Math.max(0, fine - 0.62) * 2.2), (rel - 0.3) / 1.4);
+      col = mix(col, forest, (rel - 4.5) / 6);
+      col = mix(col, rock, Math.max((rel - 11) / 6, (slope - 0.18) / 0.22));
+      col = mix(col, peak, (rel - 20) / 10);
+    }
+
+    // Fine-grain brightness so large slopes don't look like flat paint.
+    const grain = 0.92 + fine * 0.16;
+    return [col[0] * grain, col[1] * grain, col[2] * grain];
   }
 
   /**
@@ -260,44 +324,181 @@ export class TerrainSystem extends System {
     if (!BABYLON) return null;
 
     const material = new BABYLON.StandardMaterial('terrainMaterial', this.scene);
-
-    material.diffuseColor = new BABYLON.Color3(0.35, 0.55, 0.22);
-    material.ambientColor = new BABYLON.Color3(0.25, 0.35, 0.15);
-    material.emissiveColor = new BABYLON.Color3(0.05, 0.08, 0.02);
-    material.specularColor = new BABYLON.Color3(0.08, 0.08, 0.08);
-    material.specularPower = 32;
+    material.diffuseColor = new BABYLON.Color3(1, 1, 1);
+    material.specularColor = new BABYLON.Color3(0.02, 0.02, 0.02);
     material.useVertexColors = true;
     material.backFaceCulling = false;
+    material.twoSidedLighting = true;
+
+    // Tiling grain texture adds close-up detail on top of the vertex colours.
+    const size = 256;
+    const tex = new BABYLON.DynamicTexture('terrainGrain', { width: size, height: size }, this.scene, true);
+    const ctx = tex.getContext();
+    const img = ctx.createImageData(size, size);
+    for (let i = 0; i < size * size; i++) {
+      const px = i % size;
+      const py = Math.floor(i / size);
+      const n = valueNoise2(px * 0.12, py * 0.12) * 0.5 + Math.random() * 0.5;
+      const v = Math.floor(205 + n * 50);
+      img.data[i * 4] = v;
+      img.data[i * 4 + 1] = v;
+      img.data[i * 4 + 2] = v;
+      img.data[i * 4 + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+    tex.update();
+    tex.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
+    tex.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
+    tex.uScale = 60;
+    tex.vScale = 60;
+    material.diffuseTexture = tex;
 
     return material;
   }
 
   /**
-   * Create water plane — kept below the dry meadow so grass remains visible.
+   * Create the water surface.
+   *
+   * A grid whose vertex colour/alpha encode depth below the surface: shallows
+   * are clear turquoise with a foam rim, deeps fade to dark blue. A scrolling
+   * procedural normal map adds moving glints.
    */
   private createWater(): void {
     const BABYLON = (window as any).BABYLON;
     if (!BABYLON || !this.scene) return;
 
-    const waterLevel = this.config.waterLevel;
+    const { waterLevel, bowlRadius } = this.config;
+    const extent = bowlRadius * 0.98;
+    const segments = 168;
 
-    // Lake fills the bowl; radius stops short of outer mountains
-    const water = BABYLON.MeshBuilder.CreateDisc(
-      'water',
-      { radius: this.config.bowlRadius * 0.95, tessellation: 64 },
-      this.scene
-    );
-    water.rotation.x = Math.PI / 2;
-    water.position.y = waterLevel;
+    const positions: number[] = [];
+    const normals: number[] = [];
+    const colors: number[] = [];
+    const uvs: number[] = [];
+    const indices: number[] = [];
 
-    const waterMaterial = new BABYLON.StandardMaterial('waterMaterial', this.scene);
-    waterMaterial.diffuseColor = new BABYLON.Color3(0.15, 0.35, 0.7);
-    waterMaterial.specularColor = new BABYLON.Color3(0.5, 0.55, 0.6);
-    waterMaterial.alpha = 0.65;
-    waterMaterial.backFaceCulling = false;
+    for (let zi = 0; zi <= segments; zi++) {
+      for (let xi = 0; xi <= segments; xi++) {
+        const x = (xi / segments - 0.5) * 2 * extent;
+        const z = (zi / segments - 0.5) * 2 * extent;
+        const depth = waterLevel - TerrainSystem.getTerrainHeight(x, z);
+        positions.push(x, waterLevel, z);
+        normals.push(0, 1, 0);
+        uvs.push(xi / segments, zi / segments);
 
-    water.material = waterMaterial;
+        if (depth <= 0) {
+          colors.push(0.6, 0.85, 0.9, 0);
+        } else {
+          const d = Math.min(1, depth / 7);
+          const foam = Math.max(0, 1 - depth / 0.9);
+          const r = 0.2 - 0.14 * d + foam * 0.55;
+          const g = 0.62 - 0.4 * d + foam * 0.35;
+          const b = 0.68 - 0.24 * d + foam * 0.3;
+          const a = Math.pow(Math.min(1, depth / 1.6), 0.7) * 0.85;
+          colors.push(r, g, b, a);
+        }
+      }
+    }
+
+    for (let zi = 0; zi < segments; zi++) {
+      for (let xi = 0; xi < segments; xi++) {
+        const a = zi * (segments + 1) + xi;
+        const b = a + 1;
+        const c = a + segments + 1;
+        const d = c + 1;
+        indices.push(a, b, c, b, d, c);
+      }
+    }
+
+    const water = new BABYLON.Mesh('water', this.scene);
+    const vd = new BABYLON.VertexData();
+    vd.positions = positions;
+    vd.normals = normals;
+    vd.colors = colors;
+    vd.uvs = uvs;
+    vd.indices = indices;
+    vd.applyToMesh(water);
+    water.hasVertexAlpha = true;
+    water.isPickable = false;
+
+    const mat = new BABYLON.StandardMaterial('waterMaterial', this.scene);
+    mat.diffuseColor = new BABYLON.Color3(1, 1, 1);
+    mat.specularColor = new BABYLON.Color3(0.9, 0.95, 1);
+    mat.specularPower = 180;
+    mat.useVertexColors = true;
+    mat.backFaceCulling = false;
+    mat.useSpecularOverAlpha = true;
+    mat.bumpTexture = this.createWaterNormalMap();
+    mat.bumpTexture.level = 0.22;
+    mat.bumpTexture.uScale = 22;
+    mat.bumpTexture.vScale = 22;
+    water.material = mat;
+
+    // Drift the normal map so the surface shimmers.
+    this.waterObserver = (this.scene as any).onBeforeRenderObservable.add(() => {
+      const t = performance.now() * 0.00004;
+      mat.bumpTexture.uOffset = t;
+      mat.bumpTexture.vOffset = t * 0.6;
+    });
+
     this.waterMesh = water;
+  }
+
+  /** Tileable normal map built from summed sines (no asset download). */
+  private createWaterNormalMap(): any {
+    const BABYLON = (window as any).BABYLON;
+    const size = 256;
+    const tex = new BABYLON.DynamicTexture('waterNormals', { width: size, height: size }, this.scene, true);
+    const ctx = tex.getContext();
+    const img = ctx.createImageData(size, size);
+    const TAU = Math.PI * 2;
+    // Tileable value noise (lattice wraps) breaks up the sine regularity.
+    const lattice = (n: number) => {
+      const g: number[] = [];
+      for (let i = 0; i < n * n; i++) g.push(Math.random());
+      return (u: number, v: number) => {
+        const x = (((u * n) % n) + n) % n;
+        const y = (((v * n) % n) + n) % n;
+        const x0 = Math.floor(x);
+        const y0 = Math.floor(y);
+        const fx = x - x0;
+        const fy = y - y0;
+        const sx = fx * fx * (3 - 2 * fx);
+        const sy = fy * fy * (3 - 2 * fy);
+        const at = (xi: number, yi: number) => g[(yi % n) * n + (xi % n)];
+        const top = at(x0, y0) + (at(x0 + 1, y0) - at(x0, y0)) * sx;
+        const bot = at(x0, y0 + 1) + (at(x0 + 1, y0 + 1) - at(x0, y0 + 1)) * sx;
+        return top + (bot - top) * sy;
+      };
+    };
+    const n1 = lattice(6);
+    const n2 = lattice(13);
+    const n3 = lattice(29);
+    const height = (u: number, v: number) =>
+      (n1(u, v) - 0.5) * 1.1 +
+      (n2(u + 0.31, v + 0.17) - 0.5) * 0.7 +
+      (n3(u + 0.63, v + 0.52) - 0.5) * 0.35 +
+      Math.sin((u * 3 + v * 2) * TAU) * 0.12;
+    const e = 1 / size;
+    for (let py = 0; py < size; py++) {
+      for (let px = 0; px < size; px++) {
+        const u = px / size;
+        const v = py / size;
+        const dx = (height(u + e, v) - height(u - e, v)) * 2.2;
+        const dy = (height(u, v + e) - height(u, v - e)) * 2.2;
+        const len = Math.hypot(dx, dy, 1);
+        const i = (py * size + px) * 4;
+        img.data[i] = Math.floor((-dx / len * 0.5 + 0.5) * 255);
+        img.data[i + 1] = Math.floor((-dy / len * 0.5 + 0.5) * 255);
+        img.data[i + 2] = Math.floor((1 / len * 0.5 + 0.5) * 255);
+        img.data[i + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    tex.update();
+    tex.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
+    tex.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
+    return tex;
   }
 
   /**
@@ -343,6 +544,11 @@ export class TerrainSystem extends System {
     if (this.terrainMesh) {
       (this.terrainMesh as { dispose: () => void }).dispose();
       this.terrainMesh = null;
+    }
+
+    if (this.waterObserver) {
+      (this.scene as any).onBeforeRenderObservable.remove(this.waterObserver);
+      this.waterObserver = null;
     }
 
     if (this.waterMesh) {

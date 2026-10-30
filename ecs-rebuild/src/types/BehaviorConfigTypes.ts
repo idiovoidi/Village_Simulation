@@ -7,7 +7,7 @@
  * @module types
  */
 
-import type { Vec3 } from './AgentTypes';
+import type { Vec3 } from './AgentTypes.ts';
 
 /**
  * Configuration for zombie behavior system

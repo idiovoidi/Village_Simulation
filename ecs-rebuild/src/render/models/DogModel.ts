@@ -168,7 +168,6 @@ export class DogModel {
   animateWalk(parts: DogParts, deltaTime: number, isWalking: boolean): void {
     if (!isWalking || !parts.legs.length) return;
 
-    const BABYLON = (window as any).BABYLON;
     const speed = 10;
 
     parts.legs.forEach((leg, index) => {

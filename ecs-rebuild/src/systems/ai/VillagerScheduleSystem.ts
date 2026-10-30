@@ -8,21 +8,21 @@
  * Requirements: 6.1
  */
 
-import { System } from '../../core/System';
-import type { World } from '../../core/World';
-import type { ComponentSignature } from '../../core/Component';
-import type { EntityId } from '../../core/Entity';
-import { BehaviourState } from '../../components/AIComponents';
+import { System } from '../../core/System.ts';
+import type { World } from '../../core/World.ts';
+import type { ComponentSignature } from '../../core/Component.ts';
+import type { EntityId } from '../../core/Entity.ts';
+import { BehaviourState } from '../../components/AIComponents.ts';
 import type {
   AIBehaviourComponent,
   ScheduleComponent,
   ScheduleActivity,
   SteeringComponent
-} from '../../components/AIComponents';
-import type { VillagerComponent } from '../../components/CreatureComponents';
-import type { TimeOfDayComponent } from '../../components/WorldComponents';
-import type { Vector3, PositionComponent } from '../../components/CoreComponents';
-import type { HungerComponent, ThirstComponent, EnergyComponent } from '../../components/SurvivalComponents';
+} from '../../components/AIComponents.ts';
+import type { VillagerComponent } from '../../components/CreatureComponents.ts';
+import type { TimeOfDayComponent } from '../../components/WorldComponents.ts';
+import type { Vector3, PositionComponent } from '../../components/CoreComponents.ts';
+import type { HungerComponent, ThirstComponent, EnergyComponent } from '../../components/SurvivalComponents.ts';
 
 /**
  * Default schedule templates for different villager professions.

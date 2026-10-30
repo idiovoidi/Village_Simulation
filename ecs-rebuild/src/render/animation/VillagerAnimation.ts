@@ -7,7 +7,7 @@
  * @module render/animation
  */
 
-import { AnimationController } from './AnimationController';
+import { AnimationController } from './AnimationController.ts';
 
 export interface VillagerParts {
   root: any;
@@ -33,8 +33,6 @@ export class VillagerAnimation {
    * Creates all animation groups for a villager
    */
   createAnimations(parts: VillagerParts): AnimationController {
-    const BABYLON = (window as any).BABYLON;
-
     // Create animation groups
     const animations: Record<string, any> = {};
 

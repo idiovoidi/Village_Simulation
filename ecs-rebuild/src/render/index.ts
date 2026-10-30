@@ -17,7 +17,7 @@ export {
   createZombieModel,
   type ZombieParts,
   type ZombieConfig
-} from './models';
+} from './models/index.ts';
 
 // Models - Animals
 export {
@@ -37,7 +37,7 @@ export {
   createDinosaurModel,
   type DinosaurParts,
   type DinosaurConfig
-} from './models';
+} from './models/index.ts';
 
 // Models - Vehicles
 export {
@@ -45,7 +45,7 @@ export {
   createBoatModel,
   type BoatParts,
   type BoatConfig
-} from './models';
+} from './models/index.ts';
 
 // Animation
 export {
@@ -67,4 +67,4 @@ export {
   createDinosaurAnimation,
   BoatAnimation,
   createBoatAnimation
-} from './animation';
+} from './animation/index.ts';

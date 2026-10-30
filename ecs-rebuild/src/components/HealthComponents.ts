@@ -5,7 +5,7 @@
  * Used for damage systems, disease transmission, and zombie infection mechanics.
  */
 
-import type { Component } from '../core/Component';
+import type { Component } from '../core/Component.ts';
 
 /**
  * Status effect types.

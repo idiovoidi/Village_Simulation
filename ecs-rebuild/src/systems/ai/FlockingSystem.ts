@@ -7,14 +7,14 @@
  * Requirements: 6.3, 6.4
  */
 
-import { System } from '../../core/System';
-import type { World } from '../../core/World';
-import type { EntityId } from '../../core/Entity';
-import type { FlockComponent } from '../../components/CreatureComponents';
-import type { PositionComponent, VelocityComponent, Vector3 } from '../../components/CoreComponents';
-import type { SteeringComponent } from '../../components/AIComponents';
-import { distance, normalizeVector, subtractVectors, addVectors, multiplyVector } from '../../utils/Vector3Helpers';
-import { SpatialGrid } from '../../utils/SpatialGrid';
+import { System } from '../../core/System.ts';
+import type { World } from '../../core/World.ts';
+import type { EntityId } from '../../core/Entity.ts';
+import type { FlockComponent } from '../../components/CreatureComponents.ts';
+import type { PositionComponent, VelocityComponent, Vector3 } from '../../components/CoreComponents.ts';
+import type { SteeringComponent } from '../../components/AIComponents.ts';
+import { distance, normalizeVector, subtractVectors, addVectors, multiplyVector } from '../../utils/Vector3Helpers.ts';
+import { SpatialGrid } from '../../utils/SpatialGrid.ts';
 
 /**
  * FlockingSystem implements Reynolds' flocking algorithm.

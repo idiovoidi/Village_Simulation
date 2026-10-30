@@ -13,6 +13,30 @@ import { createModelComponent } from '../components/RenderingComponents.ts';
 import { createTransformComponent } from '../components/CoreComponents.ts';
 
 /**
+ * Permissive Babylon stand-in: any property is another mock, assignments are
+ * remembered, and it can be called or constructed. Keeps the tests focused on
+ * RenderSystem behaviour instead of tracking every call a model makes.
+ */
+function autoMock(): any {
+  const store = new Map<PropertyKey, unknown>();
+  return new Proxy(function () {}, {
+    get(_target, prop) {
+      if (prop === Symbol.toPrimitive) return () => 0;
+      if (prop === 'then') return undefined;
+      if (!store.has(prop)) store.set(prop, autoMock());
+      return store.get(prop);
+    },
+    set(_target, prop, value) {
+      store.set(prop, value);
+      return true;
+    },
+    apply: () => autoMock(),
+    construct: () => autoMock(),
+    has: () => true,
+  });
+}
+
+/**
  * Mock Babylon.js for testing
  */
 function setupBabylonMock(): any {
@@ -37,13 +61,19 @@ function setupBabylonMock(): any {
     dispose: () => {}
   };
 
-  const mockScene = {
-    meshes: [],
-    render: () => {}
-  };
+  const mockScene = autoMock();
+  mockScene.meshes = [];
+  mockScene.render = () => {};
 
-  (global as any).window = {
-    BABYLON: {
+  const base: Record<string, unknown> = {
+      // Root nodes report a bounding box that starts at their own position, so the
+      // renderer's ground-offset logic is neutral and transforms pass through exactly.
+      TransformNode: function () {
+        const node = autoMock();
+        node.position = { x: 0, y: 0, z: 0 };
+        node.getHierarchyBoundingVectors = () => ({ min: { y: node.position.y } });
+        return node;
+      },
       Vector3: class {
         x: number;
         y: number;
@@ -65,25 +95,12 @@ function setupBabylonMock(): any {
           this.z = z;
           this.w = w;
         }
-      },
-      MeshBuilder: {
-        CreateBox: (name: string, options: any, scene: any) => {
-          const mesh = { ...mockMesh, name };
-          meshes.set(name, mesh);
-          return mesh;
-        },
-        CreateSphere: (name: string, options: any, scene: any) => {
-          const mesh = { ...mockMesh, name };
-          meshes.set(name, mesh);
-          return mesh;
-        },
-        CreateCylinder: (name: string, options: any, scene: any) => {
-          const mesh = { ...mockMesh, name };
-          meshes.set(name, mesh);
-          return mesh;
-        }
       }
-    }
+  };
+  (global as any).window = {
+    BABYLON: new Proxy(base, {
+      get: (t, p: string) => (p in t ? t[p] : (t[p] = autoMock())),
+    }),
   };
 
   return { mockScene, meshes };
@@ -118,9 +135,9 @@ describe('RenderSystem Property Tests', () => {
           fc.record({
             meshId: fc.constantFrom('villager', 'zombie', 'fish', 'bird', 'dog', 'boat'),
             position: fc.record({
-              x: fc.float({ min: Math.fround(-100), max: Math.fround(100) }),
-              y: fc.float({ min: Math.fround(-100), max: Math.fround(100) }),
-              z: fc.float({ min: Math.fround(-100), max: Math.fround(100) })
+              x: fc.float({ noNaN: true, min: Math.fround(-100), max: Math.fround(100) }),
+              y: fc.float({ noNaN: true, min: Math.fround(-100), max: Math.fround(100) }),
+              z: fc.float({ noNaN: true, min: Math.fround(-100), max: Math.fround(100) })
             }),
             visible: fc.boolean()
           }),
@@ -193,25 +210,25 @@ describe('RenderSystem Property Tests', () => {
         fc.record({
           meshId: fc.constantFrom('villager', 'zombie', 'fish'),
           initialPosition: fc.record({
-            x: fc.float({ min: Math.fround(-50), max: Math.fround(50) }),
-            y: fc.float({ min: Math.fround(-50), max: Math.fround(50) }),
-            z: fc.float({ min: Math.fround(-50), max: Math.fround(50) })
+            x: fc.float({ noNaN: true, min: Math.fround(-50), max: Math.fround(50) }),
+            y: fc.float({ noNaN: true, min: Math.fround(-50), max: Math.fround(50) }),
+            z: fc.float({ noNaN: true, min: Math.fround(-50), max: Math.fround(50) })
           }),
           newPosition: fc.record({
-            x: fc.float({ min: Math.fround(-50), max: Math.fround(50) }),
-            y: fc.float({ min: Math.fround(-50), max: Math.fround(50) }),
-            z: fc.float({ min: Math.fround(-50), max: Math.fround(50) })
+            x: fc.float({ noNaN: true, min: Math.fround(-50), max: Math.fround(50) }),
+            y: fc.float({ noNaN: true, min: Math.fround(-50), max: Math.fround(50) }),
+            z: fc.float({ noNaN: true, min: Math.fround(-50), max: Math.fround(50) })
           }),
           rotation: fc.record({
-            x: fc.float({ min: Math.fround(-1), max: Math.fround(1) }),
-            y: fc.float({ min: Math.fround(-1), max: Math.fround(1) }),
-            z: fc.float({ min: Math.fround(-1), max: Math.fround(1) }),
-            w: fc.float({ min: Math.fround(-1), max: Math.fround(1) })
+            x: fc.float({ noNaN: true, min: Math.fround(-1), max: Math.fround(1) }),
+            y: fc.float({ noNaN: true, min: Math.fround(-1), max: Math.fround(1) }),
+            z: fc.float({ noNaN: true, min: Math.fround(-1), max: Math.fround(1) }),
+            w: fc.float({ noNaN: true, min: Math.fround(-1), max: Math.fround(1) })
           }),
           scale: fc.record({
-            x: fc.float({ min: Math.fround(0.1), max: Math.fround(3) }),
-            y: fc.float({ min: Math.fround(0.1), max: Math.fround(3) }),
-            z: fc.float({ min: Math.fround(0.1), max: Math.fround(3) })
+            x: fc.float({ noNaN: true, min: Math.fround(0.1), max: Math.fround(3) }),
+            y: fc.float({ noNaN: true, min: Math.fround(0.1), max: Math.fround(3) }),
+            z: fc.float({ noNaN: true, min: Math.fround(0.1), max: Math.fround(3) })
           })
         }),
         (data) => {

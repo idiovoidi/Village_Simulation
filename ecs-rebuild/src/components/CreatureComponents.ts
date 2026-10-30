@@ -5,7 +5,7 @@
  * Each creature type has unique properties and behaviors.
  */
 
-import type { Component } from '../core/Component';
+import type { Component } from '../core/Component.ts';
 
 /**
  * Villager-specific component.

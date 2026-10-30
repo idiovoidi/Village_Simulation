@@ -5,7 +5,7 @@
  * Enables population dynamics and genetic evolution in the simulation.
  */
 
-import type { Component } from '../core/Component';
+import type { Component } from '../core/Component.ts';
 
 /**
  * Reproduction capability component.

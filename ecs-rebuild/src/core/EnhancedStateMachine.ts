@@ -231,7 +231,7 @@ export class EnhancedStateMachine {
    * @param context - Transition context
    * @returns Whether transition is allowed
    */
-  canTransitionTo(targetState: string, context: StateContext = {}): boolean {
+  canTransitionTo(targetState: string, _context: StateContext = {}): boolean {
     const currentStateDefinition = this.stateDefinitions.get(this._currentState ?? '');
     const targetStateDefinition = this.stateDefinitions.get(targetState);
 

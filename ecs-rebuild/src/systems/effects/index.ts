@@ -4,6 +4,6 @@
  * Exports all effects-related systems
  */
 
-export { EffectsSystem } from './EffectsSystem';
+export { EffectsSystem } from './EffectsSystem.ts';
 
-export type { EffectsConfig } from './EffectsSystem';
+export type { EffectsConfig } from './EffectsSystem.ts';

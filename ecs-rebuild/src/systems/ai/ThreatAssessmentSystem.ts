@@ -8,14 +8,14 @@
  * Requirements: 6.2
  */
 
-import { System } from '../../core/System';
-import type { World } from '../../core/World';
-import type { ComponentSignature } from '../../core/Component';
-import type { EntityId } from '../../core/Entity';
-import type { ThreatComponent } from '../../components/AIComponents';
-import type { ZombieComponent, VillagerComponent } from '../../components/CreatureComponents';
-import type { PositionComponent } from '../../components/CoreComponents';
-import { SpatialGrid } from '../../utils/SpatialGrid';
+import { System } from '../../core/System.ts';
+import type { World } from '../../core/World.ts';
+import type { ComponentSignature } from '../../core/Component.ts';
+import type { EntityId } from '../../core/Entity.ts';
+import type { ThreatComponent } from '../../components/AIComponents.ts';
+import type { ZombieComponent, VillagerComponent } from '../../components/CreatureComponents.ts';
+import type { PositionComponent } from '../../components/CoreComponents.ts';
+import { SpatialGrid } from '../../utils/SpatialGrid.ts';
 
 /**
  * Configuration for threat assessment.

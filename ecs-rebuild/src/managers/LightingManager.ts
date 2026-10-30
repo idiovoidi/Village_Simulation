@@ -1,219 +1,159 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * LightingManager
- * 
- * Manages scene lighting including directional sun light and ambient lighting.
- * Supports dynamic lighting for day/night cycle.
+ *
+ * Owns the sun/moon directional light and the hemispheric fill light, and
+ * turns hour-of-day into a sun state (direction, elevation, colour) that the
+ * AtmosphereManager renders as sky, fog and shadows.
  */
 
-/**
- * LightingManager handles creation and management of scene lights.
- * Provides directional light for sun and hemispheric light for ambient lighting.
- */
+import { sampleSky, type AtmosphereManager, type SkyState } from './AtmosphereManager.ts';
+
+function smoothstep(e0: number, e1: number, x: number): number {
+  const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
+  return t * t * (3 - 2 * t);
+}
+
+/** Names of shared materials that glow after dark (see render/models/Materials). */
+const NIGHT_GLOW_MATERIALS = ['house_window'];
+
 export class LightingManager {
-  private scene: any; // Babylon.Scene
-  private directionalLight: any; // Babylon.DirectionalLight (sun)
-  private hemisphericLight: any; // Babylon.HemisphericLight (ambient)
-  private sunIntensity: number;
-  private ambientIntensity: number;
+  private scene: any;
+  private atmosphere: AtmosphereManager | null;
+  private sunLight: any = null;
+  private fillLight: any = null;
+  private sunIntensity = 1;
+  private ambientIntensity = 1;
+  private lastState: SkyState | null = null;
 
-  /**
-   * Creates a new LightingManager.
-   * 
-   * @param scene - The Babylon.js scene
-   */
-  constructor(scene: any) {
+  constructor(scene: any, atmosphere: AtmosphereManager | null = null) {
     this.scene = scene;
-    this.directionalLight = null;
-    this.hemisphericLight = null;
-    this.sunIntensity = 1.0;
-    this.ambientIntensity = 0.5;
+    this.atmosphere = atmosphere;
   }
 
-  /**
-   * Initializes the lighting system with default lights.
-   * Creates a directional light for the sun and a hemispheric light for ambient lighting.
-   */
   initialize(): void {
-    const BABYLON = (window as any).BABYLON;
+    const B = (window as any).BABYLON;
 
-    // Create directional light (sun)
-    this.directionalLight = new BABYLON.DirectionalLight(
-      'sunLight',
-      new BABYLON.Vector3(-1, -2, -1), // Direction from top-right
-      this.scene
-    );
-    this.directionalLight.intensity = this.sunIntensity;
-    this.directionalLight.diffuse = new BABYLON.Color3(1, 0.95, 0.8); // Warm sunlight
-    this.directionalLight.specular = new BABYLON.Color3(1, 1, 0.9);
+    this.sunLight = new B.DirectionalLight('sunLight', new B.Vector3(-0.4, -1, -0.3), this.scene);
+    this.sunLight.intensity = 1.6;
+    this.sunLight.specular = new B.Color3(1, 0.95, 0.85);
 
-    // Enable shadows (optional, can be configured later)
-    // Shadow generator will be created by systems that need it
+    this.fillLight = new B.HemisphericLight('ambientLight', new B.Vector3(0, 1, 0), this.scene);
+    this.fillLight.intensity = 0.55;
+    this.fillLight.specular = new B.Color3(0, 0, 0);
 
-    // Create hemispheric light (ambient)
-    this.hemisphericLight = new BABYLON.HemisphericLight(
-      'ambientLight',
-      new BABYLON.Vector3(0, 1, 0), // Direction from above
-      this.scene
-    );
-    this.hemisphericLight.intensity = this.ambientIntensity;
-    this.hemisphericLight.diffuse = new BABYLON.Color3(0.8, 0.85, 1.0); // Cool ambient
-    this.hemisphericLight.specular = new BABYLON.Color3(0, 0, 0); // No specular from ambient
-    this.hemisphericLight.groundColor = new BABYLON.Color3(0.3, 0.3, 0.3); // Dark ground reflection
+    this.atmosphere?.attachSun(this.sunLight);
+    this.updateForTimeOfDay(8);
   }
 
   /**
-   * Updates lighting based on time of day.
-   * Adjusts light intensity and color to simulate day/night cycle.
-   * 
-   * @param timeOfDay - Time of day in hours (0-24)
+   * @param timeOfDay hour 0-24 (fractional)
    */
   updateForTimeOfDay(timeOfDay: number): void {
-    if (!this.directionalLight || !this.hemisphericLight) {
-      return;
-    }
+    if (!this.sunLight || !this.fillLight) return;
+    const B = (window as any).BABYLON;
 
-    const BABYLON = (window as any).BABYLON;
+    const t = (((timeOfDay % 24) + 24) % 24) / 24;
+    // Sun rises at 06:00 (angle 0), peaks at 12:00, sets at 18:00.
+    const angle = (t - 0.25) * Math.PI * 2;
+    const elevation = Math.sin(angle);
+    // Slight southern tilt so shadows never collapse straight down at noon.
+    const sunPos = new B.Vector3(Math.cos(angle), elevation, 0.38).normalize();
+    const night = 1 - smoothstep(-0.18, 0.08, elevation);
 
-    // Normalize time to 0-1 range
-    const normalizedTime = (timeOfDay % 24) / 24;
+    const sky = sampleSky(elevation);
+    const state: SkyState = {
+      sunDir: { x: sunPos.x, y: sunPos.y, z: sunPos.z },
+      elevation,
+      night,
+      ...sky,
+    };
+    this.lastState = state;
 
-    // Calculate sun position based on time
-    // Sun rises at 6:00 (0.25), peaks at 12:00 (0.5), sets at 18:00 (0.75)
-    const sunAngle = (normalizedTime - 0.25) * Math.PI * 2;
-    const sunHeight = Math.sin(sunAngle);
+    // Light travels from the body towards the ground: negate its position.
+    const sunUp = elevation > -0.04;
+    const body = sunUp ? sunPos : sunPos.scale(-1);
+    this.sunLight.direction = body.scale(-1);
 
-    // Update sun direction
-    const sunDirection = new BABYLON.Vector3(
-      Math.cos(sunAngle),
-      sunHeight,
-      Math.sin(sunAngle) * 0.5
-    );
-    this.directionalLight.direction = sunDirection.normalize();
-
-    // Calculate light intensity based on sun height
-    let sunIntensity: number;
-    let ambientIntensity: number;
-    let sunColor: any;
-    let ambientColor: any;
-
-    if (sunHeight > 0) {
-      // Daytime
-      sunIntensity = Math.max(0.3, sunHeight) * this.sunIntensity;
-      ambientIntensity = Math.max(0.4, sunHeight * 0.8) * this.ambientIntensity;
-
-      // Sunrise/sunset colors (when sun is low)
-      if (sunHeight < 0.3) {
-        const sunsetFactor = sunHeight / 0.3;
-        sunColor = new BABYLON.Color3(
-          1,
-          0.6 + sunsetFactor * 0.35,
-          0.3 + sunsetFactor * 0.5
-        );
-        ambientColor = new BABYLON.Color3(
-          0.6 + sunsetFactor * 0.2,
-          0.5 + sunsetFactor * 0.35,
-          0.7 + sunsetFactor * 0.3
-        );
-      } else {
-        // Normal daylight
-        sunColor = new BABYLON.Color3(1, 0.95, 0.8);
-        ambientColor = new BABYLON.Color3(0.8, 0.85, 1.0);
-      }
+    if (sunUp) {
+      const strength = smoothstep(-0.04, 0.28, elevation);
+      this.sunLight.intensity = (0.3 + 1.1 * strength) * this.sunIntensity;
+      this.sunLight.diffuse = new B.Color3(state.sunColor.r, state.sunColor.g, state.sunColor.b);
     } else {
-      // Nighttime
-      sunIntensity = 0;
-      ambientIntensity = 0.15 * this.ambientIntensity; // Dim ambient at night
-
-      sunColor = new BABYLON.Color3(0.3, 0.3, 0.5); // Moonlight
-      ambientColor = new BABYLON.Color3(0.1, 0.1, 0.2); // Dark blue night
+      // Moonlight takes over: dim, cool and soft.
+      const moon = smoothstep(-0.04, -0.3, elevation);
+      this.sunLight.intensity = 0.15 + 1.35 * moon;
+      this.sunLight.diffuse = new B.Color3(0.55, 0.65, 1.0);
     }
 
-    // Apply lighting changes
-    this.directionalLight.intensity = sunIntensity;
-    this.directionalLight.diffuse = sunColor;
+    // Fill light: sky-tinted white by day, a cool blue wash at night so shapes stay readable.
+    const fillDay = 1 - night;
+    const tint = 0.45;
+    const mixc = (zc: number, hc: number, white: number) =>
+      (0.5 * zc + 0.5 * hc) * tint + white * (1 - tint);
+    const day = {
+      r: mixc(state.zenith.r, state.horizon.r, 0.95),
+      g: mixc(state.zenith.g, state.horizon.g, 0.97),
+      b: mixc(state.zenith.b, state.horizon.b, 1.0),
+    };
+    const moonWash = { r: 0.3, g: 0.4, b: 0.68 };
+    this.fillLight.diffuse = new B.Color3(
+      day.r * fillDay + moonWash.r * night,
+      day.g * fillDay + moonWash.g * night,
+      day.b * fillDay + moonWash.b * night
+    );
+    this.fillLight.intensity = (0.9 * fillDay + 0.85 * night) * this.ambientIntensity;
+    this.fillLight.groundColor = new B.Color3(
+      0.38 * fillDay + 0.07 * night,
+      0.44 * fillDay + 0.09 * night,
+      0.26 * fillDay + 0.16 * night
+    );
 
-    this.hemisphericLight.intensity = ambientIntensity;
-    this.hemisphericLight.diffuse = ambientColor;
+    // Lit windows after dusk.
+    for (const name of NIGHT_GLOW_MATERIALS) {
+      const mat = this.scene.getMaterialByName(name);
+      if (mat) {
+        const glow = smoothstep(0.1, 0.55, night);
+        mat.emissiveColor = new B.Color3(1.0 * glow, 0.72 * glow, 0.32 * glow);
+      }
+    }
+
+    this.atmosphere?.update(state);
   }
 
-  /**
-   * Sets the sun light intensity.
-   * 
-   * @param intensity - The intensity value (0-1)
-   */
+  getSkyState(): SkyState | null {
+    return this.lastState;
+  }
+
+  /** True while the sun is below the horizon. */
+  isNight(): boolean {
+    return (this.lastState?.night ?? 0) > 0.5;
+  }
+
   setSunIntensity(intensity: number): void {
-    this.sunIntensity = Math.max(0, Math.min(1, intensity));
-    if (this.directionalLight) {
-      this.directionalLight.intensity = this.sunIntensity;
-    }
+    this.sunIntensity = Math.max(0, Math.min(2, intensity));
   }
 
-  /**
-   * Sets the ambient light intensity.
-   * 
-   * @param intensity - The intensity value (0-1)
-   */
   setAmbientIntensity(intensity: number): void {
-    this.ambientIntensity = Math.max(0, Math.min(1, intensity));
-    if (this.hemisphericLight) {
-      this.hemisphericLight.intensity = this.ambientIntensity;
-    }
+    this.ambientIntensity = Math.max(0, Math.min(2, intensity));
   }
 
-  /**
-   * Gets the directional light (sun).
-   * 
-   * @returns The directional light
-   */
   getDirectionalLight(): any {
-    return this.directionalLight;
+    return this.sunLight;
   }
 
-  /**
-   * Gets the hemispheric light (ambient).
-   * 
-   * @returns The hemispheric light
-   */
   getHemisphericLight(): any {
-    return this.hemisphericLight;
+    return this.fillLight;
   }
 
-  /**
-   * Enables or disables shadows for the directional light.
-   * 
-   * @param enabled - Whether shadows should be enabled
-   * @param shadowMapSize - Size of the shadow map (default: 1024)
-   * @returns The shadow generator if enabled, null otherwise
-   */
-  setShadowsEnabled(enabled: boolean, shadowMapSize: number = 1024): any {
-    if (!this.directionalLight) {
-      return null;
-    }
-
-    const BABYLON = (window as any).BABYLON;
-
-    if (enabled) {
-      const shadowGenerator = new BABYLON.ShadowGenerator(shadowMapSize, this.directionalLight);
-      shadowGenerator.useBlurExponentialShadowMap = true;
-      shadowGenerator.blurKernel = 32;
-      return shadowGenerator;
-    }
-
-    return null;
+  getShadowGenerator(): any {
+    return this.atmosphere?.getShadowGenerator() ?? null;
   }
 
-  /**
-   * Disposes of all lights and cleans up resources.
-   */
   dispose(): void {
-    if (this.directionalLight) {
-      this.directionalLight.dispose();
-      this.directionalLight = null;
-    }
-
-    if (this.hemisphericLight) {
-      this.hemisphericLight.dispose();
-      this.hemisphericLight = null;
-    }
+    this.sunLight?.dispose();
+    this.fillLight?.dispose();
+    this.sunLight = null;
+    this.fillLight = null;
   }
 }

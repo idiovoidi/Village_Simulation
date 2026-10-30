@@ -7,14 +7,14 @@
  * Requirements: 6.7
  */
 
-import { System } from '../../core/System';
-import type { World } from '../../core/World';
-import type { EntityId } from '../../core/Entity';
-import type { PathfindingManager, PathResult } from '../../managers/PathfindingManager';
-import type { SteeringComponent } from '../../components/AIComponents';
-import type { PositionComponent, Vector3 } from '../../components/CoreComponents';
-import { distance } from '../../utils/Vector3Helpers';
-import { Logger } from '../../utils/Logger';
+import { System } from '../../core/System.ts';
+import type { World } from '../../core/World.ts';
+import type { EntityId } from '../../core/Entity.ts';
+import type { PathfindingManager, PathResult } from '../../managers/PathfindingManager.ts';
+import type { SteeringComponent } from '../../components/AIComponents.ts';
+import type { PositionComponent, Vector3 } from '../../components/CoreComponents.ts';
+import { distance } from '../../utils/Vector3Helpers.ts';
+import { Logger } from '../../utils/Logger.ts';
 
 /**
  * Pathfinding state for an entity.

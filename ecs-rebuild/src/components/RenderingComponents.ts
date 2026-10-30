@@ -5,7 +5,7 @@
  * Used by the Babylon.js rendering system.
  */
 
-import type { Component } from '../core/Component';
+import type { Component } from '../core/Component.ts';
 
 /**
  * 3D model component.

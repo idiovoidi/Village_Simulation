@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Effects System
  * 
@@ -5,8 +6,8 @@
  * Ported from MyHavokSimCode/Effects/BloodDecalManager.js
  */
 
-import { System } from '../../core/System';
-import type { World } from '../../core/World';
+import { System } from '../../core/System.ts';
+import type { World } from '../../core/World.ts';
 
 /**
  * Effects configuration
@@ -68,11 +69,11 @@ export class EffectsSystem extends System {
    * Create reusable decal material
    */
   private createDecalMaterial(): void {
-    const BABYLON = (window as unknown as { BABYLON: typeof import('babylonjs') }).BABYLON;
+    const BABYLON = (window as any).BABYLON;
     if (!BABYLON || !this.scene) return;
 
     this.decalMaterial = new BABYLON.StandardMaterial('bloodDecalMaterial', this.scene as import('babylonjs').Scene);
-    this.decalMaterial.diffuseTexture = new BABYLON.Texture(
+    (this.decalMaterial as { diffuseTexture: unknown }).diffuseTexture = new BABYLON.Texture(
       'https://www.babylonjs-playground.com/textures/impact.png',
       this.scene as import('babylonjs').Scene
     );
@@ -86,7 +87,7 @@ export class EffectsSystem extends System {
   createBloodDecal(position: { x: number; y: number; z: number }): void {
     if (!this.config.enableBloodEffects || !this.decalMaterial) return;
 
-    const BABYLON = (window as unknown as { BABYLON: typeof import('babylonjs') }).BABYLON;
+    const BABYLON = (window as any).BABYLON;
     if (!BABYLON || !this.scene) return;
 
     // Remove oldest decal if at max
@@ -126,7 +127,7 @@ export class EffectsSystem extends System {
   createParticleEffect(position: { x: number; y: number; z: number }, type: string): void {
     if (!this.config.enableParticleEffects) return;
 
-    const BABYLON = (window as unknown as { BABYLON: typeof import('babylonjs') }).BABYLON;
+    const BABYLON = (window as any).BABYLON;
     if (!BABYLON || !this.scene) return;
 
     // Create particle system based on type

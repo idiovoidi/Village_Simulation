@@ -7,7 +7,7 @@
  * Requirements: 1.7
  */
 
-import type { EntityId } from '../core/Entity';
+import type { EntityId } from '../core/Entity.ts';
 
 /**
  * Base event interface.

@@ -36,14 +36,14 @@ describe('Survival Systems - Property-Based Tests', () => {
       fc.property(
         // Generate random initial stat levels (above critical to avoid behavior changes)
         fc.record({
-          hungerLevel: fc.float({ min: Math.fround(50), max: Math.fround(100) }),
-          hungerDepletionRate: fc.float({ min: Math.fround(0.1), max: Math.fround(2.0) }),
-          thirstLevel: fc.float({ min: Math.fround(50), max: Math.fround(100) }),
-          thirstDepletionRate: fc.float({ min: Math.fround(0.1), max: Math.fround(2.0) }),
-          energyLevel: fc.float({ min: Math.fround(50), max: Math.fround(100) }),
-          energyDepletionRate: fc.float({ min: Math.fround(0.1), max: Math.fround(2.0) }),
-          activityMultiplier: fc.float({ min: Math.fround(0.5), max: Math.fround(2.0) }),
-          deltaTime: fc.float({ min: Math.fround(0.1), max: Math.fround(5.0) })
+          hungerLevel: fc.float({ noNaN: true, min: Math.fround(50), max: Math.fround(100) }),
+          hungerDepletionRate: fc.float({ noNaN: true, min: Math.fround(0.1), max: Math.fround(2.0) }),
+          thirstLevel: fc.float({ noNaN: true, min: Math.fround(50), max: Math.fround(100) }),
+          thirstDepletionRate: fc.float({ noNaN: true, min: Math.fround(0.1), max: Math.fround(2.0) }),
+          energyLevel: fc.float({ noNaN: true, min: Math.fround(50), max: Math.fround(100) }),
+          energyDepletionRate: fc.float({ noNaN: true, min: Math.fround(0.1), max: Math.fround(2.0) }),
+          activityMultiplier: fc.float({ noNaN: true, min: Math.fround(0.5), max: Math.fround(2.0) }),
+          deltaTime: fc.float({ noNaN: true, min: Math.fround(0.1), max: Math.fround(5.0) })
         }),
         (config) => {
           // Create world and systems
@@ -134,9 +134,9 @@ describe('Survival Systems - Property-Based Tests', () => {
         // Generate random critical scenarios
         fc.record({
           needType: fc.constantFrom('hunger', 'thirst', 'energy'),
-          criticalLevel: fc.float({ min: Math.fround(0), max: Math.fround(10) }), // Below critical threshold
-          depletionRate: fc.float({ min: Math.fround(0.1), max: Math.fround(2.0) }),
-          deltaTime: fc.float({ min: Math.fround(0.1), max: Math.fround(2.0) })
+          criticalLevel: fc.float({ noNaN: true, min: Math.fround(0), max: Math.fround(10) }), // Below critical threshold
+          depletionRate: fc.float({ noNaN: true, min: Math.fround(0.1), max: Math.fround(2.0) }),
+          deltaTime: fc.float({ noNaN: true, min: Math.fround(0.1), max: Math.fround(2.0) })
         }),
         (config) => {
           // Create world and systems
@@ -199,9 +199,9 @@ describe('Survival Systems - Property-Based Tests', () => {
     fc.assert(
       fc.property(
         fc.record({
-          initialEnergy: fc.float({ min: Math.fround(10), max: Math.fround(50) }),
-          restoreRate: fc.float({ min: Math.fround(1.0), max: Math.fround(5.0) }),
-          deltaTime: fc.float({ min: Math.fround(0.1), max: Math.fround(5.0) })
+          initialEnergy: fc.float({ noNaN: true, min: Math.fround(10), max: Math.fround(50) }),
+          restoreRate: fc.float({ noNaN: true, min: Math.fround(1.0), max: Math.fround(5.0) }),
+          deltaTime: fc.float({ noNaN: true, min: Math.fround(0.1), max: Math.fround(5.0) })
         }),
         (config) => {
           const world = new World();

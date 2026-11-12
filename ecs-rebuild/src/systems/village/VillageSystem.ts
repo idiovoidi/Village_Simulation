@@ -20,6 +20,7 @@ export interface VillageConfig {
   houseCount: number;
   includeMarket: boolean;
   includeGardens: boolean;
+  dockAngle?: number;
   seed: number;
 }
 
@@ -53,6 +54,7 @@ export class VillageSystem extends System {
   private houses: EntityId[] = [];
   private decorations: EntityId[] = [];
   private roadMeshes: any[] = [];
+  private dockMaterials: any[] = [];
   private footprints: Footprint[] = [];
   private roadSegments: Array<{ ax: number; az: number; bx: number; bz: number; w: number }> = [];
   private initialized = false;
@@ -89,6 +91,7 @@ export class VillageSystem extends System {
     this.createHouses();
     this.createRoads();
     this.createPlaza();
+    if (this.config.dockAngle !== undefined) this.createDock(this.config.dockAngle);
     this.createDecorations();
     if (this.config.includeMarket) this.createMarket();
 
@@ -392,6 +395,130 @@ export class VillageSystem extends System {
     this.footprints.push({ x: cx, z: cz, r: PLAZA_RADIUS });
   }
 
+  /** A timber boardwalk and pier placed at the edge of a configured bay. */
+  private createDock(angle: number): void {
+    if (!this.scene || !this.terrainSystem) return;
+    const B = (window as any).BABYLON;
+    const { waterLevel } = this.terrainSystem.getConfig();
+    const direction = { x: Math.cos(angle), z: Math.sin(angle) };
+    const side = { x: -direction.z, z: direction.x };
+    const deckY = waterLevel + 0.72;
+    const dockWidth = 9.2;
+    const dockLength = 24;
+    const startDistance = this.config.villageRadius * 0.76;
+    let shoreDistance = startDistance;
+    const shoreLimit = this.config.villageRadius * 2.2;
+
+    while (
+      shoreDistance < shoreLimit &&
+      this.getTerrainHeight(
+        this.centerOffset.x + direction.x * shoreDistance,
+        this.centerOffset.z + direction.z * shoreDistance
+      ) > deckY
+    ) {
+      shoreDistance += 0.5;
+    }
+    const shoreX = this.centerOffset.x + direction.x * shoreDistance;
+    const shoreZ = this.centerOffset.z + direction.z * shoreDistance;
+    if (this.getTerrainHeight(shoreX, shoreZ) > deckY) return;
+
+    const timber = new B.StandardMaterial('coastalDockTimber', this.scene);
+    timber.diffuseColor = new B.Color3(0.34, 0.22, 0.13);
+    timber.specularColor = new B.Color3(0.06, 0.05, 0.04);
+    const railMaterial = new B.StandardMaterial('coastalDockRail', this.scene);
+    railMaterial.diffuseColor = new B.Color3(0.48, 0.34, 0.22);
+    railMaterial.specularColor = timber.specularColor;
+    this.dockMaterials.push(timber, railMaterial);
+
+    const addBox = (
+      name: string,
+      dimensions: { width: number; height: number; depth: number },
+      x: number,
+      y: number,
+      z: number,
+      rotationY: number,
+      material: any
+    ): void => {
+      const plank = B.MeshBuilder.CreateBox(name, dimensions, this.scene);
+      plank.position.set(x, y, z);
+      plank.rotation.y = rotationY;
+      plank.material = material;
+      plank.receiveShadows = true;
+      plank.isPickable = false;
+      this.roadMeshes.push(plank);
+    };
+
+    const rotationY = Math.PI / 2 - angle;
+
+    // A short, gently descending boardwalk joins the outer village to the shore.
+    for (let distance = startDistance; distance < shoreDistance - 0.5; distance += 2.1) {
+      const x = this.centerOffset.x + direction.x * distance;
+      const z = this.centerOffset.z + direction.z * distance;
+      const y = Math.max(this.getTerrainHeight(x, z) + 0.18, deckY);
+      addBox(
+        'dock_boardwalk_plank',
+        { width: 3.8, height: 0.28, depth: 1.9 },
+        x,
+        y,
+        z,
+        rotationY,
+        timber
+      );
+    }
+
+    // Broad landing pier with open gaps between deck boards.
+    for (let distance = 0.9; distance < dockLength; distance += 1.8) {
+      const center = shoreDistance + distance;
+      const x = this.centerOffset.x + direction.x * center;
+      const z = this.centerOffset.z + direction.z * center;
+      addBox(
+        'dock_deck_plank',
+        { width: dockWidth, height: 0.3, depth: 1.55 },
+        x,
+        deckY,
+        z,
+        rotationY,
+        timber
+      );
+    }
+
+    // Side rails and paired piles make the structure read clearly from above.
+    for (const offset of [-dockWidth / 2 + 0.25, dockWidth / 2 - 0.25]) {
+      const x = this.centerOffset.x + direction.x * (shoreDistance + dockLength / 2) + side.x * offset;
+      const z = this.centerOffset.z + direction.z * (shoreDistance + dockLength / 2) + side.z * offset;
+      addBox(
+        'dock_side_rail',
+        { width: 0.32, height: 0.7, depth: dockLength },
+        x,
+        deckY + 0.48,
+        z,
+        rotationY,
+        railMaterial
+      );
+
+      for (const distance of [1.2, 8.5, 16, 23.5]) {
+        const pileX = this.centerOffset.x + direction.x * (shoreDistance + distance) + side.x * offset;
+        const pileZ = this.centerOffset.z + direction.z * (shoreDistance + distance) + side.z * offset;
+        const pile = B.MeshBuilder.CreateCylinder(
+          'dock_pile',
+          { diameter: 0.58, height: 6.4, tessellation: 8 },
+          this.scene
+        );
+        pile.position.set(pileX, deckY - 2.9, pileZ);
+        pile.material = railMaterial;
+        pile.isPickable = false;
+        this.roadMeshes.push(pile);
+      }
+    }
+
+    const middleDistance = startDistance + (shoreDistance + dockLength / 2 - startDistance) / 2;
+    this.footprints.push({
+      x: this.centerOffset.x + direction.x * middleDistance,
+      z: this.centerOffset.z + direction.z * middleDistance,
+      r: (shoreDistance + dockLength - startDistance) / 2 + dockWidth / 2,
+    });
+  }
+
   private createDecorations(): void {
     const { villageRadius } = this.config;
 
@@ -493,6 +620,10 @@ export class VillageSystem extends System {
       mesh?.dispose?.();
     }
     this.roadMeshes = [];
+    for (const material of this.dockMaterials) {
+      material?.dispose?.();
+    }
+    this.dockMaterials = [];
     this.roadSegments = [];
     this.footprints = [];
     this.houses = [];

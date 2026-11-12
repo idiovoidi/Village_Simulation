@@ -379,7 +379,7 @@ export class VillagerBehaviorSystem extends System {
     }
   }
 
-  /** Eating at the market, drinking at a well: walk there, then restore the need. */
+  /** Eat at home or the market, drink at a well, then restore the need. */
   private updateAtPOI(
     villagerId: EntityId,
     villager: VillagerComponent,
@@ -390,6 +390,32 @@ export class VillagerBehaviorSystem extends System {
     deltaTime: number,
     restorePerSecond: number
   ): void {
+    const schedule = this.world.getComponent<ScheduleComponent>(villagerId, 'Schedule');
+    const activity = schedule?.activities[schedule.currentActivityIndex];
+    const isScheduledMeal = !schedule?.overridden && activity?.behaviour === BehaviourState.Eat;
+    const home = isScheduledMeal
+      ? activity?.location ?? this.homePosition(villager, position)
+      : null;
+
+    // Scheduled meals happen at home. Critical hunger overrides use the market
+    // so a villager can still find food when their routine has been interrupted.
+    if (type === 'market' && home) {
+      villager.currentPOI = villager.home !== null ? `home_${villager.home}` : 'home';
+      if (this.travel(
+        villagerId,
+        villager,
+        position,
+        velocity,
+        steering,
+        this.doorstepSpot(home, villagerId),
+        deltaTime
+      )) {
+        const hunger = this.world.getComponent<HungerComponent>(villagerId, 'Hunger');
+        if (hunger) hunger.level = Math.min(100, hunger.level + restorePerSecond * deltaTime);
+      }
+      return;
+    }
+
     const poi = this.pickPOI(position, villagerId, type);
     if (!poi) {
       velocity.vx = velocity.vy = velocity.vz = 0;
@@ -408,6 +434,29 @@ export class VillagerBehaviorSystem extends System {
     }
   }
 
+  /** A meal spot just outside a house, on the side facing the village centre. */
+  private doorstepSpot(
+    home: { x: number; y: number; z: number },
+    villagerId: EntityId
+  ): { x: number; y: number; z: number } {
+    const length = Math.hypot(home.x, home.z);
+    const distance = DOOR_RADIUS + 1.2;
+    if (length > 0.1) {
+      return {
+        x: home.x - (home.x / length) * distance,
+        y: home.y,
+        z: home.z - (home.z / length) * distance
+      };
+    }
+
+    const angle = villagerId * 2.399;
+    return {
+      x: home.x + Math.cos(angle) * distance,
+      y: home.y,
+      z: home.z + Math.sin(angle) * distance
+    };
+  }
+
   private updateWorking(
     villagerId: EntityId,
     villager: VillagerComponent,
@@ -416,14 +465,20 @@ export class VillagerBehaviorSystem extends System {
     steering: SteeringComponent,
     deltaTime: number
   ): void {
-    const poi = this.pickPOI(position, villagerId, 'work');
-    if (!poi) {
+    const schedule = this.world.getComponent<ScheduleComponent>(villagerId, 'Schedule');
+    const activity = schedule?.activities[schedule.currentActivityIndex];
+    const scheduledWork = !schedule?.overridden && activity?.behaviour === BehaviourState.Work;
+    const workLocation = scheduledWork ? activity?.location ?? null : null;
+    const workType = villager.profession === 'merchant' ? 'market' : 'work';
+    const poi = workLocation ? null : this.pickPOI(position, villagerId, workType);
+    if (!workLocation && !poi) {
       velocity.vx = velocity.vy = velocity.vz = 0;
       this.hold(position, steering);
       return;
     }
-    villager.currentPOI = poi.id;
-    this.travel(villagerId, villager, position, velocity, steering, this.spotAt(poi, villagerId), deltaTime);
+    villager.currentPOI = poi?.id ?? 'workplace';
+    const target = workLocation ?? this.spotAt(poi!, villagerId);
+    this.travel(villagerId, villager, position, velocity, steering, target, deltaTime);
   }
 
   private updatePatrolling(

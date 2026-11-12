@@ -197,7 +197,7 @@ export const LEVELS: Record<string, LevelConfiguration> = {
  * LevelConfig class for managing level configurations
  */
 export class LevelConfig {
-  private static currentLevelKey: string = 'VILLAGE';
+  private static currentLevelKey: string = 'COASTAL';
 
   /**
    * Get the current level configuration

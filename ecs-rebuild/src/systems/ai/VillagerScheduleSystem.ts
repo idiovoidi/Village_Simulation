@@ -46,7 +46,7 @@ const SCHEDULE_TEMPLATES: Record<string, ScheduleActivity[]> = {
     { name: 'Lunch', startHour: 12, endHour: 13, location: null, behaviour: BehaviourState.Eat },
     { name: 'Farm Work', startHour: 13, endHour: 18, location: null, behaviour: BehaviourState.Work },
     { name: 'Dinner', startHour: 18, endHour: 19, location: null, behaviour: BehaviourState.Eat },
-    { name: 'Rest', startHour: 19, endHour: 21, location: null, behaviour: BehaviourState.Idle }
+    { name: 'Visit the plaza', startHour: 19, endHour: 21, location: null, behaviour: BehaviourState.Socialize }
   ],
   guard: [
     { name: 'Sleep', startHour: 22, endHour: 6, location: null, behaviour: BehaviourState.Sleep },
@@ -150,7 +150,11 @@ export class VillagerScheduleSystem extends System {
     }
 
     // Find current activity based on time
-    const currentActivity = this.findCurrentActivity(schedule, timeOfDay.hour);
+    // Offset each villager by a few minutes so the village does not switch
+    // activities as one synchronized crowd.
+    const staggerHours = (Math.abs(entityId) % 5) / 12;
+    const currentHour = (timeOfDay.hour + timeOfDay.minute / 60 - staggerHours + 24) % 24;
+    const currentActivity = this.findCurrentActivity(schedule, currentHour);
 
     if (currentActivity) {
       // Update current activity index

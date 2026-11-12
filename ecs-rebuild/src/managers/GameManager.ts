@@ -72,7 +72,7 @@ export class GameManager {
   private villageSystem: VillageSystem | null = null;
   private scatter: Scatter | null = null;
   private timeEntityId: EntityId | null = null;
-  private currentLevelKey = 'VILLAGE';
+  private currentLevelKey = 'COASTAL';
   private loadingLevel = false;
   private wasNight: boolean | null = null;
   private villageFallen = false;
@@ -133,7 +133,7 @@ export class GameManager {
       this.setupPicking(scene);
       this.createSelectionMarker(scene);
 
-      await this.loadLevel('VILLAGE');
+      await this.loadLevel('COASTAL');
     } catch (error) {
       this.logger.error('GameManager', 'Failed to initialize', error);
       throw error;
@@ -261,6 +261,7 @@ export class GameManager {
           houseCount: config.houseCount,
           includeMarket: true,
           includeGardens: true,
+          dockAngle: config.boatCount ? (config.bay?.angle ?? 0) : undefined,
           seed: this.hashKey(levelKey),
         });
         this.villageSystem.setTerrainSystem(this.terrainSystem);
@@ -429,6 +430,18 @@ export class GameManager {
     let villagers = 0;
     if (hasVillage) {
       const count = Math.max(5, Math.round(config.houseCount * 0.9));
+      // Mix professions so the schedule system gives villagers different work
+      // routes and evening routines, even in a small starting village.
+      const professions = [
+        'farmer',
+        'peasant',
+        'farmer',
+        'peasant',
+        'merchant',
+        'peasant',
+        'guard',
+        'farmer',
+      ];
       for (let i = 0; i < count; i++) {
         const p = sample(
           6,
@@ -436,7 +449,11 @@ export class GameManager {
           (x, z) => dryAt(x, z, 1.2) && !this.villageSystem!.isOccupied(x, z, -2.2)
         );
         if (!p) continue;
-        const id = this.entityFactory.createVillager({ position: at(p), name: `Villager_${i + 1}` });
+        const id = this.entityFactory.createVillager({
+          position: at(p),
+          name: `Villager_${i + 1}`,
+          profession: professions[i % professions.length],
+        });
         // Each villager sleeps in a house; extras share.
         const houses = this.villageSystem!.getHouses();
         const villager = this.world.getComponent<any>(id, 'Villager');
@@ -621,6 +638,9 @@ export class GameManager {
       }
       const behaviour = w.getComponent<any>(id, 'AIBehaviour');
       if (behaviour) rows.push(['State', String(behaviour.currentState)]);
+      const schedule = w.getComponent<any>(id, 'Schedule');
+      const activity = schedule?.activities[schedule.currentActivityIndex];
+      if (activity) rows.push(['Routine', String(activity.name)]);
       if (villager.isFleeing) rows.push(['Status', 'Fleeing']);
       else if (villager.currentPOI) rows.push(['Heading to', String(villager.currentPOI).replace(/_\d+$/, '')]);
     } else if (zombie) {

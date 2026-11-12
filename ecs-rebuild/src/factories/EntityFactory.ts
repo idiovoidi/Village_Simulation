@@ -28,8 +28,7 @@ import {
   createMemoryComponent,
   createScheduleComponent,
   createGoalComponent,
-  createThreatComponent,
-  type ScheduleActivity
+  createThreatComponent
 } from '../components/AIComponents.ts';
 
 // Creature components
@@ -132,7 +131,8 @@ export class EntityFactory {
     this.world.addComponent(entity, createAIBehaviourComponent(BehaviourState.Idle));
     this.world.addComponent(entity, createSteeringComponent(10, 2));
     this.world.addComponent(entity, createMemoryComponent(50, 300));
-    this.world.addComponent(entity, createScheduleComponent(this.createDefaultSchedule()));
+    // Let VillagerScheduleSystem load the matching profession template.
+    this.world.addComponent(entity, createScheduleComponent());
     this.world.addComponent(entity, createGoalComponent('idle', null, 1));
     this.world.addComponent(entity, createThreatComponent());
 
@@ -609,63 +609,6 @@ export class EntityFactory {
     const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
     
     return `${firstName} ${lastName}`;
-  }
-
-  /**
-   * Creates a default daily schedule for villagers.
-   */
-  private createDefaultSchedule(): ScheduleActivity[] {
-    return [
-      {
-        name: 'Sleep',
-        startHour: 22,
-        endHour: 6,
-        location: null,
-        behaviour: BehaviourState.Sleep
-      },
-      {
-        name: 'Breakfast',
-        startHour: 6,
-        endHour: 7,
-        location: null,
-        behaviour: BehaviourState.Eat
-      },
-      {
-        name: 'Work',
-        startHour: 7,
-        endHour: 12,
-        location: null,
-        behaviour: BehaviourState.Work
-      },
-      {
-        name: 'Lunch',
-        startHour: 12,
-        endHour: 13,
-        location: null,
-        behaviour: BehaviourState.Eat
-      },
-      {
-        name: 'Work',
-        startHour: 13,
-        endHour: 18,
-        location: null,
-        behaviour: BehaviourState.Work
-      },
-      {
-        name: 'Dinner',
-        startHour: 18,
-        endHour: 19,
-        location: null,
-        behaviour: BehaviourState.Eat
-      },
-      {
-        name: 'Socialize',
-        startHour: 19,
-        endHour: 22,
-        location: null,
-        behaviour: BehaviourState.Socialize
-      }
-    ];
   }
 
   /**

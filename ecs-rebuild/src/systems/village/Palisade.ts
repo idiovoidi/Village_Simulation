@@ -48,6 +48,8 @@ export interface PalisadeResult {
   barriers: Segment[];
   footprints: Circle[];
   gates: GateInfo[];
+  /** Wall line radius at an angle (the ring wobbles). */
+  radiusAt: (angle: number) => number;
 }
 
 const LOG_SPACING = 0.5;
@@ -156,7 +158,7 @@ export function buildPalisade(scene: any, opts: PalisadeOptions): PalisadeResult
     footprints.push({ x: p.x, z: p.z, r: 2.8 });
   }
 
-  return { meshes: batch.flush(), barriers, footprints, gates };
+  return { meshes: batch.flush(), barriers, footprints, gates, radiusAt };
 }
 
 /** Local frame: +Z points out of the village, X runs along the wall. */

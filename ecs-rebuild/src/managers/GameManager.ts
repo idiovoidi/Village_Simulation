@@ -472,7 +472,9 @@ export class GameManager {
       let spawned = 0;
       let guard = 0;
       while (spawned < config.zombieCount && guard++ < config.zombieCount * 6) {
-        const c = sample(config.villageRadius * 0.95, bowl * 0.78, (x, z) => dryAt(x, z, 1.5));
+        // Spawn clear of the palisade so the horde has to find a gate.
+        const minR = Math.max(config.villageRadius * 0.95, (this.villageSystem?.getWallRadius() ?? 0) + 5);
+        const c = sample(minR, bowl * 0.78, (x, z) => dryAt(x, z, 1.5));
         if (!c) break;
         const group = Math.min(config.zombieCount - spawned, 2 + Math.floor(Math.random() * 3));
         for (let g = 0; g < group; g++) {

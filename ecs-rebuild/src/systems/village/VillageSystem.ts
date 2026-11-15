@@ -20,6 +20,7 @@ import { Random } from '../../utils/Random.ts';
 import { PartBatch, villagePalette, streetLamp } from './VillageKit.ts';
 import { buildPalisade, type GateInfo, type Segment } from './Palisade.ts';
 import { buildPier } from './Pier.ts';
+import { VillageWall } from '../navigation/VillageWall.ts';
 import { garden, woodpile, workyard, bench, GARDEN_HALF_DEPTH, GARDEN_HALF_WIDTH } from './VillageDressing.ts';
 
 export interface VillageConfig {
@@ -278,6 +279,25 @@ export class VillageSystem extends System {
     this.barriers.push(...result.barriers);
     this.footprints.push(...result.footprints);
     this.gates = result.gates;
+
+    // Ground agents may only cross the palisade through a gate.
+    const { x: cx, z: cz } = this.centerOffset;
+    VillageWall.set({
+      cx,
+      cz,
+      radiusAt: result.radiusAt,
+      halfThickness: 1.0,
+      gates: result.gates.map((g) => ({ angle: g.angle, halfWidth: GATE_WIDTH / 2 - 0.5 })),
+      isSolidAt: (a) => {
+        const r = result.radiusAt(a);
+        return this.isDry(cx + Math.cos(a) * r, cz + Math.sin(a) * r, 0.1);
+      },
+    });
+  }
+
+  /** Mean radius of the palisade ring (0 before the village is built). */
+  getWallRadius(): number {
+    return this.wallRadius;
   }
 
   /** Builds the pier and returns where the shore road should end. */
@@ -819,6 +839,7 @@ export class VillageSystem extends System {
       this.scene?.onBeforeRenderObservable.remove(this.fountainObserver);
       this.fountainObserver = null;
     }
+    VillageWall.clear();
     for (const mesh of this.meshes) mesh?.dispose?.();
     this.meshes = [];
     this.roadSegments = [];

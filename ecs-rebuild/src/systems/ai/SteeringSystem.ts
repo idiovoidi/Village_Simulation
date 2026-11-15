@@ -28,6 +28,7 @@ import {
   distance
 } from '../../utils/Vector3Helpers.ts';
 import { TerrainSystem } from '../environment/TerrainSystem.ts';
+import { VillageWall } from '../navigation/VillageWall.ts';
 import { faceVelocity } from '../../utils/Orientation.ts';
 
 /**
@@ -82,7 +83,13 @@ export class SteeringSystem extends System {
       // Calculate steering force based on target
       let steeringForce: Vector3 = { x: 0, y: 0, z: 0 };
 
-      if (steering.target) {
+      // A goal on the far side of the palisade is reached through a gate.
+      const gateWaypoint = steering.target ? VillageWall.routeTarget(position, steering.target) : null;
+
+      if (gateWaypoint) {
+        const waypoint = { x: gateWaypoint.x, y: position.y, z: gateWaypoint.z };
+        steeringForce = this.calculateSeek(position, velocity, waypoint, velocity.maxSpeed);
+      } else if (steering.target) {
         // Determine behavior based on distance to target
         const distanceToTarget = distance(position, steering.target);
 
@@ -125,9 +132,20 @@ export class SteeringSystem extends System {
         velocity.vz *= scale;
       }
 
-      // Integrate position from velocity, refusing to wade into water or leave the bowl.
-      const nextX = position.x + velocity.vx * deltaTime;
-      const nextZ = position.z + velocity.vz * deltaTime;
+      // Integrate position from velocity, refusing to wade into water, leave the
+      // bowl or pass through the palisade (blocked steps slide along it).
+      const step = VillageWall.constrainStep(
+        position.x,
+        position.z,
+        position.x + velocity.vx * deltaTime,
+        position.z + velocity.vz * deltaTime
+      );
+      if (step.blocked && deltaTime > 0) {
+        velocity.vx = (step.x - position.x) / deltaTime;
+        velocity.vz = (step.z - position.z) / deltaTime;
+      }
+      const nextX = step.x;
+      const nextZ = step.z;
       const nextH = TerrainSystem.getTerrainHeight(nextX, nextZ);
       const { waterLevel, bowlRadius } = TerrainSystem.getActiveConfig();
       const blocked = nextH < waterLevel + 0.35 || Math.hypot(nextX, nextZ) > bowlRadius * 0.85;

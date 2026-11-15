@@ -10,6 +10,7 @@
 
 import {
   sharedMaterial,
+  windowGlassMaterial,
   hashPosition,
   createGableRoof,
   createGableEnds,
@@ -69,11 +70,7 @@ export class HouseModel {
     const roofMat = sharedMaterial(s, `house_roof_${roofIdx}`, ROOFS[roofIdx], { twoSided: true });
     const stoneMat = sharedMaterial(s, 'house_stone', [0.5, 0.49, 0.47]);
     const woodMat = sharedMaterial(s, 'house_wood', [0.3, 0.2, 0.13]);
-    const glassMat = sharedMaterial(s, 'house_window', [0.45, 0.6, 0.72], {
-      specular: 0.9,
-      specularPower: 64,
-      emissive: [0, 0, 0],
-    });
+    const glassMat = windowGlassMaterial(s);
 
     const width = 4.2 + h1 * 0.8;
     const depth = 4 + h2 * 0.6;

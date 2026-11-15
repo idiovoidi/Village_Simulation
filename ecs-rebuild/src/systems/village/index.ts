@@ -6,4 +6,4 @@
 
 export { VillageSystem } from './VillageSystem.ts';
 
-export type { VillageConfig } from './VillageSystem.ts';
+export type { VillageConfig, CivicSpots } from './VillageSystem.ts';

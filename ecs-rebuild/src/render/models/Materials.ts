@@ -45,6 +45,18 @@ export function sharedMaterial(
   return mat;
 }
 
+/**
+ * Window glass. LightingManager warms this material's emissive at night, so
+ * anything built from it (house windows, lanterns) glows after dusk.
+ */
+export function windowGlassMaterial(scene: any): any {
+  return sharedMaterial(scene, 'house_window', [0.45, 0.6, 0.72], {
+    specular: 0.9,
+    specularPower: 64,
+    emissive: [0, 0, 0],
+  });
+}
+
 /** Deterministic 0..1 hash from world position, so models vary but stay stable. */
 export function hashPosition(x: number, z: number, salt = 0): number {
   const s = Math.sin(x * 127.1 + z * 311.7 + salt * 74.7) * 43758.5453;

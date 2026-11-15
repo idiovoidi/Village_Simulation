@@ -367,23 +367,19 @@ export class GameManager {
       { id: 'plaza_market', position: { x: 3, y: h(3, 0), z: 0 }, type: 'market' },
     ];
 
-    const marketX = config.villageRadius * 0.4;
-    const marketZ = config.villageRadius * 0.2;
-    pois.push({ id: 'market_field', position: { x: marketX, y: h(marketX, marketZ), z: marketZ }, type: 'market' });
-
-    // Wells and work spots around the inner ring
-    for (let i = 0; i < 3; i++) {
-      const a = (i / 3) * Math.PI * 2 + 0.5;
-      const x = Math.cos(a) * config.villageRadius * 0.32;
-      const z = Math.sin(a) * config.villageRadius * 0.32;
+    // Market, wells and work yards come from the village layout, which nudges
+    // them clear of streets and the shoreline.
+    const civic = this.villageSystem.getCivicSpots();
+    if (civic.market) {
+      const { x, z } = civic.market;
+      pois.push({ id: 'market_field', position: { x, y: h(x, z), z }, type: 'market' });
+    }
+    civic.wells.forEach(({ x, z }, i) => {
       pois.push({ id: `well_${i}`, position: { x, y: h(x, z), z }, type: 'well' });
-    }
-    for (let i = 0; i < 5; i++) {
-      const a = (i / 5) * Math.PI * 2 + 0.2;
-      const x = Math.cos(a) * config.villageRadius * 0.7;
-      const z = Math.sin(a) * config.villageRadius * 0.7;
+    });
+    civic.work.forEach(({ x, z }, i) => {
       if (h(x, z) > config.waterLevel + 1) pois.push({ id: `work_${i}`, position: { x, y: h(x, z), z }, type: 'work' });
-    }
+    });
 
     this.villageSystem.getHouses().forEach((houseId, index) => {
       const pos = this.world.getComponent<PositionComponent>(houseId, 'Position');
